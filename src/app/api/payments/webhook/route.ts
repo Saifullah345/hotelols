@@ -2,15 +2,32 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import Stripe from 'stripe'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+function getStripeConfig() {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+  const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+  if (!stripeSecretKey || !stripeWebhookSecret) return null
+
+  return {
+    stripe: new Stripe(stripeSecretKey),
+    stripeWebhookSecret,
+  }
+}
 
 export async function POST(request: Request) {
+  const stripeConfig = getStripeConfig()
+  if (!stripeConfig) {
+    return NextResponse.json({ error: 'Stripe is not configured' }, { status: 500 })
+  }
+
   const body = await request.text()
-  const sig = request.headers.get('stripe-signature')!
+  const sig = request.headers.get('stripe-signature')
+  if (!sig) {
+    return NextResponse.json({ error: 'Missing signature' }, { status: 400 })
+  }
 
   let event: Stripe.Event
   try {
-    event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!)
+    event = stripeConfig.stripe.webhooks.constructEvent(body, sig, stripeConfig.stripeWebhookSecret)
   } catch {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }

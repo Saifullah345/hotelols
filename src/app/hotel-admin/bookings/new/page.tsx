@@ -51,7 +51,15 @@ export default function NewBookingPage() {
       .from('rooms')
       .select('id, room_number, floor, price_per_night, room_type:room_types(name)')
       .order('room_number')
-      .then(({ data }) => { if (data) setRooms(data as Room[]) })
+      .then(({ data }) => { 
+        if (data) {
+          const rooms = (data as any[]).map(room => ({
+            ...room,
+            room_type: room.room_type?.[0] || null
+          }))
+          setRooms(rooms as Room[])
+        }
+      })
   }, [])
 
   // Recalculate total when dates or room changes

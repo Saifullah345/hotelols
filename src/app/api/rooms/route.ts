@@ -32,6 +32,8 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { data: profile } = await supabase.from('profiles').select('role, tenant_id').eq('id', user.id).single()
+  if (!profile) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
   if (!['super_admin', 'hotel_admin'].includes(profile?.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
