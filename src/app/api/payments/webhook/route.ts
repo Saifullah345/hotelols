@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   const supabase = await createAdminClient()
 
   if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as Stripe.CheckoutSession
+    const session = event.data.object as Stripe.Checkout.Session
     const bookingId = session.metadata?.booking_id
 
     if (bookingId) {
