@@ -3,7 +3,7 @@ name: Deploy Next.js to CloudPanel
 on:
   push:
     branches:
-      - main  # Triggers whenever you push code to your main branch
+      - main
 
 jobs:
   deploy:
@@ -21,19 +21,14 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         port: 22 
         script: |
-          # Navigate to the project directory
           cd ~/htdocs/hotelmanagement.n6solution.com/Hotelos
-
-          # Pull latest code
           git pull origin main
 
-          # Load NVM (Node Version Manager) environment path
           export NVM_DIR="$HOME/.nvm"
           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
-          # Install dependencies and build production assets
           npm install
           npm run build
 
-          # Safely restart your PM2 application instance
-          pm2 restart hotel-os --update-env || pm2 start npm --name "hotel-os" -- run dev -- -p 3002
+          # Production optimized restart:
+          pm2 restart hotel-os --update-env || pm2 start npm --name "hotel-os" -- run start -- -p 3002
