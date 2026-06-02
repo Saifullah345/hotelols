@@ -20,10 +20,27 @@ export async function POST(request: Request) {
   if (!hotelId) return NextResponse.json({ error: 'No hotel assigned to your account' }, { status: 400 })
 
   const body = await request.json()
-  const { guest_user_id, room_id, check_in, check_out, adults, children, special_requests, status } = body
+  const {
+    guest_user_id,
+    guest_name,
+    guest_phone,
+    room_id,
+    check_in,
+    check_out,
+    adults,
+    children,
+    special_requests,
+    status,
+    source = 'walk_in',
+  } = body
 
-  if (!guest_user_id || !room_id || !check_in || !check_out) {
-    return NextResponse.json({ error: 'guest_user_id, room_id, check_in and check_out are required' }, { status: 400 })
+  // Either a registered guest or a walk-in name is required
+  if (!guest_user_id && !guest_name) {
+    return NextResponse.json({ error: 'Provide guest_user_id or guest_name' }, { status: 400 })
+  }
+
+  if (!room_id || !check_in || !check_out) {
+    return NextResponse.json({ error: 'room_id, check_in and check_out are required' }, { status: 400 })
   }
 
   const checkInDate = new Date(check_in)
@@ -32,7 +49,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Check-out must be after check-in' }, { status: 400 })
   }
 
-  // Check for conflicting bookings on this room
+  // Verify room belongs to this hotel
+  const { data: room } = await supabase
+    .from('rooms')
+    .select('id, price_per_night, hotel_id')
+    .eq('id', room_id)
+    .single()
+
+  if (!room || room.hotel_id !== hotelId) {
+    return NextResponse.json({ error: 'Room not found' }, { status: 404 })
+  }
+
+  // Check for conflicts
   const { data: conflicts } = await supabase
     .from('bookings')
     .select('id')
@@ -44,20 +72,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Room is not available for the selected dates' }, { status: 409 })
   }
 
-  const { data: room } = await supabase
-    .from('rooms')
-    .select('price_per_night')
-    .eq('id', room_id)
-    .single()
-
   const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / 86400000)
-  const total_amount = nights * (room?.price_per_night ?? 0)
+  const total_amount = nights * (room.price_per_night ?? 0)
   const guests = (adults ?? 1) + (children ?? 0)
 
   const { data: booking, error } = await supabase.from('bookings').insert({
     hotel_id: hotelId,
     room_id,
-    user_id: guest_user_id,
+    user_id: guest_user_id ?? null,
+    guest_name: guest_user_id ? null : (guest_name ?? null),
+    guest_phone: guest_user_id ? null : (guest_phone ?? null),
     check_in,
     check_out,
     guests,
@@ -65,6 +89,7 @@ export async function POST(request: Request) {
     children: children ?? 0,
     special_requests: special_requests ?? null,
     status: status ?? 'confirmed',
+    source,
     total_amount,
   }).select().single()
 

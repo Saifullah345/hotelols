@@ -7,7 +7,8 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import {
   Building2, LayoutDashboard, BedDouble, CalendarCheck, Users, BarChart3,
-  CreditCard, Star, LogOut, Settings, Hotel, ClipboardList, UserCheck, Search
+  CreditCard, Star, LogOut, Settings, Hotel, ClipboardList, UserCheck, Search,
+  MessageCircle,
 } from 'lucide-react'
 
 interface NavItem {
@@ -28,6 +29,7 @@ const hotelAdminNav: NavItem[] = [
   { label: 'Dashboard', href: '/hotel-admin/dashboard', icon: LayoutDashboard },
   { label: 'Rooms', href: '/hotel-admin/rooms', icon: BedDouble },
   { label: 'Bookings', href: '/hotel-admin/bookings', icon: CalendarCheck },
+  { label: 'WhatsApp', href: '/hotel-admin/whatsapp', icon: MessageCircle },
   { label: 'Staff', href: '/hotel-admin/staff', icon: Users },
   { label: 'Reports', href: '/hotel-admin/reports', icon: BarChart3 },
   { label: 'Reviews', href: '/hotel-admin/reviews', icon: Star },

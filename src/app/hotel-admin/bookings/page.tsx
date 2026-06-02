@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Calendar } from 'lucide-react'
+import { Plus, Calendar, DoorOpen, Phone, MessageCircle, Globe } from 'lucide-react'
 import BookingActions from './BookingActions'
 
 export const metadata = { title: 'Bookings' }
@@ -9,6 +9,13 @@ export const metadata = { title: 'Bookings' }
 const statusBadge: Record<string, string> = {
   pending: 'badge-yellow', confirmed: 'badge-blue',
   checked_in: 'badge-green', checked_out: 'badge-gray', cancelled: 'badge-red',
+}
+
+const sourceConfig: Record<string, { label: string; icon: React.ElementType; cls: string }> = {
+  online:   { label: 'Online',   icon: Globe,          cls: 'text-purple-600 bg-purple-50' },
+  whatsapp: { label: 'WhatsApp', icon: MessageCircle,  cls: 'text-green-600 bg-green-50' },
+  phone:    { label: 'Phone',    icon: Phone,          cls: 'text-blue-600 bg-blue-50' },
+  walk_in:  { label: 'Walk-in',  icon: DoorOpen,       cls: 'text-orange-600 bg-orange-50' },
 }
 
 export default async function BookingsPage({
@@ -74,7 +81,7 @@ export default async function BookingsPage({
               <th className="table-header">Room</th>
               <th className="table-header">Check-in</th>
               <th className="table-header">Check-out</th>
-              <th className="table-header">Guests</th>
+              <th className="table-header">Source</th>
               <th className="table-header">Amount</th>
               <th className="table-header">Status</th>
               <th className="table-header">Actions</th>
@@ -84,8 +91,12 @@ export default async function BookingsPage({
             {bookings?.map(b => (
               <tr key={b.id} className="hover:bg-gray-50">
                 <td className="table-cell">
-                  <p className="font-medium">{(b.user as { full_name?: string })?.full_name}</p>
-                  <p className="text-xs text-gray-500">{(b.user as { email?: string })?.email}</p>
+                  <p className="font-medium">
+                    {(b.user as { full_name?: string })?.full_name ?? (b as { guest_name?: string }).guest_name ?? '—'}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {(b.user as { email?: string })?.email ?? (b as { guest_phone?: string }).guest_phone ?? ''}
+                  </p>
                 </td>
                 <td className="table-cell">
                   <p>Room {(b.room as { room_number?: string })?.room_number}</p>
@@ -96,7 +107,17 @@ export default async function BookingsPage({
                   {new Date(b.check_in).toLocaleDateString()}
                 </td>
                 <td className="table-cell text-gray-500">{new Date(b.check_out).toLocaleDateString()}</td>
-                <td className="table-cell text-gray-500">{b.guests}</td>
+                <td className="table-cell">
+                  {(() => {
+                    const src = sourceConfig[(b as { source?: string }).source ?? 'online'] ?? sourceConfig.online
+                    const Icon = src.icon
+                    return (
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${src.cls}`}>
+                        <Icon className="h-3 w-3" />{src.label}
+                      </span>
+                    )
+                  })()}
+                </td>
                 <td className="table-cell font-semibold">${b.total_amount}</td>
                 <td className="table-cell">
                   <span className={statusBadge[b.status] ?? 'badge-gray'}>{b.status.replace('_', ' ')}</span>

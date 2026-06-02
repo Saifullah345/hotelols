@@ -1,10 +1,13 @@
 export type UserRole = 'super_admin' | 'hotel_admin' | 'staff' | 'customer'
 export type RoomStatus = 'available' | 'booked' | 'maintenance' | 'cleaning'
 export type BookingStatus = 'pending' | 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled'
+export type BookingSource = 'online' | 'whatsapp' | 'phone' | 'walk_in'
 export type HotelStatus = 'active' | 'suspended' | 'pending'
 export type PlanName = 'basic' | 'pro' | 'enterprise'
 export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded'
 export type PaymentMethod = 'online' | 'offline'
+export type WhatsAppBotState = 'idle' | 'awaiting_checkin' | 'awaiting_checkout' | 'awaiting_room' | 'confirming'
+export type ConversationStatus = 'open' | 'resolved'
 
 export interface Profile {
   id: string
@@ -52,6 +55,9 @@ export interface Hotel {
   amenities: string[]
   latitude?: number
   longitude?: number
+  whatsapp_number?: string
+  whatsapp_phone_number_id?: string
+  whatsapp_access_token?: string
   created_at: string
   updated_at: string
   plan?: Plan
@@ -87,13 +93,16 @@ export interface Booking {
   id: string
   hotel_id: string
   room_id: string
-  user_id: string
+  user_id: string | null
   check_in: string
   check_out: string
   guests: number
   adults: number
   children: number
   status: BookingStatus
+  source: BookingSource
+  guest_name?: string
+  guest_phone?: string
   total_amount: number
   special_requests?: string
   cancellation_reason?: string
@@ -103,6 +112,34 @@ export interface Booking {
   user?: Profile
   hotel?: Hotel
   payment?: Payment
+}
+
+export interface WhatsAppConversation {
+  id: string
+  hotel_id: string
+  guest_phone: string
+  guest_name?: string
+  wa_contact_id: string
+  booking_id?: string
+  status: ConversationStatus
+  bot_state: WhatsAppBotState
+  bot_context: Record<string, unknown>
+  last_message_at: string
+  created_at: string
+  booking?: Booking
+  messages?: WhatsAppMessage[]
+}
+
+export interface WhatsAppMessage {
+  id: string
+  conversation_id: string
+  hotel_id: string
+  direction: 'inbound' | 'outbound'
+  content: string
+  message_type: 'text' | 'template' | 'image' | 'document'
+  wa_message_id?: string
+  status: 'sent' | 'delivered' | 'read' | 'failed'
+  created_at: string
 }
 
 export interface Payment {
