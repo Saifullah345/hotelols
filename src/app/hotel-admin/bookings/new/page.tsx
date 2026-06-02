@@ -193,7 +193,7 @@ export default function NewBookingPage() {
   const today = new Date().toISOString().split('T')[0]
 
   // Shared room/dates/details block renderer
-  const RoomDatesBlock = (reg: ReturnType<typeof useForm>['register'], errs: Record<string, { message?: string }>, ci: string) => (
+  const RoomDatesBlock = (reg: any, errs: Record<string, { message?: string }>, ci: string) => (
     <>
       <div className="card p-5 space-y-4">
         <p className="text-sm font-semibold text-gray-700">Room &amp; Dates</p>
