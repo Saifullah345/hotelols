@@ -16,8 +16,24 @@ export default async function UsersPage() {
   const supabase = await createClient()
   const { data: users } = await supabase
     .from('profiles')
-    .select('*, hotel:hotels(name)')
+    .select('id, full_name, email, role, created_at, tenant_id')
     .order('created_at', { ascending: false })
+
+  const tenantIds = Array.from(
+    new Set((users ?? []).map(user => user.tenant_id).filter(Boolean) as string[])
+  )
+
+  const hotelNameById = new Map<string, string>()
+  if (tenantIds.length > 0) {
+    const { data: hotels } = await supabase
+      .from('hotels')
+      .select('id, name')
+      .in('id', tenantIds)
+
+    for (const hotel of hotels ?? []) {
+      hotelNameById.set(hotel.id, hotel.name)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -61,7 +77,7 @@ export default async function UsersPage() {
                   </span>
                 </td>
                 <td className="table-cell text-gray-500 text-sm">
-                  {(user.hotel as { name?: string })?.name ?? '—'}
+                  {user.tenant_id ? (hotelNameById.get(user.tenant_id) ?? '—') : '—'}
                 </td>
                 <td className="table-cell text-gray-500 text-sm">
                   {new Date(user.created_at).toLocaleDateString()}
