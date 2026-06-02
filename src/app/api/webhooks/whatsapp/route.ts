@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 // Meta WhatsApp Cloud API — webhook verification
@@ -35,11 +35,7 @@ export async function POST(request: Request) {
   if (!phoneNumberId) return NextResponse.json({ status: 'ok' })
 
   // Service-role client — webhook runs outside user session
-  const { createClient: createServiceClient } = await import('@supabase/supabase-js')
-  const supabase = createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  )
+  const supabase = await createAdminClient()
 
   // Find the hotel by whatsapp_phone_number_id
   const { data: hotel } = await supabase
@@ -123,7 +119,7 @@ export async function POST(request: Request) {
 // Bot state machine
 // ──────────────────────────────────────────────────────────────
 async function handleBotMessage(
-  supabase: ReturnType<typeof import('@supabase/supabase-js').createClient>,
+  supabase: Awaited<ReturnType<typeof createAdminClient>>,
   hotel: { id: string; name: string },
   conv: Record<string, unknown>,
   text: string,
@@ -225,7 +221,9 @@ async function handleBotMessage(
 
     const nights = parseInt(ctx.nights ?? '1', 10)
     const total  = (room?.price_per_night ?? 0) * nights
-    const typeName = Array.isArray(room?.room_type) ? room.room_type[0]?.name : (room?.room_type as { name?: string } | null)?.name
+    const typeName = Array.isArray(room?.room_type)
+      ? room.room_type[0]?.name
+      : (room?.room_type as { name?: string } | null | undefined)?.name
 
     await setState('confirming', {
       check_in: ctx.check_in,
