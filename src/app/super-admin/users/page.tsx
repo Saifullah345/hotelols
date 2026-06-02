@@ -40,7 +40,7 @@ export default async function UsersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">All Users</h2>
-          <p className="text-gray-500 text-sm mt-1">{users?.length ?? 0} registered users</p>
+          <p className="text-gray-500 text-sm mt-1">{users?.length ?? 0} Registered users</p>
         </div>
         <Link href="/super-admin/users/add" className="btn-primary flex items-center gap-2 text-sm">
           <UserPlus className="h-4 w-4" /> Add User
