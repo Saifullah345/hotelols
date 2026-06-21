@@ -91,6 +91,15 @@ export default function NewHotelPage() {
 
     if (error) { toast.error(error.message); return }
 
+    // Seed default room types so the Add Room dropdown is never empty
+    const { error: roomTypesError } = await supabase.from('room_types').insert([
+      { hotel_id: hotelId, name: 'Standard Room', description: 'Comfortable standard room', capacity: 2, amenities: ['WiFi', 'TV', 'AC', 'Safe'] },
+      { hotel_id: hotelId, name: 'Deluxe Room', description: 'Spacious deluxe room with city view', capacity: 2, amenities: ['WiFi', 'TV', 'AC', 'Safe', 'Minibar', 'Balcony'] },
+      { hotel_id: hotelId, name: 'Suite', description: 'Luxurious suite with separate living area', capacity: 4, amenities: ['WiFi', 'TV', 'AC', 'Safe', 'Minibar', 'Balcony', 'Jacuzzi', 'Kitchen'] },
+      { hotel_id: hotelId, name: 'Presidential Suite', description: 'Ultimate luxury experience', capacity: 6, amenities: ['WiFi', 'TV', 'AC', 'Safe', 'Minibar', 'Balcony', 'Jacuzzi', 'Kitchen', 'Butler service'] },
+    ])
+    if (roomTypesError) toast.error('Hotel created, but default room types failed: ' + roomTypesError.message)
+
     // Assign owner role + tenant to the hotel
     await supabase.from('profiles').update({ role: 'hotel_admin', tenant_id: hotelId }).eq('id', ownerId)
 
