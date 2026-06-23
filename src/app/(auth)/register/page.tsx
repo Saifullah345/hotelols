@@ -7,6 +7,7 @@ import { z } from 'zod'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import { getSiteUrl } from '@/lib/supabase/env'
 import { Loader2, Eye, EyeOff, MailCheck } from 'lucide-react'
 
 const schema = z.object({
@@ -32,10 +33,12 @@ export default function RegisterPage() {
     const { error } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
-      // options: {
-      //   emailRedirectTo: `${location.origin}/auth/callback`,
-      //   data: { full_name: data.full_name, role: 'customer' },
-      // },
+      options: {
+        // Point the confirmation link at the deployed app instead of localhost.
+        // The resulting URL must be in Supabase's Auth → URL Configuration → Redirect URLs.
+        emailRedirectTo: `${getSiteUrl()}/auth/callback`,
+        data: { full_name: data.full_name, role: 'customer' },
+      },
     })
 
     if (error) {

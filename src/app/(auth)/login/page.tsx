@@ -28,6 +28,9 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null)
   const [resending, setResending] = useState(false)
+  // Stays true from a successful sign-in through the navigation that follows,
+  // so the button keeps its loading/disabled state until the page changes.
+  const [redirecting, setRedirecting] = useState(false)
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
@@ -60,10 +63,14 @@ export default function LoginPage() {
       return
     }
 
+    toast.success('Logged in successfully')
+    setRedirecting(true)
     const redirect = profile?.role ? roleRedirects[profile.role] : '/'
     router.push(redirect)
     router.refresh()
   }
+
+  const busy = isSubmitting || redirecting
 
   const resendVerification = async () => {
     if (!unverifiedEmail) return
@@ -138,9 +145,9 @@ export default function LoginPage() {
           {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>}
         </div>
 
-        <button type="submit" disabled={isSubmitting} className="btn-primary w-full flex items-center justify-center gap-2">
-          {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-          {isSubmitting ? 'Signing in...' : 'Sign In'}
+        <button type="submit" disabled={busy} className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed">
+          {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+          {redirecting ? 'Redirecting...' : isSubmitting ? 'Signing in...' : 'Sign In'}
         </button>
       </form>
 

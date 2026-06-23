@@ -1,11 +1,12 @@
 'use client'
 
-import { Bell, User, LogOut, Settings } from 'lucide-react'
+import { User, LogOut, Settings } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { Profile } from '@/types'
+import { NotificationBell } from './NotificationBell'
 
 interface HeaderProps {
   title: string
@@ -45,10 +46,7 @@ export function Header({ title, profile }: HeaderProps) {
     <header className="h-16 bg-white border-b border-gray-200 px-6 flex items-center justify-between sticky top-0 z-10">
       <h1 className="text-lg font-semibold text-gray-900">{title}</h1>
       <div className="flex items-center gap-3">
-        <button className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
-          <Bell className="h-5 w-5" />
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full" />
-        </button>
+        <NotificationBell userId={profile?.id} />
 
         <div className="relative" ref={dropdownRef}>
           <button

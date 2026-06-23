@@ -20,7 +20,7 @@ const schema = z.object({
   full_name: z.string().min(2, 'Full name is required'),
   email: z.string().email('Valid email required'),
   password: z.string().optional(),
-  role: z.enum(['super_admin', 'hotel_admin', 'staff', 'customer']),
+  role: z.enum(['hotel_admin', 'staff', 'customer']),
   hotel_id: z.string().optional(),
   department: z.string().optional(),
   position: z.string().optional(),
@@ -126,8 +126,10 @@ export default function AddUserPage() {
               <option value="customer">Customer</option>
               <option value="staff">Staff</option>
               <option value="hotel_admin">Hotel Admin</option>
-              <option value="super_admin">Super Admin</option>
             </select>
+            <p className="text-xs text-gray-400 mt-1">
+              The platform has a single super admin, managed directly in Supabase.
+            </p>
           </div>
 
           {role !== 'customer' && (
