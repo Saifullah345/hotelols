@@ -24,6 +24,9 @@ const schema = z.object({
   hotel_id: z.string().optional(),
   department: z.string().optional(),
   position: z.string().optional(),
+  country: z.string().optional(),
+  city: z.string().optional(),
+  address: z.string().optional(),
 }).superRefine((d, ctx) => {
   if (d.role !== 'customer' && !d.password) {
     ctx.addIssue({ code: 'custom', path: ['password'], message: 'Password is required' })
@@ -197,9 +200,25 @@ export default function AddUserPage() {
         </div>
 
         {role === 'customer' && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
-            An invitation email will be sent. The customer must verify their email before they can log in.
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="label">Country</label>
+                <input {...register('country')} className="input" placeholder="United States" />
+              </div>
+              <div>
+                <label className="label">City</label>
+                <input {...register('city')} className="input" placeholder="New York" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="label">Address</label>
+                <textarea {...register('address')} rows={2} className="input resize-none" placeholder="Street address, apartment, etc." />
+              </div>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+              An invitation email will be sent. The customer must verify their email before they can log in.
+            </div>
+          </>
         )}
 
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">

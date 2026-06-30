@@ -12,7 +12,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- ============================================================
 CREATE TABLE plans (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name TEXT NOT NULL CHECK (name IN ('basic', 'pro', 'enterprise')),
+  name TEXT NOT NULL,
   max_rooms INTEGER NOT NULL DEFAULT 20, -- -1 = unlimited
   max_staff INTEGER NOT NULL DEFAULT 5,  -- -1 = unlimited
   price_monthly NUMERIC(10,2) NOT NULL DEFAULT 29.00,
@@ -42,6 +42,9 @@ CREATE TABLE profiles (
   tenant_id UUID,  -- references hotels.id (set after hotel created)
   avatar_url TEXT,
   phone TEXT,
+  country TEXT,
+  city TEXT,
+  address TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

@@ -94,5 +94,22 @@ export async function POST(request: Request) {
   }).select().single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+  const paymentMethod = typeof body?.payment_method === 'string' ? body.payment_method : 'offline'
+  const paymentStatus = (status ?? 'confirmed') === 'confirmed' ? 'completed' : 'pending'
+
+  const { error: paymentError } = await supabase.from('payments').insert({
+    booking_id: booking.id,
+    hotel_id: hotelId,
+    user_id: guest_user_id ?? null,
+    amount: total_amount,
+    currency: 'USD',
+    status: paymentStatus,
+    payment_method: paymentMethod,
+    paid_at: paymentStatus === 'completed' ? new Date().toISOString() : null,
+  })
+
+  if (paymentError) return NextResponse.json({ error: paymentError.message }, { status: 400 })
+
   return NextResponse.json(booking, { status: 201 })
 }

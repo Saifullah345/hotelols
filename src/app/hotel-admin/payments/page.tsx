@@ -60,6 +60,7 @@ export default async function PaymentsPage() {
               <th className="table-header">Method</th>
               <th className="table-header">Status</th>
               <th className="table-header">Date</th>
+              <th className="table-header text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -83,10 +84,26 @@ export default async function PaymentsPage() {
                 <td className="table-cell text-gray-500 text-sm">
                   {new Date(p.created_at).toLocaleDateString()}
                 </td>
+                <td className="table-cell text-right">
+                  {p.status === 'pending' && (
+                    <div className="flex items-center justify-end gap-2">
+                      <form action="/api/payments/confirm" method="post">
+                        <input type="hidden" name="paymentId" value={p.id} />
+                        <input type="hidden" name="action" value="complete" />
+                        <button type="submit" className="btn-primary text-xs py-1 px-3">Confirm</button>
+                      </form>
+                      <form action="/api/payments/confirm" method="post">
+                        <input type="hidden" name="paymentId" value={p.id} />
+                        <input type="hidden" name="action" value="fail" />
+                        <button type="submit" className="btn-danger text-xs py-1 px-3">Reject</button>
+                      </form>
+                    </div>
+                  )}
+                </td>
               </tr>
             ))}
             {!payments?.length && (
-              <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-500">No payments yet</td></tr>
+              <tr><td colSpan={8} className="px-4 py-12 text-center text-gray-500">No payments yet</td></tr>
             )}
           </tbody>
         </table>

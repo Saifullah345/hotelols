@@ -51,7 +51,7 @@ export async function POST(request: Request) {
   const nights = Math.ceil((new Date(check_out).getTime() - new Date(check_in).getTime()) / 86400000)
   const total_amount = nights * (room?.price_per_night ?? 0)
 
-  const { data, error } = await supabase.from('bookings').insert({
+  const { data: booking, error } = await supabase.from('bookings').insert({
     ...body,
     user_id: user.id,
     hotel_id,
@@ -60,5 +60,18 @@ export async function POST(request: Request) {
   }).select().single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json(data, { status: 201 })
+
+  const { error: paymentError } = await supabase.from('payments').insert({
+    booking_id: booking.id,
+    hotel_id,
+    user_id: user.id,
+    amount: total_amount,
+    currency: 'USD',
+    status: 'pending',
+    payment_method: 'online',
+  })
+
+  if (paymentError) return NextResponse.json({ error: paymentError.message }, { status: 400 })
+
+  return NextResponse.json(booking, { status: 201 })
 }

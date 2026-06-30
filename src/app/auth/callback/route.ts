@@ -21,9 +21,15 @@ export async function GET(request: Request) {
       if (next) return NextResponse.redirect(`${origin}${next}`)
 
       const { data: { user } } = await supabase.auth.getUser()
-      const { data: profile } = user
-        ? await supabase.from('profiles').select('role').eq('id', user.id).single()
-        : { data: null }
+      let profile: { role?: string } | null = null
+      if (user) {
+        try {
+          const result = await supabase.from('profiles').select('role').eq('id', user.id).single()
+          profile = result.data ?? null
+        } catch {
+          profile = null
+        }
+      }
       const dest = profile?.role ? roleRedirects[profile.role] ?? '/' : '/'
       return NextResponse.redirect(`${origin}${dest}`)
     }

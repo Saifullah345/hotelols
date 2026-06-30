@@ -34,7 +34,7 @@ export default async function BookingsPage({
 
   let query = supabase
     .from('bookings')
-    .select('*, user:profiles(full_name, email), room:rooms(room_number, room_type:room_types(name))')
+    .select('*, user:profiles(full_name, email, city, country), room:rooms(room_number, room_type:room_types(name))')
     .eq('hotel_id', tenantId)
     .order('created_at', { ascending: false })
 
@@ -97,6 +97,11 @@ export default async function BookingsPage({
                   <p className="text-xs text-gray-500">
                     {(b.user as { email?: string })?.email ?? (b as { guest_phone?: string }).guest_phone ?? ''}
                   </p>
+                  {(() => {
+                    const u = b.user as { city?: string; country?: string } | null
+                    const loc = [u?.city, u?.country].filter(Boolean).join(', ')
+                    return loc ? <p className="text-xs text-gray-400">{loc}</p> : null
+                  })()}
                 </td>
                 <td className="table-cell">
                   <p>Room {(b.room as { room_number?: string })?.room_number}</p>

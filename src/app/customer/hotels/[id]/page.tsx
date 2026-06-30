@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import { MapPin, Star, Clock, Phone, Mail, BedDouble } from 'lucide-react'
+import Image from 'next/image'
 import BookRoomButton from './BookRoomButton'
 
 export default async function HotelDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -37,8 +38,14 @@ export default async function HotelDetailPage({ params }: { params: Promise<{ id
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Hotel Header */}
       <div className="card overflow-hidden">
-        <div className="h-64 bg-gradient-to-br from-primary-100 to-primary-300 flex items-center justify-center">
-          <span className="text-6xl">🏨</span>
+        <div className="relative h-64 overflow-hidden bg-gradient-to-br from-primary-100 to-primary-300">
+          {hotel.cover_image ? (
+            <Image src={hotel.cover_image} alt={hotel.name} fill className="object-cover" unoptimized />
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <span className="text-6xl">🏨</span>
+            </div>
+          )}
         </div>
         <div className="p-6">
           <div className="flex items-start justify-between mb-3">

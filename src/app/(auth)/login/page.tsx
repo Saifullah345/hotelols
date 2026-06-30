@@ -8,7 +8,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
-import { Loader2, Eye, EyeOff, MailCheck } from 'lucide-react'
+import { Loader2, Eye, EyeOff, MailCheck, ShieldCheck } from 'lucide-react'
 
 const schema = z.object({
   email: z.string().email('Invalid email'),
@@ -28,49 +28,103 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null)
   const [resending, setResending] = useState(false)
-  // Stays true from a successful sign-in through the navigation that follows,
-  // so the button keeps its loading/disabled state until the page changes.
+  // Stays true from a successful sign-in through the navigation that follows.
   const [redirecting, setRedirecting] = useState(false)
+
+  // OTP step state
+  const [creds, setCreds] = useState<FormData | null>(null)
+  const [otp, setOtp] = useState('')
+  const [verifying, setVerifying] = useState(false)
+  const [otpResending, setOtpResending] = useState(false)
+
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
 
-  const onSubmit = async (data: FormData) => {
+  // Establishes the real session client-side and routes by role.
+  const completeLogin = async (data: FormData) => {
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({
-      email: data.email,
-      password: data.password,
-    })
-
-    if (error) {
-      toast.error(error.message)
-      return
-    }
+    const { error } = await supabase.auth.signInWithPassword({ email: data.email, password: data.password })
+    if (error) { toast.error(error.message); return false }
 
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    // Customers added by admin must verify their email before accessing the platform
-    if (profile?.role === 'customer' && !user.email_confirmed_at) {
-      await supabase.auth.signOut()
-      setUnverifiedEmail(data.email)
-      return
+    let profile: { role?: string } | null = null
+    if (user) {
+      try {
+        const result = await supabase.from('profiles').select('role').eq('id', user.id).single()
+        profile = result.data ?? null
+      } catch {
+        profile = null
+      }
     }
 
     toast.success('Logged in successfully')
     setRedirecting(true)
-    const redirect = profile?.role ? roleRedirects[profile.role] : '/'
-    router.push(redirect)
+    router.push(profile?.role ? roleRedirects[profile.role] ?? '/' : '/')
     router.refresh()
+    return true
   }
 
-  const busy = isSubmitting || redirecting
+  const onSubmit = async (data: FormData) => {
+    // Step 1: verify credentials server-side. Customers get an emailed OTP;
+    // everyone else signs in straight away.
+    const res = await fetch('/api/auth/otp/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    const json = await res.json().catch(() => ({}))
+
+    if (!res.ok) {
+      toast.error(json.error ?? 'Unable to sign in')
+      return
+    }
+    if (json.needsEmailVerification) {
+      setUnverifiedEmail(data.email)
+      return
+    }
+    if (json.otpRequired) {
+      setCreds(data)
+      setOtp('')
+      toast.success('We emailed you a 6-digit verification code')
+      return
+    }
+    await completeLogin(data)
+  }
+
+  const verifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!creds || otp.length < 6) return
+    setVerifying(true)
+    const res = await fetch('/api/auth/otp/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: creds.email, code: otp }),
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      toast.error(json.error ?? 'Invalid code')
+      setOtp('')
+      setVerifying(false)
+      return
+    }
+    const ok = await completeLogin(creds)
+    if (!ok) setVerifying(false)
+  }
+
+  const resendOtp = async () => {
+    if (!creds) return
+    setOtpResending(true)
+    const res = await fetch('/api/auth/otp/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(creds),
+    })
+    setOtpResending(false)
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) { toast.error(json.error ?? 'Could not resend code'); return }
+    toast.success('A new code is on its way')
+  }
 
   const resendVerification = async () => {
     if (!unverifiedEmail) return
@@ -82,6 +136,7 @@ export default function LoginPage() {
     else toast.success('Verification email resent')
   }
 
+  // --- Email-not-verified screen ---
   if (unverifiedEmail) {
     return (
       <div className="text-center py-4">
@@ -111,14 +166,66 @@ export default function LoginPage() {
     )
   }
 
+  // --- OTP entry screen (customers) ---
+  if (creds) {
+    const otpBusy = verifying || redirecting
+    return (
+      <div className="text-center py-2">
+        <ShieldCheck className="h-12 w-12 text-primary-600 mx-auto mb-4" />
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Enter verification code</h2>
+        <p className="text-gray-500 text-sm">
+          We sent a 6-digit code to <strong>{creds.email}</strong>. Enter it below to finish signing in.
+        </p>
+
+        <form onSubmit={verifyOtp} className="mt-6 space-y-4">
+          <input
+            value={otp}
+            onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            autoFocus
+            placeholder="------"
+            className="input text-center text-2xl tracking-[0.5em] font-semibold"
+          />
+          <button
+            type="submit"
+            disabled={otpBusy || otp.length < 6}
+            className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            {otpBusy && <Loader2 className="h-4 w-4 animate-spin" />}
+            {redirecting ? 'Redirecting...' : verifying ? 'Verifying...' : 'Verify & Sign In'}
+          </button>
+        </form>
+
+        <div className="mt-4 flex items-center justify-center gap-1 text-sm text-gray-500">
+          Didn&apos;t get it?
+          <button onClick={resendOtp} disabled={otpResending} className="text-primary-600 hover:text-primary-700 font-medium inline-flex items-center gap-1">
+            {otpResending && <Loader2 className="h-3 w-3 animate-spin" />}
+            Resend code
+          </button>
+        </div>
+        <button
+          onClick={() => { setCreds(null); setOtp('') }}
+          className="mt-2 block mx-auto text-sm text-gray-500 hover:text-gray-700"
+        >
+          Back to sign in
+        </button>
+      </div>
+    )
+  }
+
+  const handleFormSubmit = handleSubmit(onSubmit)
+
+  // --- Credentials screen ---
+  const busy = isSubmitting || redirecting
   return (
     <>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
-        <p className="text-gray-500 text-sm mt-1">Sign in to your account</p>
+        <p className="mt-1 text-sm text-gray-500">Sign in to your account and continue managing your property.</p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleFormSubmit} className="space-y-4">
         <div>
           <label className="label">Email address</label>
           <input {...register('email')} type="email" className="input" placeholder="you@example.com" />

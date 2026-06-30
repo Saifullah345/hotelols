@@ -24,6 +24,22 @@ export default function BookingActions({ bookingId, currentStatus }: { bookingId
   const router = useRouter()
 
   const updateStatus = async (status: string, close: () => void) => {
+    // Confirming goes through the server so we can email the guest a branded
+    // confirmation with a PDF invoice attached.
+    if (status === 'confirmed') {
+      const res = await fetch('/api/bookings/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) { toast.error(json.error ?? 'Failed to confirm booking'); return }
+      toast.success(json.emailed ? 'Booking confirmed — invoice emailed to guest' : 'Booking confirmed')
+      close()
+      router.refresh()
+      return
+    }
+
     const supabase = createClient()
 
     // Keep the room status in sync. Previously this was fire-and-forget and the

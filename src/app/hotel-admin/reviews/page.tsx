@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Star } from 'lucide-react'
+import ReviewToggle from './ReviewToggle'
 
 export const metadata = { title: 'Reviews' }
 
@@ -25,14 +26,12 @@ export default async function ReviewsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Guest Reviews</h2>
-          <div className="flex items-center gap-2 mt-1">
-            <Star className="h-5 w-5 text-gold-500 fill-current" />
-            <span className="text-xl font-bold text-gray-900">{avgRating}</span>
-            <span className="text-gray-500 text-sm">({reviews?.length ?? 0} reviews)</span>
-          </div>
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900">Guest Reviews</h2>
+        <div className="flex items-center gap-2 mt-1">
+          <Star className="h-5 w-5 text-gold-500 fill-current" />
+          <span className="text-xl font-bold text-gray-900">{avgRating}</span>
+          <span className="text-gray-500 text-sm">({reviews?.length ?? 0} reviews)</span>
         </div>
       </div>
 
@@ -70,10 +69,8 @@ export default async function ReviewsPage() {
               </div>
             </div>
             <p className="text-gray-700 text-sm">{review.comment}</p>
-            <div className="mt-3 flex items-center gap-2">
-              <span className={review.is_published ? 'badge-green' : 'badge-gray'}>
-                {review.is_published ? 'Published' : 'Hidden'}
-              </span>
+            <div className="mt-3">
+              <ReviewToggle reviewId={review.id} isPublished={review.is_published} />
             </div>
           </div>
         ))}

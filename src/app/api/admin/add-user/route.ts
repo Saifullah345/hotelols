@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { full_name, role, hotel_id, department, position, permissions } = body
+  const { full_name, role, hotel_id, department, position, permissions, country, city, address } = body
   const password = body.password
   // Normalise so duplicate detection is case-insensitive and matches how
   // Supabase Auth stores emails.
@@ -94,6 +94,10 @@ export async function POST(request: Request) {
     full_name,
     role,
     tenant_id: ['hotel_admin', 'staff'].includes(role) ? effectiveHotelId : null,
+    // Location details (captured for customers).
+    country: country || null,
+    city: city || null,
+    address: address || null,
     updated_at: new Date().toISOString(),
   })
   if (profileError) return NextResponse.json({ error: profileError.message }, { status: 400 })

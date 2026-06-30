@@ -2,14 +2,27 @@
 
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Loader2, Save, User } from 'lucide-react'
 
+const schema = z.object({
+  full_name: z.string().min(2, 'Full name is required'),
+  phone: z.string().min(1, 'Phone number is required').regex(/^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,4}[-\s.]?[0-9]{1,9}$/, 'Invalid phone number format'),
+  country: z.string().optional(),
+  city: z.string().optional(),
+  address: z.string().optional(),
+})
+type FormData = z.infer<typeof schema>
+
 export default function CustomerProfilePage() {
   const [profile, setProfile] = useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = useState(true)
-  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm()
+  const { register, handleSubmit, reset, formState: { isSubmitting, errors } } = useForm<FormData>({
+    resolver: zodResolver(schema),
+  })
 
   useEffect(() => {
     const supabase = createClient()
@@ -22,13 +35,16 @@ export default function CustomerProfilePage() {
     })
   }, [reset])
 
-  const onSubmit = async (data: Record<string, unknown>) => {
+  const onSubmit = async (data: FormData) => {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     const { error } = await supabase.from('profiles').update({
       full_name: data.full_name,
       phone: data.phone,
+      country: data.country,
+      city: data.city,
+      address: data.address,
     }).eq('id', user.id)
     if (error) { toast.error(error.message); return }
     toast.success('Profile updated')
@@ -59,10 +75,26 @@ export default function CustomerProfilePage() {
           <div>
             <label className="label">Full Name</label>
             <input {...register('full_name')} className="input" />
+            {errors.full_name && <p className="text-red-500 text-xs mt-1">{errors.full_name.message}</p>}
           </div>
           <div>
             <label className="label">Phone Number</label>
             <input {...register('phone')} className="input" placeholder="+1 234 567 890" />
+            {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Country</label>
+              <input {...register('country')} className="input" placeholder="United States" />
+            </div>
+            <div>
+              <label className="label">City</label>
+              <input {...register('city')} className="input" placeholder="New York" />
+            </div>
+          </div>
+          <div>
+            <label className="label">Address</label>
+            <textarea {...register('address')} rows={2} className="input resize-none" placeholder="Street address, apartment, etc." />
           </div>
           <div>
             <label className="label">Email</label>
