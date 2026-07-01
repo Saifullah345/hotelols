@@ -127,6 +127,91 @@ export function confirmEmailTemplate(fullName: string, verifyUrl: string): { sub
   }
 }
 
+const ROLE_LABELS: Record<string, string> = {
+  hotel_admin: 'Hotel administrator',
+  staff: 'Staff member',
+  customer: 'Guest',
+}
+
+/**
+ * Branded welcome email for admin-provisioned accounts (hotel owners & staff).
+ * These accounts are created with a temporary password by an admin, so the
+ * email hands the recipient their credentials and a link to sign in.
+ */
+export function staffWelcomeTemplate(opts: {
+  fullName: string
+  email: string
+  tempPassword: string
+  role: string
+  loginUrl: string
+}): { subject: string; html: string } {
+  const name = opts.fullName?.trim() ? opts.fullName.trim() : 'there'
+  const roleLabel = ROLE_LABELS[opts.role] ?? 'Team member'
+  const row = (label: string, value: string) => `
+    <tr>
+      <td style="padding:8px 0;font-size:13px;color:${BRAND.muted};">${escapeHtml(label)}</td>
+      <td style="padding:8px 0;font-size:13px;color:${BRAND.text};text-align:right;font-weight:600;">${escapeHtml(value)}</td>
+    </tr>`
+
+  const bodyHtml = `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${BRAND.border};border-radius:12px;padding:6px 18px;">
+      ${row('Role', roleLabel)}
+      ${row('Email', opts.email)}
+      ${row('Temporary password', opts.tempPassword)}
+    </table>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td align="center" style="padding:22px 0 4px;">
+          <a href="${opts.loginUrl}" style="display:inline-block;background:${BRAND.primary};color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 30px;border-radius:10px;font-family:'Inter',Arial,sans-serif;">
+            Sign in to ${BRAND.name}
+          </a>
+        </td>
+      </tr>
+    </table>`
+
+  return {
+    subject: `Your ${BRAND.name} account is ready`,
+    html: renderBrandedEmail({
+      preview: `Your ${BRAND.name} account has been created`,
+      heading: `Welcome aboard, ${name}!`,
+      intro: 'An account has been created for you on HotelOS. Use the credentials below to sign in and get started.',
+      bodyHtml,
+      footnote: 'For your security, please change your password right after your first sign-in, and never share these credentials with anyone.',
+    }),
+  }
+}
+
+/**
+ * Branded invitation email for admin-created customer accounts. The customer
+ * follows the link to verify their email and set their own password.
+ */
+export function customerInviteTemplate(fullName: string, inviteUrl: string): { subject: string; html: string } {
+  const name = fullName?.trim() ? fullName.trim() : 'there'
+  const bodyHtml = `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td align="center" style="padding:8px 0 4px;">
+          <a href="${inviteUrl}" style="display:inline-block;background:${BRAND.primary};color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 30px;border-radius:10px;font-family:'Inter',Arial,sans-serif;">
+            Accept invitation
+          </a>
+        </td>
+      </tr>
+    </table>
+    <p style="margin:22px 0 6px;font-size:13px;color:${BRAND.muted};">Or paste this link into your browser:</p>
+    <p style="margin:0;font-size:13px;word-break:break-all;"><a href="${inviteUrl}" style="color:${BRAND.primary};">${inviteUrl}</a></p>`
+
+  return {
+    subject: `You're invited to ${BRAND.name}`,
+    html: renderBrandedEmail({
+      preview: `You've been invited to join ${BRAND.name}`,
+      heading: `You're invited, ${name}!`,
+      intro: 'An account has been created for you. Accept the invitation to set your password and start booking your stays.',
+      bodyHtml,
+      footnote: "This invitation link expires in 24 hours. If you weren't expecting this, you can safely ignore this email.",
+    }),
+  }
+}
+
 export interface BookingConfirmationData {
   guestName: string
   hotelName: string

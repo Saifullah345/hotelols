@@ -65,6 +65,7 @@ export default function NewHotelPage() {
       })
       const json = await res.json()
       if (!res.ok) { toast.error(json.error ?? 'Failed to create owner account'); return }
+      if (json.emailWarning) toast.warning(json.emailWarning)
       ownerId = json.userId
     }
 
@@ -83,7 +84,9 @@ export default function NewHotelPage() {
       check_out_time: data.check_out_time,
       plan_id: data.plan_id,
       owner_id: ownerId,
-      status: 'active',
+      // New hotels start hidden from the public site. The super admin reviews and
+      // clicks "Activate" (Hotels list → row menu) to publish them for booking.
+      status: 'pending',
       images: [],
       amenities: [],
       slug: data.name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now(),
@@ -103,7 +106,7 @@ export default function NewHotelPage() {
     // Assign owner role + tenant to the hotel
     await supabase.from('profiles').update({ role: 'hotel_admin', tenant_id: hotelId }).eq('id', ownerId)
 
-    toast.success('Hotel created successfully')
+    toast.success('Hotel created. It stays hidden until you activate it.')
     router.push('/super-admin/hotels')
   }
 
@@ -222,6 +225,11 @@ export default function NewHotelPage() {
             </div>
           </div>
         </div>
+
+        <p className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-800">
+          New hotels are created as <span className="font-semibold">pending</span> and stay hidden from the public
+          site until you activate them from the Hotels list.
+        </p>
 
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
           <Link href="/super-admin/hotels" className="btn-secondary">Cancel</Link>

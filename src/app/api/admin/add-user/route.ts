@@ -1,5 +1,7 @@
 import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { getSiteUrl } from '@/lib/supabase/env'
+import { sendEmail } from '@/lib/email/resend'
+import { staffWelcomeTemplate, customerInviteTemplate } from '@/lib/email/templates'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
@@ -61,17 +63,31 @@ export async function POST(request: Request) {
   const effectiveHotelId = caller.role === 'hotel_admin' ? caller.tenant_id : hotel_id
 
   let createdUserId: string
+  // A branded email to send once the account is fully set up. We build it here
+  // (while we still have the invite link / temp password) but only send after
+  // the profile + staff rows are in place, so a bad email never leaves a
+  // half-provisioned account behind.
+  let pendingEmail: { subject: string; html: string } | null = null
 
   if (role === 'customer') {
-    // Send invite email — customer sets their own password and verifies email on first login.
-    // redirectTo forces the link back to the deployed app (must be in Supabase's
-    // Auth → URL Configuration → Redirect URLs allow-list).
-    const { data: invite, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
-      data: { full_name, role: 'customer' },
-      redirectTo: `${getSiteUrl()}/auth/callback`,
+    // generateLink({ type: 'invite' }) creates the (unconfirmed) user AND returns
+    // the invite link without sending anything itself — so we can deliver our own
+    // branded Resend email instead of Supabase's default template. redirectTo must
+    // be in Supabase's Auth → URL Configuration → Redirect URLs allow-list.
+    const { data: invite, error: inviteError } = await adminClient.auth.admin.generateLink({
+      type: 'invite',
+      email,
+      options: {
+        data: { full_name, role: 'customer' },
+        redirectTo: `${getSiteUrl()}/auth/callback`,
+      },
     })
-    if (inviteError) return NextResponse.json({ error: inviteError.message }, { status: 400 })
+    const inviteUrl = invite?.properties?.action_link
+    if (inviteError || !inviteUrl || !invite?.user) {
+      return NextResponse.json({ error: inviteError?.message || 'Failed to generate invite link' }, { status: 400 })
+    }
     createdUserId = invite.user.id
+    pendingEmail = customerInviteTemplate(full_name, inviteUrl)
   } else {
     if (!password) {
       return NextResponse.json({ error: 'Password is required for non-customer roles' }, { status: 400 })
@@ -85,6 +101,13 @@ export async function POST(request: Request) {
     })
     if (createError) return NextResponse.json({ error: createError.message }, { status: 400 })
     createdUserId = created.user.id
+    pendingEmail = staffWelcomeTemplate({
+      fullName: full_name,
+      email,
+      tempPassword: password,
+      role,
+      loginUrl: `${getSiteUrl()}/login`,
+    })
   }
 
   // Update profile (trigger may have created it with defaults already)
@@ -115,5 +138,17 @@ export async function POST(request: Request) {
     if (staffError) return NextResponse.json({ error: staffError.message }, { status: 400 })
   }
 
-  return NextResponse.json({ success: true, userId: createdUserId })
+  // The account exists now, so an email failure must NOT fail the request —
+  // surface it as a warning the caller can show instead.
+  let emailWarning: string | undefined
+  if (pendingEmail) {
+    try {
+      await sendEmail({ to: email, subject: pendingEmail.subject, html: pendingEmail.html })
+    } catch (emailError) {
+      console.error('Failed to send account email:', emailError)
+      emailWarning = 'Account created, but the notification email could not be sent.'
+    }
+  }
+
+  return NextResponse.json({ success: true, userId: createdUserId, ...(emailWarning ? { emailWarning } : {}) })
 }

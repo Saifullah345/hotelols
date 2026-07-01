@@ -46,6 +46,11 @@ export default async function HotelDetailPage({ params }: { params: Promise<{ id
               <span className="text-6xl">🏨</span>
             </div>
           )}
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/40 to-transparent" />
+          <div className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full bg-white/95 px-3 py-1 text-sm font-semibold text-gray-900 shadow-sm backdrop-blur">
+            <Star className="h-4 w-4 fill-gold-500 text-gold-500" />
+            {hotel.rating.toFixed(1)}
+          </div>
         </div>
         <div className="p-6">
           <div className="flex items-start justify-between mb-3">
@@ -79,9 +84,9 @@ export default async function HotelDetailPage({ params }: { params: Promise<{ id
         <h2 className="text-xl font-bold text-gray-900 mb-4">Available Rooms</h2>
         <div className="space-y-4">
           {rooms?.map(room => (
-            <div key={room.id} className="card p-5 flex items-center justify-between">
+            <div key={room.id} className="card flex flex-col gap-4 p-5 transition-shadow hover:shadow-md sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-primary-50 rounded-lg flex items-center justify-center">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary-50">
                   <BedDouble className="h-6 w-6 text-primary-600" />
                 </div>
                 <div>
@@ -91,16 +96,18 @@ export default async function HotelDetailPage({ params }: { params: Promise<{ id
                   <p className="text-sm text-gray-500">
                     Floor {room.floor} · {(room.room_type as { capacity?: number })?.capacity} guests max
                   </p>
-                  <div className="flex gap-1 mt-1">
+                  <div className="mt-1.5 flex flex-wrap gap-1">
                     {((room.room_type as { amenities?: string[] })?.amenities ?? []).slice(0, 3).map((a: string) => (
                       <span key={a} className="badge-gray text-xs">{a}</span>
                     ))}
                   </div>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-2xl font-bold text-gray-900">${room.price_per_night}</p>
-                <p className="text-sm text-gray-500">per night</p>
+              <div className="flex items-center justify-between gap-4 border-t border-gray-100 pt-4 sm:flex-col sm:items-end sm:border-0 sm:pt-0 sm:text-right">
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">${room.price_per_night}</p>
+                  <p className="text-sm text-gray-500">per night</p>
+                </div>
                 <BookRoomButton roomId={room.id} hotelId={id} pricePerNight={room.price_per_night} />
               </div>
             </div>
