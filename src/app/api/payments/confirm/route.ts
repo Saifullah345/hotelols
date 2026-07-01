@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   }
 
   const allowed = ['complete', 'fail', 'refund']
-  const resolvedAction = allowed.includes(action) ? action : 'complete'
+  const resolvedAction = allowed.includes(action as string ) ? action : 'complete'
 
   const { data: existing } = await supabase
     .from('payments')
