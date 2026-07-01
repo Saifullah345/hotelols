@@ -66,15 +66,33 @@ export default function CustomerBookingsPage() {
 
   const handleCancel = async (bookingId: string) => {
     setCancellingId(bookingId)
-    const supabase = createClient()
-    const { error } = await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', bookingId)
-    if (error) {
-      toast.error(error.message)
-    } else {
+    try {
+      const res = await fetch('/api/bookings/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(json.error ?? 'Could not cancel booking')
+        return
+      }
       toast.success('Booking cancelled')
-      setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: 'cancelled' } : b))
+      setBookings(prev => prev.map(b => {
+        if (b.id !== bookingId) return b
+        const payment = b.payment as { status?: string } | undefined
+        return {
+          ...b,
+          status: 'cancelled',
+          // Mirror the server voiding the unpaid payment.
+          payment: payment?.status === 'pending' ? { ...payment, status: 'failed' } : payment,
+        }
+      }))
+    } catch {
+      toast.error('Could not cancel booking')
+    } finally {
+      setCancellingId(null)
     }
-    setCancellingId(null)
   }
 
   const handlePayNow = async (bookingId: string) => {

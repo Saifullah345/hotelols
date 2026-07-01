@@ -39,5 +39,5 @@ export function getSupabaseServiceRoleKey() {
 export function getSiteUrl() {
   const value = process.env.NEXT_PUBLIC_SITE_URL
   if (value) return value.replace(/\/+$/, '')
-  return 'https://hotelols.vercel.app'
+  return 'https://hotelmanagement.n6solution.com'
 }

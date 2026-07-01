@@ -19,7 +19,9 @@ export async function sendEmail({ to, subject, html, attachments }: SendEmailPar
   if (!apiKey) {
     throw new Error('RESEND_API_KEY is not configured')
   }
-  const from = process.env.RESEND_FROM || 'HotelOS <onboarding@resend.dev>'
+  // Falls back to our verified Resend domain. onboarding@resend.dev is NOT used
+  // because that test sender can only deliver to your own Resend account email.
+  const from = process.env.RESEND_FROM || 'HotelOS <noreply@hotelmanagement.n6solution.com>'
 
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',

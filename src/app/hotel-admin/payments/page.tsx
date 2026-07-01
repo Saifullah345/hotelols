@@ -9,7 +9,12 @@ const statusBadge: Record<string, string> = {
   completed: 'badge-green', pending: 'badge-yellow', failed: 'badge-red', refunded: 'badge-gray'
 }
 
-export default async function PaymentsPage() {
+export default async function PaymentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ok?: string; error?: string }>
+}) {
+  const { ok, error } = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -33,6 +38,17 @@ export default async function PaymentsPage() {
         <h2 className="text-2xl font-bold text-gray-900">Payments</h2>
         <p className="text-gray-500 text-sm mt-1">{payments?.length ?? 0} transactions</p>
       </div>
+
+      {ok && (
+        <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          Payment marked as <span className="font-semibold">{ok}</span>.
+        </div>
+      )}
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {error}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="card p-5">

@@ -2,7 +2,6 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Header } from '@/components/layout/Header'
-import { ProfileCompletionToast } from '@/components/profile/ProfileCompletionToast'
 
 export default async function CustomerLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -12,9 +11,8 @@ export default async function CustomerLayout({ children }: { children: React.Rea
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
   if (profile?.role !== 'customer') redirect('/login')
 
-  // Nudge the customer to fill in details that make booking smoother.
-  const profileIncomplete = !profile?.full_name?.trim() || !profile?.phone?.trim()
-
+  // The "complete your profile" nudge now lives in the notification bell
+  // (see Header → NotificationBell), so no separate toast is needed here.
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar role="customer" />
@@ -22,7 +20,6 @@ export default async function CustomerLayout({ children }: { children: React.Rea
         <Header title="My Account" profile={profile} />
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
-      <ProfileCompletionToast href="/customer/profile" incomplete={profileIncomplete} />
     </div>
   )
 }

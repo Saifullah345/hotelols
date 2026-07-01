@@ -1,7 +1,8 @@
 'use client'
 
-import { Bell, CheckCheck, Loader2, Calendar, CreditCard, Users, Info } from 'lucide-react'
+import { Bell, CheckCheck, Loader2, Calendar, CreditCard, Users, Info, UserRound } from 'lucide-react'
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { Notification } from '@/types'
 
@@ -11,6 +12,9 @@ const typeIcon: Record<Notification['type'], React.ElementType> = {
   staff: Users,
   system: Info,
 }
+
+// Dismiss the "complete your profile" nudge for the rest of the browser session.
+const NUDGE_KEY = 'profile-completion-nudge-dismissed'
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime()
@@ -24,11 +28,30 @@ function timeAgo(iso: string) {
   return new Date(iso).toLocaleDateString()
 }
 
-export function NotificationBell({ userId }: { userId?: string }) {
+export function NotificationBell({
+  userId,
+  profileIncomplete = false,
+  profileHref,
+}: {
+  userId?: string
+  /** When true, a pinned "complete your profile" nudge is shown in the panel. */
+  profileIncomplete?: boolean
+  /** Where "Complete now" navigates. Nudge is hidden if this is unset. */
+  profileHref?: string
+}) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [items, setItems] = useState<Notification[]>([])
   const [loading, setLoading] = useState(false)
+  const [nudgeDismissed, setNudgeDismissed] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+
+  // Read the per-session dismissal on mount (sessionStorage is client-only).
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setNudgeDismissed(sessionStorage.getItem(NUDGE_KEY) === '1')
+    }
+  }, [])
 
   const load = useCallback(async () => {
     if (!userId) return
@@ -61,7 +84,19 @@ export function NotificationBell({ userId }: { userId?: string }) {
     }
   }, [open])
 
-  const unread = items.filter(i => !i.read).length
+  const showNudge = profileIncomplete && !!profileHref && !nudgeDismissed
+  const realUnread = items.filter(i => !i.read).length
+  const unread = realUnread + (showNudge ? 1 : 0)
+
+  const dismissNudge = () => {
+    setNudgeDismissed(true)
+    if (typeof window !== 'undefined') sessionStorage.setItem(NUDGE_KEY, '1')
+  }
+
+  const goToProfile = () => {
+    setOpen(false)
+    if (profileHref) router.push(profileHref)
+  }
 
   const markRead = async (id: string) => {
     setItems(prev => prev.map(i => (i.id === id ? { ...i, read: true } : i)))
@@ -69,7 +104,8 @@ export function NotificationBell({ userId }: { userId?: string }) {
   }
 
   const markAll = async () => {
-    if (!userId || unread === 0) return
+    if (showNudge) dismissNudge()
+    if (!userId || realUnread === 0) return
     setItems(prev => prev.map(i => ({ ...i, read: true })))
     await createClient().from('notifications').update({ read: true }).eq('user_id', userId).eq('read', false)
   }
@@ -112,13 +148,33 @@ export function NotificationBell({ userId }: { userId?: string }) {
           </div>
 
           <div className="max-h-96 overflow-y-auto">
+            {showNudge && (
+              <div className="flex gap-3 px-4 py-3 border-b border-gray-100 bg-primary-50/60">
+                <span className="mt-0.5 h-8 w-8 shrink-0 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center">
+                  <UserRound className="h-4 w-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-gray-900">Complete your profile</p>
+                  <p className="text-xs text-gray-500">Add your name and phone number so booking is faster and easier.</p>
+                  <div className="mt-2 flex items-center gap-3">
+                    <button onClick={goToProfile} className="btn-primary text-xs px-3 py-1.5">
+                      Complete now
+                    </button>
+                    <button onClick={dismissNudge} className="text-xs text-gray-400 hover:text-gray-600">
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {loading && (
               <div className="flex items-center justify-center py-10 text-gray-400">
                 <Loader2 className="h-5 w-5 animate-spin" />
               </div>
             )}
 
-            {!loading && items.length === 0 && (
+            {!loading && items.length === 0 && !showNudge && (
               <div className="px-4 py-10 text-center">
                 <Bell className="h-8 w-8 text-gray-300 mx-auto mb-2" />
                 <p className="text-sm text-gray-500">No notifications yet</p>
