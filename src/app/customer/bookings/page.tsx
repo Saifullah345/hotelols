@@ -80,12 +80,14 @@ export default function CustomerBookingsPage() {
       toast.success('Booking cancelled')
       setBookings(prev => prev.map(b => {
         if (b.id !== bookingId) return b
-        const payment = b.payment as { status?: string } | undefined
+        // payment is an array (reverse relation) — void any pending row.
+        const list = Array.isArray(b.payment)
+          ? (b.payment as Array<{ status?: string }>)
+          : b.payment ? [b.payment as { status?: string }] : []
         return {
           ...b,
           status: 'cancelled',
-          // Mirror the server voiding the unpaid payment.
-          payment: payment?.status === 'pending' ? { ...payment, status: 'failed' } : payment,
+          payment: list.map(p => (p.status === 'pending' ? { ...p, status: 'failed' } : p)),
         }
       }))
     } catch {
@@ -150,7 +152,14 @@ export default function CustomerBookingsPage() {
       <div className="space-y-4">
         {bookings?.map(b => {
           const booking = b as Record<string, unknown>
-          const payment = (booking.payment as { status?: string; payment_method?: string } | undefined)
+          // `payment:payments(...)` is a reverse relation, so Supabase returns an
+          // ARRAY here — not a single object. Normalise and prefer a completed row.
+          const paymentRaw = booking.payment as
+            | { status?: string; payment_method?: string }
+            | Array<{ status?: string; payment_method?: string }>
+            | undefined
+          const paymentList = Array.isArray(paymentRaw) ? paymentRaw : paymentRaw ? [paymentRaw] : []
+          const payment = paymentList.find(p => p.status === 'completed') ?? paymentList[0]
           const paymentStatus = payment?.status ?? 'pending'
           const showPayButton = paymentStatus === 'pending' && booking.status !== 'cancelled'
 
@@ -212,16 +221,17 @@ export default function CustomerBookingsPage() {
                 {payment?.payment_method && (
                   <span className="text-gray-400 capitalize">· {payment.payment_method}</span>
                 )}
-                {showPayButton && (
+                {/* {showPayButton && (
                   <button
                     onClick={() => handlePayNow(String(booking.id))}
-                    disabled={payingId === String(booking.id)}
+                    // disabled={payingId === String(booking.id)}
+                    disabled={true}
                     className="ml-auto inline-flex items-center gap-1 rounded-lg border border-primary-200 bg-primary-50 px-3 py-1.5 text-sm font-medium text-primary-700 transition hover:bg-primary-100 disabled:opacity-50"
                   >
                     <CreditCard className="h-4 w-4" />
                     {payingId === String(booking.id) ? 'Redirecting...' : 'Pay now'}
                   </button>
-                )}
+                )} */}
               </div>
 
               {booking.status === 'checked_out' && !booking.review && (

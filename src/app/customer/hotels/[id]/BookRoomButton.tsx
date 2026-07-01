@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 
@@ -28,38 +27,37 @@ export default function BookRoomButton({ roomId, hotelId, pricePerNight }: Props
   const handleBook = async () => {
     if (!checkIn || !checkOut) { toast.error('Select dates'); return }
     setLoading(true)
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { toast.error('Please login'); setLoading(false); return }
 
-    const { data: booking, error } = await supabase.from('bookings').insert({
-      hotel_id: hotelId,
-      room_id: roomId,
-      user_id: user.id,
-      check_in: checkIn,
-      check_out: checkOut,
-      guests,
-      adults: guests,
-      children: 0,
-      status: 'pending',
-      total_amount: total,
-    }).select().single()
-
-    if (error) { toast.error(error.message); setLoading(false); return }
-
-    await supabase.from('payments').insert({
-      booking_id: booking.id,
-      hotel_id: hotelId,
-      user_id: user.id,
-      amount: total,
-      currency: 'USD',
-      status: 'pending',
-      payment_method: 'online',
-    })
-
-    toast.success('Booking created! Awaiting confirmation.')
-    router.push('/customer/bookings')
-    setLoading(false)
+    // Go through the server route so the booking + payment are created and the
+    // hotel's admins get a notification (a client can't write notifications to
+    // another user under RLS).
+    try {
+      const res = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hotel_id: hotelId,
+          room_id: roomId,
+          check_in: checkIn,
+          check_out: checkOut,
+          guests,
+          adults: guests,
+          children: 0,
+        }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(json.error ?? 'Could not create booking')
+        setLoading(false)
+        return
+      }
+      toast.success('Booking created! Awaiting confirmation.')
+      router.push('/customer/bookings')
+    } catch {
+      toast.error('Could not create booking')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const today = new Date().toISOString().split('T')[0]

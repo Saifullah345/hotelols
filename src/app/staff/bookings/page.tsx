@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Calendar } from 'lucide-react'
@@ -26,13 +26,29 @@ export default async function StaffBookingsPage({
 
   let query = supabase
     .from('bookings')
-    .select('*, user:profiles(full_name, email), room:rooms(room_number, room_type:room_types(name))')
+    .select('*, room:rooms(room_number, room_type:room_types(name))')
     .eq('hotel_id', tenantId)
     .order('check_in', { ascending: true })
 
   if (status) query = query.eq('status', status)
 
   const { data: bookings } = await query
+
+  // Staff have no RLS read access to customer profiles, so the usual
+  // `user:profiles(...)` join comes back empty. Resolve registered guests'
+  // names with the service-role client, scoped to this hotel's bookings.
+  const guestIds = Array.from(
+    new Set((bookings ?? []).map(b => b.user_id).filter((id): id is string => !!id)),
+  )
+  let guestMap: Record<string, { full_name?: string; email?: string }> = {}
+  if (guestIds.length) {
+    const admin = await createAdminClient()
+    const { data: guests } = await admin
+      .from('profiles')
+      .select('id, full_name, email')
+      .in('id', guestIds)
+    guestMap = Object.fromEntries((guests ?? []).map(g => [g.id, g]))
+  }
 
   const filterTabs = ['all', 'pending', 'confirmed', 'checked_in', 'checked_out', 'cancelled']
 
@@ -73,11 +89,15 @@ export default async function StaffBookingsPage({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {bookings?.map(b => (
+            {bookings?.map(b => {
+              const guest = b.user_id ? guestMap[b.user_id] : undefined
+              const guestName = guest?.full_name || (b.guest_name as string | null) || 'Walk-in guest'
+              const guestContact = guest?.email || (b.guest_phone as string | null) || ''
+              return (
               <tr key={b.id} className="hover:bg-gray-50">
                 <td className="table-cell">
-                  <p className="font-medium">{(b.user as { full_name?: string })?.full_name}</p>
-                  <p className="text-xs text-gray-500">{(b.user as { email?: string })?.email}</p>
+                  <p className="font-medium">{guestName}</p>
+                  <p className="text-xs text-gray-500">{guestContact}</p>
                 </td>
                 <td className="table-cell">
                   <p>Room {(b.room as { room_number?: string })?.room_number}</p>
@@ -96,7 +116,8 @@ export default async function StaffBookingsPage({
                   <span className={statusBadge[b.status] ?? 'badge-gray'}>{b.status.replace('_', ' ')}</span>
                 </td>
               </tr>
-            ))}
+              )
+            })}
             {!bookings?.length && (
               <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-500">No bookings found</td></tr>
             )}
