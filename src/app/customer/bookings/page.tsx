@@ -1,10 +1,20 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Calendar, Check, CreditCard, MapPin, Star, X } from 'lucide-react'
+import { Calendar, Check, CreditCard, MapPin, Star, X, SlidersHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'All statuses' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'checked_in', label: 'Checked in' },
+  { value: 'checked_out', label: 'Checked out' },
+  { value: 'cancelled', label: 'Cancelled' },
+]
 
 const statusBadge: Record<string, string> = {
   pending: 'badge-yellow',
@@ -31,6 +41,26 @@ export default function CustomerBookingsPage() {
   const [reviewComment, setReviewComment] = useState('')
   const [bookings, setBookings] = useState<Array<Record<string, unknown>>>([])
   const [loading, setLoading] = useState(true)
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [checkInFilter, setCheckInFilter] = useState('')
+  const [checkOutFilter, setCheckOutFilter] = useState('')
+
+  const hasActiveFilters = statusFilter !== 'all' || checkInFilter !== '' || checkOutFilter !== ''
+
+  const clearFilters = () => {
+    setStatusFilter('all')
+    setCheckInFilter('')
+    setCheckOutFilter('')
+  }
+
+  const filteredBookings = useMemo(() => {
+    return bookings.filter(b => {
+      if (statusFilter !== 'all' && String(b.status) !== statusFilter) return false
+      if (checkInFilter && String(b.check_in).slice(0, 10) !== checkInFilter) return false
+      if (checkOutFilter && String(b.check_out).slice(0, 10) !== checkOutFilter) return false
+      return true
+    })
+  }, [bookings, statusFilter, checkInFilter, checkOutFilter])
 
   const fetchBookings = useCallback(async () => {
     setLoading(true)
@@ -146,11 +176,42 @@ export default function CustomerBookingsPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-900">My Bookings</h2>
-        <p className="text-gray-500 text-sm mt-1">{bookings?.length ?? 0} total bookings</p>
+        <p className="text-gray-500 text-sm mt-1">
+          {hasActiveFilters
+            ? `Showing ${filteredBookings.length} of ${bookings.length} bookings`
+            : `${bookings.length} total booking${bookings.length === 1 ? '' : 's'}`}
+        </p>
+      </div>
+
+      <div className="card p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex items-center gap-1.5 pb-2 text-sm font-medium text-gray-500">
+            <SlidersHorizontal className="h-4 w-4" /> Filter
+          </div>
+          <div>
+            <label className="label">Status</label>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="input">
+              {STATUS_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">Check-in</label>
+            <input type="date" value={checkInFilter} onChange={e => setCheckInFilter(e.target.value)} className="input" />
+          </div>
+          <div>
+            <label className="label">Check-out</label>
+            <input type="date" value={checkOutFilter} onChange={e => setCheckOutFilter(e.target.value)} className="input" />
+          </div>
+          {hasActiveFilters && (
+            <button onClick={clearFilters} className="btn-secondary text-sm">Clear filters</button>
+          )}
+        </div>
       </div>
 
       <div className="space-y-4">
-        {bookings?.map(b => {
+        {filteredBookings.map(b => {
           const booking = b as Record<string, unknown>
           // `payment:payments(...)` is a reverse relation, so Supabase returns an
           // ARRAY here — not a single object. Normalise and prefer a completed row.
@@ -164,10 +225,12 @@ export default function CustomerBookingsPage() {
           const showPayButton = paymentStatus === 'pending' && booking.status !== 'cancelled'
 
           return (
-            <div key={String(booking.id)} className="card p-5">
+            <div key={String(booking.id)} className="card p-5 transition duration-200 hover:shadow-md">
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <h3 className="font-semibold text-gray-900">{(booking.hotel as { name?: string })?.name}</h3>
+                  <Link href={`/customer/hotels/${String(booking.hotel_id)}`} className="font-semibold text-gray-900 hover:text-primary-700 hover:underline">
+                    {(booking.hotel as { name?: string })?.name}
+                  </Link>
                   <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
                     <MapPin className="h-3 w-3" />
                     {(booking.hotel as { city?: string })?.city}, {(booking.hotel as { country?: string })?.country}
@@ -188,7 +251,7 @@ export default function CustomerBookingsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm rounded-xl bg-gray-50 p-4">
                 <div>
                   <p className="text-gray-500 text-xs mb-0.5">Room</p>
                   <p className="font-medium">
@@ -205,7 +268,10 @@ export default function CustomerBookingsPage() {
                 </div>
                 <div>
                   <p className="text-gray-500 text-xs mb-0.5">Check-out</p>
-                  <p className="font-medium">{new Date(String(booking.check_out)).toLocaleDateString()}</p>
+                  <p className="font-medium flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {new Date(String(booking.check_out)).toLocaleDateString()}
+                  </p>
                 </div>
                 <div>
                   <p className="text-gray-500 text-xs mb-0.5">Total</p>
@@ -235,20 +301,22 @@ export default function CustomerBookingsPage() {
               </div>
 
               {booking.status === 'checked_out' && !booking.review && (
-                <div className="mt-3 pt-3 border-t border-gray-100">
-                  <label className="text-xs text-gray-500 font-medium">Leave a review</label>
-                  <div className="flex items-center gap-1 mt-1">
+                <div className="mt-3 rounded-xl border border-gray-100 bg-gray-50 p-3">
+                  <label className="text-xs font-medium text-gray-500">Leave a review</label>
+                  <div className="mt-1.5 flex items-center gap-0.5">
                     {[1,2,3,4,5].map(star => (
                       <button key={star} type="button" onClick={() => setReviewRating(star)}
                         className="p-0.5">
                         <Star key={star} className={`h-5 w-5 ${star <= reviewRating ? 'text-gold-500 fill-current' : 'text-gray-300'}`} />
                       </button>
                     ))}
+                  </div>
+                  <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                     <input type="text" value={reviewComment} onChange={e => setReviewComment(e.target.value)}
-                      placeholder="Write a comment..." className="input text-sm mt-2" />
+                      placeholder="Write a comment..." className="input text-sm" />
                     <button onClick={() => submitReview(String(booking.id))}
                       disabled={reviewingId === String(booking.id) || !reviewComment.trim()}
-                      className="btn-primary text-xs py-1.5 px-3 mt-2 inline-flex items-center gap-1">
+                      className="btn-primary text-xs px-4 inline-flex shrink-0 items-center justify-center gap-1">
                       {reviewingId === String(booking.id) && <Check className="h-3 w-3 animate-spin" />}
                       Submit Review
                     </button>
@@ -258,10 +326,16 @@ export default function CustomerBookingsPage() {
             </div>
           )
         })}
-        {!bookings?.length && (
+        {!bookings.length && (
           <div className="card p-12 text-center">
             <p className="text-lg font-medium text-gray-700 mb-2">No bookings yet</p>
             <p className="text-gray-500 text-sm">Find a hotel and make your first booking!</p>
+          </div>
+        )}
+        {bookings.length > 0 && !filteredBookings.length && (
+          <div className="card p-12 text-center">
+            <p className="text-lg font-medium text-gray-700 mb-2">No bookings match your filters</p>
+            <button onClick={clearFilters} className="btn-secondary text-sm mt-2">Clear filters</button>
           </div>
         )}
       </div>

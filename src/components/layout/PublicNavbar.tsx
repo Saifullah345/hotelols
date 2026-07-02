@@ -7,6 +7,7 @@ import { Building2, Menu, X } from 'lucide-react'
 const links = [
   { href: '/#features', label: 'Features' },
   { href: '/#how-it-works', label: 'How it works' },
+  { href: '/#reviews', label: 'Reviews' },
   { href: '/#pricing', label: 'Pricing' },
   { href: '/about', label: 'About' },
   { href: '/contact', label: 'Contact' },
