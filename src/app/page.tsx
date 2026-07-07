@@ -8,36 +8,12 @@ import PublicNavbar from '@/components/layout/PublicNavbar'
 /* ─── Data ─────────────────────────────────────────────────────────────────── */
 
 const features = [
-  {
-    icon: Building2, title: 'Room Management',
-    desc: 'Live room status, housekeeping queues, and maintenance requests — all from one screen.',
-    gradient: 'from-blue-500 to-blue-700',
-  },
-  {
-    icon: Users, title: 'Staff & Roles',
-    desc: 'Role-based access for admins, front desk, and housekeeping. Everyone sees only what they need.',
-    gradient: 'from-violet-500 to-purple-700',
-  },
-  {
-    icon: CreditCard, title: 'Payments',
-    desc: 'Online and walk-in payments via Stripe with automatic reconciliation and daily reports.',
-    gradient: 'from-emerald-500 to-green-700',
-  },
-  {
-    icon: BarChart3, title: 'Revenue Analytics',
-    desc: 'ADR, RevPAR, and occupancy trends. Spot problems and opportunities before they hit the bottom line.',
-    gradient: 'from-amber-500 to-orange-600',
-  },
-  {
-    icon: Shield, title: 'Enterprise Security',
-    desc: 'Row-level tenant isolation on every query. Your data stays yours — no cross-hotel leakage ever.',
-    gradient: 'from-rose-500 to-red-700',
-  },
-  {
-    icon: Zap, title: 'Real-Time Updates',
-    desc: 'New bookings, check-ins, and task assignments appear instantly across every device on your team.',
-    gradient: 'from-cyan-500 to-sky-700',
-  },
+  { icon: Building2,  title: 'Room Management',     desc: 'Live room status, housekeeping queues, and maintenance requests — all from one screen.',                          glow: 'shadow-blue-500/40',    ring: 'bg-blue-500/10 text-blue-400'    },
+  { icon: Users,      title: 'Staff & Roles',        desc: 'Role-based access for admins, front desk, and housekeeping. Everyone sees only what they need.',                  glow: 'shadow-violet-500/40',  ring: 'bg-violet-500/10 text-violet-400'},
+  { icon: CreditCard, title: 'Payments',             desc: 'Online and walk-in payments via Stripe with automatic reconciliation and daily reports.',                         glow: 'shadow-emerald-500/40', ring: 'bg-emerald-500/10 text-emerald-400'},
+  { icon: BarChart3,  title: 'Revenue Analytics',    desc: 'ADR, RevPAR, and occupancy trends. Spot problems and opportunities before they hit the bottom line.',             glow: 'shadow-amber-500/40',   ring: 'bg-amber-500/10 text-amber-400'  },
+  { icon: Shield,     title: 'Enterprise Security',  desc: 'Row-level tenant isolation on every query. Your data stays yours — no cross-hotel leakage ever.',                glow: 'shadow-rose-500/40',    ring: 'bg-rose-500/10 text-rose-400'    },
+  { icon: Zap,        title: 'Real-Time Updates',    desc: 'New bookings, check-ins, and task assignments appear instantly across every device on your team.',                glow: 'shadow-cyan-500/40',    ring: 'bg-cyan-500/10 text-cyan-400'    },
 ]
 
 const stats = [
@@ -350,33 +326,36 @@ export default function LandingPage() {
       </section>
 
       {/* ══ Features ══════════════════════════════════════════════════════════ */}
-      <section id="features" className="py-24 px-6">
+      <section id="features" className="py-24 px-6 bg-slate-950">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <p className="text-sm font-bold text-blue-600 uppercase tracking-widest mb-3">Platform</p>
-            <h2 className="text-4xl font-extrabold text-gray-900 mb-4">Everything in one place</h2>
-            <p className="text-lg text-gray-500 max-w-xl mx-auto">
+            <p className="text-sm font-bold text-blue-400 uppercase tracking-widest mb-3">Platform</p>
+            <h2 className="text-4xl font-extrabold text-white mb-4">Everything in one place</h2>
+            <p className="text-lg text-slate-400 max-w-xl mx-auto">
               No more jumping between tools. HotelOS brings your entire operation together.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map(({ icon: Icon, title, desc, gradient }) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {features.map(({ icon: Icon, title, desc, glow, ring }) => (
               <div
                 key={title}
-                className="group rounded-2xl overflow-hidden border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
+                className="group relative bg-slate-900 border border-slate-800 rounded-2xl p-6 hover:border-slate-600 hover:-translate-y-1 transition-all duration-300"
               >
-                {/* Gradient top with icon */}
-                <div className={`h-28 bg-gradient-to-br ${gradient} flex items-center px-6`}>
-                  <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                    <Icon className="h-6 w-6 text-white" />
-                  </div>
+                {/* Subtle top-left glow on hover */}
+                <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                  style={{ background: 'radial-gradient(circle at 20% 20%, rgba(59,130,246,0.06), transparent 60%)' }} />
+
+                {/* Icon */}
+                <div className={`w-12 h-12 ${ring} rounded-xl flex items-center justify-center mb-5 shadow-lg ${glow}`}>
+                  <Icon className="h-5 w-5" />
                 </div>
-                {/* Content */}
-                <div className="bg-white p-6">
-                  <h3 className="font-bold text-gray-900 text-lg mb-2">{title}</h3>
-                  <p className="text-gray-500 text-sm leading-relaxed">{desc}</p>
-                </div>
+
+                <h3 className="font-bold text-white text-lg mb-2">{title}</h3>
+                <p className="text-slate-400 text-sm leading-relaxed">{desc}</p>
+
+                {/* Bottom accent line on hover */}
+                <div className="absolute bottom-0 left-6 right-6 h-px bg-gradient-to-r from-blue-500/0 via-blue-500/50 to-blue-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               </div>
             ))}
           </div>
