@@ -43,11 +43,17 @@ export async function middleware(request: NextRequest) {
   // Only fetch profile on auth pages to avoid a DB round-trip on every navigation.
   // Role enforcement for protected routes is handled by each role's layout.
   if (user && (pathname === '/login' || pathname === '/register')) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
+    let profile: { role?: string } | null = null
+    try {
+      const result = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+      profile = result.data ?? null
+    } catch {
+      profile = null
+    }
 
     const destination = profile?.role ? (roleRedirects[profile.role] ?? '/') : '/'
     return NextResponse.redirect(new URL(destination, request.url))

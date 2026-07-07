@@ -9,7 +9,12 @@ const statusBadge: Record<string, string> = {
   completed: 'badge-green', pending: 'badge-yellow', failed: 'badge-red', refunded: 'badge-gray'
 }
 
-export default async function PaymentsPage() {
+export default async function PaymentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ok?: string; error?: string }>
+}) {
+  const { ok, error } = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -33,6 +38,17 @@ export default async function PaymentsPage() {
         <h2 className="text-2xl font-bold text-gray-900">Payments</h2>
         <p className="text-gray-500 text-sm mt-1">{payments?.length ?? 0} transactions</p>
       </div>
+
+      {ok && (
+        <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          Payment marked as <span className="font-semibold">{ok}</span>.
+        </div>
+      )}
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {error}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="card p-5">
@@ -60,6 +76,7 @@ export default async function PaymentsPage() {
               <th className="table-header">Method</th>
               <th className="table-header">Status</th>
               <th className="table-header">Date</th>
+              <th className="table-header text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -83,10 +100,26 @@ export default async function PaymentsPage() {
                 <td className="table-cell text-gray-500 text-sm">
                   {new Date(p.created_at).toLocaleDateString()}
                 </td>
+                <td className="table-cell text-right">
+                  {p.status === 'pending' && (
+                    <div className="flex items-center justify-end gap-2">
+                      <form action="/api/payments/confirm" method="post">
+                        <input type="hidden" name="paymentId" value={p.id} />
+                        <input type="hidden" name="action" value="complete" />
+                        <button type="submit" className="btn-primary text-xs py-1 px-3">Confirm</button>
+                      </form>
+                      <form action="/api/payments/confirm" method="post">
+                        <input type="hidden" name="paymentId" value={p.id} />
+                        <input type="hidden" name="action" value="fail" />
+                        <button type="submit" className="btn-danger text-xs py-1 px-3">Reject</button>
+                      </form>
+                    </div>
+                  )}
+                </td>
               </tr>
             ))}
             {!payments?.length && (
-              <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-500">No payments yet</td></tr>
+              <tr><td colSpan={8} className="px-4 py-12 text-center text-gray-500">No payments yet</td></tr>
             )}
           </tbody>
         </table>

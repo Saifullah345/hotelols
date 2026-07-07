@@ -31,3 +31,13 @@ export function getSupabaseServiceRoleKey() {
 
   return value
 }
+
+// Canonical public site URL, used to build links inside emails (signup
+// confirmation, customer invites) so they always point at the deployed app
+// instead of whatever host the request originated from (e.g. localhost).
+// Set NEXT_PUBLIC_SITE_URL in your environment; falls back to the production URL.
+export function getSiteUrl() {
+  const value = process.env.NEXT_PUBLIC_SITE_URL
+  if (value) return value.replace(/\/+$/, '')
+  return 'https://hotelmanagement.n6solution.com'
+}

@@ -11,6 +11,8 @@ export default async function CustomerLayout({ children }: { children: React.Rea
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
   if (profile?.role !== 'customer') redirect('/login')
 
+  // The "complete your profile" nudge now lives in the notification bell
+  // (see Header → NotificationBell), so no separate toast is needed here.
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar role="customer" />

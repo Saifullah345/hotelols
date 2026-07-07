@@ -17,6 +17,9 @@ export interface Profile {
   tenant_id: string | null
   avatar_url?: string
   phone?: string
+  country?: string
+  city?: string
+  address?: string
   created_at: string
   updated_at: string
 }

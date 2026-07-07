@@ -1,17 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { type ChangeEvent, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Loader2, Save, MessageCircle, Copy, ExternalLink } from 'lucide-react'
+import { Loader2, Save, MessageCircle, Copy, ExternalLink, ImagePlus } from 'lucide-react'
 
 export default function HotelSettingsPage() {
   const [tenantId, setTenantId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [hotelImages, setHotelImages] = useState<string[]>([])
+  const [coverImage, setCoverImage] = useState<string | null>(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   const hotelForm = useForm()
-  const waForm    = useForm()
+  const waForm = useForm()
 
   useEffect(() => {
     const supabase = createClient()
@@ -22,10 +25,12 @@ export default function HotelSettingsPage() {
       setTenantId(profile.tenant_id)
       const { data } = await supabase.from('hotels').select('*').eq('id', profile.tenant_id).single()
       hotelForm.reset(data)
+      setHotelImages(((data?.images as string[]) ?? []).filter(Boolean))
+      setCoverImage((data?.cover_image as string | undefined) ?? null)
       waForm.reset({
-        whatsapp_number:          data?.whatsapp_number ?? '',
+        whatsapp_number: data?.whatsapp_number ?? '',
         whatsapp_phone_number_id: data?.whatsapp_phone_number_id ?? '',
-        whatsapp_access_token:    data?.whatsapp_access_token ?? '',
+        whatsapp_access_token: data?.whatsapp_access_token ?? '',
       })
       setLoading(false)
     })
@@ -34,15 +39,17 @@ export default function HotelSettingsPage() {
   const saveHotel = async (data: Record<string, unknown>) => {
     const supabase = createClient()
     const { error } = await supabase.from('hotels').update({
-      name:           data.name,
-      description:    data.description,
-      phone:          data.phone,
-      email:          data.email,
-      address:        data.address,
-      city:           data.city,
-      country:        data.country,
-      check_in_time:  data.check_in_time,
+      name: data.name,
+      description: data.description,
+      phone: data.phone,
+      email: data.email,
+      address: data.address,
+      city: data.city,
+      country: data.country,
+      check_in_time: data.check_in_time,
       check_out_time: data.check_out_time,
+      cover_image: coverImage,
+      images: hotelImages,
     }).eq('id', tenantId!)
     if (error) { toast.error(error.message); return }
     toast.success('Settings saved')
@@ -51,12 +58,42 @@ export default function HotelSettingsPage() {
   const saveWhatsApp = async (data: Record<string, unknown>) => {
     const supabase = createClient()
     const { error } = await supabase.from('hotels').update({
-      whatsapp_number:          data.whatsapp_number || null,
+      whatsapp_number: data.whatsapp_number || null,
       whatsapp_phone_number_id: data.whatsapp_phone_number_id || null,
-      whatsapp_access_token:    data.whatsapp_access_token || null,
+      whatsapp_access_token: data.whatsapp_access_token || null,
     }).eq('id', tenantId!)
     if (error) { toast.error(error.message); return }
     toast.success('WhatsApp settings saved')
+  }
+
+  const handleImageUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !tenantId) return
+
+    setUploadingImage(true)
+    const reader = new FileReader()
+    reader.onload = async () => {
+      const dataUrl = reader.result as string
+      const nextImages = [...hotelImages, dataUrl]
+      const nextCover = coverImage ?? dataUrl
+
+      const supabase = createClient()
+      const { error } = await supabase.from('hotels').update({
+        cover_image: nextCover,
+        images: nextImages,
+      }).eq('id', tenantId)
+
+      if (error) {
+        toast.error(error.message)
+      } else {
+        setCoverImage(nextCover)
+        setHotelImages(nextImages)
+        toast.success('Hotel image added')
+      }
+      setUploadingImage(false)
+    }
+
+    reader.readAsDataURL(file)
   }
 
   const webhookUrl = typeof window !== 'undefined'
@@ -75,16 +112,52 @@ export default function HotelSettingsPage() {
   )
 
   return (
-    <div className="max-w-2xl space-y-8">
+    <div className="max-w-3xl space-y-8">
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Hotel Settings</h2>
-        <p className="text-gray-500 text-sm mt-1">Manage your hotel information and integrations</p>
+        <p className="text-gray-500 text-sm mt-1">Manage your hotel information, visuals and integrations</p>
       </div>
 
-      {/* ── General Info ── */}
       <section className="space-y-4">
         <h3 className="text-base font-semibold text-gray-800 border-b border-gray-200 pb-2">General</h3>
         <form onSubmit={hotelForm.handleSubmit(saveHotel)} className="card p-6 space-y-5">
+          <div className="rounded-2xl border border-dashed border-primary-200 bg-primary-50/50 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="font-semibold text-gray-900">Hotel visuals</p>
+                <p className="text-sm text-gray-500">Add a cover image or gallery photo for your hotel profile.</p>
+              </div>
+              <label className="btn-secondary flex cursor-pointer items-center gap-2">
+                <ImagePlus className="h-4 w-4" />
+                {uploadingImage ? 'Uploading...' : 'Add image'}
+                <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+              </label>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {coverImage ? (
+                <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+                  <img src={coverImage} alt="Hotel cover" className="h-32 w-full object-cover" />
+                </div>
+              ) : (
+                <div className="flex h-32 items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white text-sm text-gray-500">
+                  No cover image yet
+                </div>
+              )}
+              <div className="space-y-2">
+                {hotelImages.length > 0 ? hotelImages.map((image, index) => (
+                  <div key={`${image}-${index}`} className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white p-2">
+                    <img src={image} alt={`Hotel gallery ${index + 1}`} className="h-10 w-10 rounded-lg object-cover" />
+                    <span className="text-sm text-gray-600">Gallery photo {index + 1}</span>
+                  </div>
+                )) : (
+                  <div className="flex h-32 items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white text-sm text-gray-500">
+                    Add photos to showcase your property
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <label className="label">Hotel Name</label>
@@ -138,13 +211,11 @@ export default function HotelSettingsPage() {
         </form>
       </section>
 
-      {/* ── WhatsApp Business API ── */}
       <section className="space-y-4">
         <h3 className="text-base font-semibold text-gray-800 border-b border-gray-200 pb-2 flex items-center gap-2">
           <MessageCircle className="h-4 w-4 text-green-600" /> WhatsApp Integration
         </h3>
 
-        {/* Setup instructions */}
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm space-y-2">
           <p className="font-medium text-green-800">Setup via Meta WhatsApp Business Cloud API</p>
           <ol className="list-decimal list-inside space-y-1 text-green-700">
@@ -164,7 +235,6 @@ export default function HotelSettingsPage() {
           </a>
         </div>
 
-        {/* Webhook URL */}
         <div>
           <label className="label">Webhook URL <span className="text-gray-400 font-normal">(paste this in Meta dashboard)</span></label>
           <div className="flex gap-2">

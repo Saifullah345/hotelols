@@ -49,10 +49,18 @@ export async function POST(request: Request) {
     metadata: { booking_id, user_id: user.id },
   })
 
-  await supabase.from('payments').update({
-    stripe_session_id: session.id,
+  const { error: paymentError } = await supabase.from('payments').upsert({
+    booking_id,
+    hotel_id: booking.hotel_id,
+    user_id: user.id,
+    amount: booking.total_amount,
+    currency: 'USD',
     status: 'pending',
-  }).eq('booking_id', booking_id)
+    payment_method: 'online',
+    stripe_session_id: session.id,
+  }, { onConflict: 'booking_id' })
+
+  if (paymentError) return NextResponse.json({ error: paymentError.message }, { status: 400 })
 
   return NextResponse.json({ url: session.url })
 }

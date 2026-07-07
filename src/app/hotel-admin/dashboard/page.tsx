@@ -46,7 +46,7 @@ export default async function HotelAdminDashboard() {
     supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('hotel_id', tenantId).eq('status', 'pending'),
     supabase.from('payments').select('amount, created_at').eq('hotel_id', tenantId).eq('status', 'completed'),
     supabase.from('bookings')
-      .select('id, status, check_in, check_out, total_amount, user:profiles(full_name), room:rooms(room_number)')
+      .select('id, status, check_in, check_out, total_amount, guest_name, user:profiles(full_name, email), room:rooms(room_number)')
       .eq('hotel_id', tenantId)
       .order('created_at', { ascending: false })
       .limit(5),
@@ -142,7 +142,12 @@ export default async function HotelAdminDashboard() {
           <tbody className="divide-y divide-gray-100">
             {recentBookings?.map(b => (
               <tr key={b.id} className="hover:bg-gray-50">
-                <td className="table-cell font-medium">{(b.user as { full_name?: string })?.full_name ?? '—'}</td>
+                <td className="table-cell font-medium">
+                  {(b.user as { full_name?: string } | null)?.full_name
+                    || (b as { guest_name?: string }).guest_name
+                    || (b.user as { email?: string } | null)?.email
+                    || '—'}
+                </td>
                 <td className="table-cell text-gray-500">Room {(b.room as { room_number?: string })?.room_number}</td>
                 <td className="table-cell text-gray-500">{new Date(b.check_in).toLocaleDateString()}</td>
                 <td className="table-cell text-gray-500">{new Date(b.check_out).toLocaleDateString()}</td>

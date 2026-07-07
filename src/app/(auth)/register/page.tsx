@@ -6,7 +6,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { createClient } from '@/lib/supabase/client'
 import { Loader2, Eye, EyeOff, MailCheck } from 'lucide-react'
 
 const schema = z.object({
@@ -28,23 +27,30 @@ export default function RegisterPage() {
   })
 
   const onSubmit = async (data: FormData) => {
-    const supabase = createClient()
-    const { error } = await supabase.auth.signUp({
-      email: data.email,
-      password: data.password,
-      // options: {
-      //   emailRedirectTo: `${location.origin}/auth/callback`,
-      //   data: { full_name: data.full_name, role: 'customer' },
-      // },
-    })
+    try {
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: data.full_name,
+          email: data.email,
+          password: data.password,
+        }),
+      })
 
-    if (error) {
-      toast.error(error.message)
-      return
+      const json = await res.json()
+      if (!res.ok) {
+        toast.error(json.error ?? 'Failed to create account')
+        return
+      }
+
+      setConfirmed(true)
+    } catch (error) {
+      toast.error('An error occurred. Please try again.')
     }
-
-    setConfirmed(true)
   }
+
+  const handleFormSubmit = handleSubmit(onSubmit)
 
   if (confirmed) {
     return (
@@ -65,10 +71,10 @@ export default function RegisterPage() {
     <>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Create your account</h1>
-        <p className="text-gray-500 text-sm mt-1">Start your free trial today</p>
+        <p className="mt-1 text-sm text-gray-500">Start your free trial and bring your hotel operations online.</p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleFormSubmit} className="space-y-4">
         <div>
           <label className="label">Full Name</label>
           <input {...register('full_name')} className="input" placeholder="John Doe" />

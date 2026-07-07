@@ -49,6 +49,15 @@ export async function POST(request: Request) {
     }
   }
 
+  if (['checkout.session.expired', 'checkout.session.async_payment_failed', 'payment_intent.payment_failed'].includes(event.type)) {
+    const session = event.data.object as Stripe.Checkout.Session
+    const bookingId = session.metadata?.booking_id
+
+    if (bookingId) {
+      await supabase.from('payments').update({ status: 'failed' }).eq('booking_id', bookingId)
+    }
+  }
+
   if (event.type === 'charge.refunded') {
     const charge = event.data.object as Stripe.Charge
     await supabase.from('payments').update({ status: 'refunded' })
