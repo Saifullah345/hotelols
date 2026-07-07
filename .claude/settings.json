@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node_modules/typescript/bin/tsc --noEmit)",
+      "WebSearch",
+      "WebFetch(domain:www.booking.com)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:www.wearetenet.com)",
+      "WebFetch(domain:dribbble.com)",
+      "WebFetch(domain:www.webyking.com)"
+    ]
+  }
+}
