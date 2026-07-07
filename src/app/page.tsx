@@ -4,6 +4,7 @@ import {
   CheckCircle2, Star, ArrowRight, TrendingUp, Clock,
 } from 'lucide-react'
 import PublicNavbar from '@/components/layout/PublicNavbar'
+import { createAdminClient } from '@/lib/supabase/server'
 
 /* ─── Data ─────────────────────────────────────────────────────────────────── */
 
@@ -23,23 +24,24 @@ const stats = [
   { value: '40%',   label: 'Faster operations',  icon: Zap        },
 ]
 
-const reviews = [
-  {
-    name: 'Sarah Mitchell', role: 'GM, The Grand Meridian',
-    rating: 5, initials: 'SM', color: 'bg-blue-600',
-    text: 'HotelOS reduced our check-in time by 40 %. My team actually enjoys using it — that never happened with the old system.',
-  },
-  {
-    name: 'Carlos Reyes', role: 'Owner, Boutique Stays Group',
-    rating: 5, initials: 'CR', color: 'bg-violet-600',
-    text: 'Running 12 properties used to feel impossible. Now I have everything in one view and can actually sleep at night.',
-  },
-  {
-    name: 'Priya Nair', role: 'Revenue Manager, Skyline Hotels',
-    rating: 5, initials: 'PN', color: 'bg-emerald-600',
-    text: 'The analytics dashboard paid for the subscription in the first week. Found a pricing gap I had been missing for months.',
-  },
+// ── Review helpers ───────────────────────────────────────────────────────────
+const avatarColors = [
+  'bg-blue-600', 'bg-violet-600', 'bg-emerald-600',
+  'bg-amber-600', 'bg-rose-600',  'bg-cyan-700',
 ]
+
+function getInitials(name: string) {
+  return name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2)
+}
+
+type DbReview = {
+  id: string
+  rating: number
+  comment: string
+  created_at: string
+  user: { full_name: string } | null
+  hotel: { name: string } | null
+}
 
 const plans = [
   {
@@ -235,7 +237,23 @@ function DashboardMockup() {
 }
 
 /* ─── Page ──────────────────────────────────────────────────────────────────── */
-export default function LandingPage() {
+export default async function LandingPage() {
+  // Fetch published reviews from Supabase (service role bypasses RLS)
+  const supabase = await createAdminClient()
+  const { data: dbReviews } = await supabase
+    .from('reviews')
+    .select('id, rating, comment, created_at, user:profiles(full_name), hotel:hotels(name)')
+    .eq('is_published', true)
+    .gte('rating', 4)
+    .order('created_at', { ascending: false })
+    .limit(6)
+
+  const liveReviews: DbReview[] = (dbReviews as DbReview[] | null) ?? []
+
+  const avgRating = liveReviews.length
+    ? (liveReviews.reduce((s, r) => s + r.rating, 0) / liveReviews.length).toFixed(1)
+    : null
+
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans">
 
@@ -434,41 +452,56 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <p className="text-sm font-bold text-blue-600 uppercase tracking-widest mb-3">Reviews</p>
-            <h2 className="text-4xl font-extrabold text-gray-900 mb-4">Hoteliers love HotelOS</h2>
-            <div className="flex items-center justify-center gap-1">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Star key={i} className="h-5 w-5 text-amber-400 fill-amber-400" />
-              ))}
-              <span className="ml-2 text-gray-500 font-medium text-sm">4.9 / 5 from 200+ reviews</span>
-            </div>
+            <h2 className="text-4xl font-extrabold text-gray-900 mb-4">What hoteliers say</h2>
+            {avgRating && (
+              <div className="flex items-center justify-center gap-1">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Star key={i} className="h-5 w-5 text-amber-400 fill-amber-400" />
+                ))}
+                <span className="ml-2 text-gray-500 font-medium text-sm">
+                  {avgRating} / 5 from {liveReviews.length} verified review{liveReviews.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {reviews.map(({ name, role, rating, initials, color, text }) => (
-              <div key={name} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow p-6 flex flex-col">
-                {/* Stars */}
-                <div className="flex gap-0.5 mb-4">
-                  {Array.from({ length: rating }).map((_, i) => (
-                    <Star key={i} className="h-4 w-4 text-amber-400 fill-amber-400" />
-                  ))}
-                </div>
-                {/* Quote */}
-                <p className="text-gray-700 text-sm leading-relaxed flex-1 mb-6">
-                  &ldquo;{text}&rdquo;
-                </p>
-                {/* Author */}
-                <div className="flex items-center gap-3 border-t border-gray-50 pt-4">
-                  <div className={`w-10 h-10 ${color} rounded-full flex items-center justify-center text-white text-xs font-extrabold flex-shrink-0`}>
-                    {initials}
+          {liveReviews.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {liveReviews.map((review, idx) => {
+                const name = review.user?.full_name ?? 'Guest'
+                const hotel = review.hotel?.name ?? ''
+                const color = avatarColors[idx % avatarColors.length]
+                const date = new Date(review.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+                return (
+                  <div key={review.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow p-6 flex flex-col">
+                    <div className="flex gap-0.5 mb-4">
+                      {Array.from({ length: review.rating }).map((_, i) => (
+                        <Star key={i} className="h-4 w-4 text-amber-400 fill-amber-400" />
+                      ))}
+                      {Array.from({ length: 5 - review.rating }).map((_, i) => (
+                        <Star key={i} className="h-4 w-4 text-gray-200 fill-gray-200" />
+                      ))}
+                    </div>
+                    <p className="text-gray-700 text-sm leading-relaxed flex-1 mb-6">
+                      &ldquo;{review.comment}&rdquo;
+                    </p>
+                    <div className="flex items-center gap-3 border-t border-gray-100 pt-4">
+                      <div className={`w-10 h-10 ${color} rounded-full flex items-center justify-center text-white text-xs font-extrabold flex-shrink-0`}>
+                        {getInitials(name)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-gray-900">{name}</p>
+                        {hotel && <p className="text-xs text-blue-600 font-medium">{hotel}</p>}
+                        <p className="text-xs text-gray-400">{date}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-bold text-gray-900">{name}</p>
-                    <p className="text-xs text-gray-400">{role}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+                )
+              })}
+            </div>
+          ) : (
+            <p className="text-center text-gray-400 py-12">No reviews yet — be the first!</p>
+          )}
         </div>
       </section>
 
