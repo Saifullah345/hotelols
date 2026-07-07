@@ -184,12 +184,12 @@ export default function LandingPage() {
             <a href="#reviews"  className="hover:text-gray-900 transition-colors">Reviews</a>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+          <div className="flex items-center gap-2">
+            <Link href="/login" className="text-sm font-semibold px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
               Sign in
             </Link>
-            <Link href="/register" className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold px-5 py-2.5 rounded-lg transition-colors shadow-sm shadow-blue-200">
-              Get started free
+            <Link href="/register" className="text-sm font-semibold px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm shadow-blue-200">
+              Get started
             </Link>
           </div>
         </div>

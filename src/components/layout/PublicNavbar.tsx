@@ -32,10 +32,10 @@ export default function PublicNavbar() {
               {link.label}
             </Link>
           ))}
-          <Link href="/login" className="text-sm font-medium text-gray-600 transition hover:text-gray-900">
+          <Link href="/login" className="text-sm font-semibold px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
             Sign in
           </Link>
-          <Link href="/register" className="btn-primary text-sm">
+          <Link href="/register" className="text-sm font-semibold px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm shadow-blue-200">
             Get started
           </Link>
         </nav>
@@ -58,10 +58,10 @@ export default function PublicNavbar() {
                 {link.label}
               </Link>
             ))}
-            <Link href="/login" className="text-sm font-medium text-gray-600" onClick={() => setOpen(false)}>
+            <Link href="/login" className="text-sm font-semibold px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors text-center" onClick={() => setOpen(false)}>
               Sign in
             </Link>
-            <Link href="/register" className="btn-primary w-full justify-center text-sm" onClick={() => setOpen(false)}>
+            <Link href="/register" className="text-sm font-semibold px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors text-center" onClick={() => setOpen(false)}>
               Get started
             </Link>
           </div>
