@@ -85,6 +85,100 @@ const plans = [
   },
 ]
 
+/* ─── Mobile app mockup ─────────────────────────────────────────────────────── */
+const APP_BUILD_URL = 'https://expo.dev/accounts/saifullah79706/projects/hotel-saas-mobile/builds/5a276609-8977-408f-aed1-41516d41a8bb'
+
+function MobileAppMockup() {
+  return (
+    <div className="relative mx-auto" style={{ width: 260 }}>
+      {/* Phone shell */}
+      <div
+        className="relative bg-slate-900 rounded-[44px] p-2.5"
+        style={{ boxShadow: '0 40px 80px rgba(0,0,0,0.35), inset 0 0 0 2px rgba(255,255,255,0.06)' }}
+      >
+        {/* Dynamic island */}
+        <div className="absolute top-3.5 left-1/2 -translate-x-1/2 w-24 h-6 bg-black rounded-full z-10" />
+
+        {/* Screen */}
+        <div className="bg-gray-50 rounded-[36px] overflow-hidden" style={{ height: 520 }}>
+          {/* Status bar */}
+          <div className="bg-slate-900 h-10 flex items-end justify-between px-6 pb-1.5">
+            <span className="text-white text-xs font-semibold">9:41</span>
+            <div className="flex items-center gap-1">
+              <div className="flex gap-0.5 items-end h-3">
+                {[1, 1.5, 2, 3].map((h, i) => (
+                  <div key={i} className="w-1 bg-white rounded-sm" style={{ height: `${h * 4}px` }} />
+                ))}
+              </div>
+              <div className="w-4 h-2.5 rounded-sm border border-white/60 ml-1 relative">
+                <div className="absolute inset-0.5 right-1 bg-white rounded-sm" />
+              </div>
+            </div>
+          </div>
+
+          {/* App header */}
+          <div className="bg-blue-600 px-5 pt-4 pb-5">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-blue-200 text-xs">Good morning</p>
+                <p className="text-white font-bold text-base">Grand Palace Hotel</p>
+              </div>
+              <div className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center">
+                <Building2 className="h-4 w-4 text-white" />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: 'Occupied', value: '87%',   color: 'text-emerald-300' },
+                { label: 'Bookings', value: '14',    color: 'text-blue-200'    },
+                { label: 'Revenue',  value: '$4.2k', color: 'text-amber-300'   },
+              ].map(s => (
+                <div key={s.label} className="bg-white/10 rounded-xl px-2 py-2 text-center">
+                  <p className={`text-sm font-extrabold ${s.color}`}>{s.value}</p>
+                  <p className="text-white/60 text-[10px] mt-0.5">{s.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Room list */}
+          <div className="px-4 pt-4">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Today&apos;s Rooms</p>
+            <div className="space-y-2">
+              {[
+                { room: '101', guest: 'John Smith', status: 'Checked In', pill: 'bg-emerald-100 text-emerald-700' },
+                { room: '204', guest: 'Anna Lee',   status: 'Checkout',   pill: 'bg-amber-100 text-amber-700'   },
+                { room: '312', guest: 'Mike Ross',  status: 'Arriving',   pill: 'bg-blue-100 text-blue-700'     },
+                { room: '405', guest: '—',          status: 'Available',  pill: 'bg-gray-100 text-gray-500'     },
+              ].map(r => (
+                <div key={r.room} className="bg-white rounded-xl px-3 py-2.5 flex items-center justify-between shadow-sm border border-gray-50">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                      <span className="text-blue-600 text-xs font-bold">{r.room}</span>
+                    </div>
+                    <span className="text-xs font-medium text-gray-700">{r.guest}</span>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${r.pill}`}>{r.status}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Home indicator */}
+        <div className="flex justify-center pt-2 pb-0.5">
+          <div className="w-28 h-1 bg-white/30 rounded-full" />
+        </div>
+      </div>
+
+      {/* Side buttons */}
+      <div className="absolute top-28 -right-1.5 w-1.5 h-16 bg-slate-700 rounded-r-lg" />
+      <div className="absolute top-20 -left-1.5 w-1.5 h-10 bg-slate-700 rounded-l-lg" />
+      <div className="absolute top-36 -left-1.5 w-1.5 h-10 bg-slate-700 rounded-l-lg" />
+    </div>
+  )
+}
+
 /* ─── Dashboard mockup (shown in hero) ─────────────────────────────────────── */
 function DashboardMockup() {
   return (
@@ -326,6 +420,65 @@ export default function LandingPage() {
               <p className="text-sm text-blue-200 font-medium">{label}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ══ Mobile App ════════════════════════════════════════════════════════ */}
+      <section className="py-24 px-6 bg-white border-t border-gray-100">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+
+            {/* Phone mockup */}
+            <div className="flex justify-center lg:justify-end order-2 lg:order-1">
+              <MobileAppMockup />
+            </div>
+
+            {/* Text + QR */}
+            <div className="order-1 lg:order-2">
+              <p className="text-sm font-bold text-blue-600 uppercase tracking-widest mb-3">Mobile App</p>
+              <h2 className="text-4xl font-extrabold text-gray-900 leading-tight mb-4">
+                Manage your hotel<br />from your pocket
+              </h2>
+              <p className="text-lg text-gray-500 mb-8 leading-relaxed">
+                Real-time room updates, instant booking alerts, and staff management — anywhere, anytime.
+              </p>
+
+              <ul className="space-y-3 mb-10">
+                {[
+                  'Live room & booking status',
+                  'Instant new-booking notifications',
+                  'Staff task assignment on the go',
+                  'Revenue dashboard at a glance',
+                ].map(f => (
+                  <li key={f} className="flex items-center gap-2.5 text-gray-700 text-sm">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-500 flex-shrink-0" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              {/* QR code card — URL is encoded, not shown */}
+              <div className="inline-flex items-center gap-5 bg-gray-50 border border-gray-200 rounded-2xl p-4">
+                <div className="bg-white p-2.5 rounded-xl border border-gray-100 shadow-sm flex-shrink-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(APP_BUILD_URL)}&bgcolor=ffffff&color=1e3a8a&qzone=1`}
+                    alt="Scan to install the HotelOS mobile app"
+                    width={120}
+                    height={120}
+                    className="rounded-lg block"
+                  />
+                </div>
+                <div>
+                  <p className="font-extrabold text-gray-900 text-base mb-1">Scan to install</p>
+                  <p className="text-sm text-gray-500 leading-relaxed">
+                    Point your phone camera<br />at the code to download<br />the HotelOS app.
+                  </p>
+                  <p className="text-xs text-gray-400 mt-2">Android &amp; iOS supported</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
