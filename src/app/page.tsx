@@ -326,36 +326,27 @@ export default function LandingPage() {
       </section>
 
       {/* ══ Features ══════════════════════════════════════════════════════════ */}
-      <section id="features" className="py-24 px-6 bg-slate-950">
+      <section id="features" className="py-24 px-6 bg-gray-50">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <p className="text-sm font-bold text-blue-400 uppercase tracking-widest mb-3">Platform</p>
-            <h2 className="text-4xl font-extrabold text-white mb-4">Everything in one place</h2>
-            <p className="text-lg text-slate-400 max-w-xl mx-auto">
+            <p className="text-sm font-bold text-blue-600 uppercase tracking-widest mb-3">Platform</p>
+            <h2 className="text-4xl font-extrabold text-gray-900 mb-4">Everything in one place</h2>
+            <p className="text-lg text-gray-500 max-w-xl mx-auto">
               No more jumping between tools. HotelOS brings your entire operation together.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {features.map(({ icon: Icon, title, desc, glow, ring }) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {features.map(({ icon: Icon, title, desc, ring }) => (
               <div
                 key={title}
-                className="group relative bg-slate-900 border border-slate-800 rounded-2xl p-6 hover:border-slate-600 hover:-translate-y-1 transition-all duration-300"
+                className="group bg-white border border-gray-100 rounded-2xl p-6 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
               >
-                {/* Subtle top-left glow on hover */}
-                <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-                  style={{ background: 'radial-gradient(circle at 20% 20%, rgba(59,130,246,0.06), transparent 60%)' }} />
-
-                {/* Icon */}
-                <div className={`w-12 h-12 ${ring} rounded-xl flex items-center justify-center mb-5 shadow-lg ${glow}`}>
+                <div className={`w-12 h-12 ${ring} rounded-xl flex items-center justify-center mb-5`}>
                   <Icon className="h-5 w-5" />
                 </div>
-
-                <h3 className="font-bold text-white text-lg mb-2">{title}</h3>
-                <p className="text-slate-400 text-sm leading-relaxed">{desc}</p>
-
-                {/* Bottom accent line on hover */}
-                <div className="absolute bottom-0 left-6 right-6 h-px bg-gradient-to-r from-blue-500/0 via-blue-500/50 to-blue-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <h3 className="font-bold text-gray-900 text-lg mb-2">{title}</h3>
+                <p className="text-gray-500 text-sm leading-relaxed">{desc}</p>
               </div>
             ))}
           </div>
