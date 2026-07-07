@@ -7,7 +7,12 @@
       "WebFetch(domain:medium.com)",
       "WebFetch(domain:www.wearetenet.com)",
       "WebFetch(domain:dribbble.com)",
-      "WebFetch(domain:www.webyking.com)"
+      "WebFetch(domain:www.webyking.com)",
+      "Bash(git fetch *)",
+      "Bash(git pull *)",
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }
