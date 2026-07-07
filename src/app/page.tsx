@@ -3,6 +3,7 @@ import {
   Building2, Users, CreditCard, BarChart3, Shield, Zap,
   CheckCircle2, Star, ArrowRight, TrendingUp, Clock,
 } from 'lucide-react'
+import PublicNavbar from '@/components/layout/PublicNavbar'
 
 /* ─── Data ─────────────────────────────────────────────────────────────────── */
 
@@ -262,32 +263,8 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans">
 
-      {/* ══ Nav ═══════════════════════════════════════════════════════════════ */}
-      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <Building2 className="h-4.5 w-4.5 text-white h-5 w-5" />
-            </div>
-            <span className="font-extrabold text-lg tracking-tight">HotelOS</span>
-          </div>
-
-          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-600">
-            <a href="#features" className="hover:text-gray-900 transition-colors">Features</a>
-            <a href="#pricing"  className="hover:text-gray-900 transition-colors">Pricing</a>
-            <a href="#reviews"  className="hover:text-gray-900 transition-colors">Reviews</a>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Link href="/login" className="text-sm font-semibold px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
-              Sign in
-            </Link>
-            <Link href="/register" className="text-sm font-semibold px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm shadow-blue-200">
-              Get started
-            </Link>
-          </div>
-        </div>
-      </nav>
+      {/* ══ Nav — shared PublicNavbar (same as login/register pages) ══════════ */}
+      <PublicNavbar />
 
       {/* ══ Hero ══════════════════════════════════════════════════════════════ */}
       <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
