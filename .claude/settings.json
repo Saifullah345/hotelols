@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node_modules/typescript/bin/tsc --noEmit)",
+      "WebSearch",
+      "WebFetch(domain:www.booking.com)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:www.wearetenet.com)",
+      "WebFetch(domain:dribbble.com)",
+      "WebFetch(domain:www.webyking.com)",
+      "Bash(git fetch *)",
+      "Bash(git pull *)",
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
+    ]
+  }
+}
