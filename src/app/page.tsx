@@ -695,16 +695,39 @@ export default async function LandingPage() {
             </div>
 
             {[
-              { title: 'Product',  links: ['Features', 'Pricing', 'Security', 'Integrations'] },
-              { title: 'Company',  links: ['About', 'Blog', 'Careers', 'Contact']             },
-              { title: 'Legal',    links: ['Privacy', 'Terms', 'Cookies', 'GDPR']             },
+              {
+                title: 'Product',
+                links: [
+                  { label: 'Features',     href: '/#features'     },
+                  { label: 'How it works', href: '/#how-it-works' },
+                  { label: 'Pricing',      href: '/#pricing'      },
+                  { label: 'Reviews',      href: '/#reviews'      },
+                ],
+              },
+              {
+                title: 'Company',
+                links: [
+                  { label: 'Register Hotel', href: '/register-hotel' },
+                  { label: 'Sign In',        href: '/login'          },
+                  { label: 'Contact',        href: 'mailto:support@hotelos.com' },
+                ],
+              },
+              {
+                title: 'Legal',
+                links: [
+                  { label: 'Privacy Policy', href: '/privacy'         },
+                  { label: 'Terms & Conditions', href: '/terms'       },
+                  { label: 'Cookies',        href: '/privacy#cookies' },
+                  { label: 'GDPR',           href: '/privacy#gdpr'   },
+                ],
+              },
             ].map(col => (
               <div key={col.title}>
                 <h4 className="text-white font-semibold text-sm mb-4 uppercase tracking-widest">{col.title}</h4>
                 <ul className="space-y-2.5">
                   {col.links.map(link => (
-                    <li key={link}>
-                      <a href="#" className="text-sm hover:text-white transition-colors">{link}</a>
+                    <li key={link.label}>
+                      <Link href={link.href} className="text-sm hover:text-white transition-colors">{link.label}</Link>
                     </li>
                   ))}
                 </ul>
@@ -715,9 +738,9 @@ export default async function LandingPage() {
           <div className="border-t border-slate-800 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-slate-500">
             <p>© {new Date().getFullYear()} HotelOS. All rights reserved.</p>
             <div className="flex gap-6">
-              <a href="#" className="hover:text-white transition-colors">Privacy</a>
-              <a href="#" className="hover:text-white transition-colors">Terms</a>
-              <a href="#" className="hover:text-white transition-colors">Cookies</a>
+              <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
+              <Link href="/terms"   className="hover:text-white transition-colors">Terms</Link>
+              <Link href="/privacy#cookies" className="hover:text-white transition-colors">Cookies</Link>
             </div>
           </div>
         </div>
