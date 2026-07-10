@@ -49,10 +49,10 @@ export default function PublicNavbar() {
             Sign in
           </Link>
           <Link
-            href="/register"
+            href="/register-hotel"
             className="text-sm font-semibold px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm shadow-blue-200"
           >
-            Get started
+            Register Hotel
           </Link>
         </div>
 
