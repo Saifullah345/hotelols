@@ -709,7 +709,7 @@ export default async function LandingPage() {
                 links: [
                   { label: 'Register Hotel', href: '/register-hotel' },
                   { label: 'Sign In',        href: '/login'          },
-                  { label: 'Contact',        href: 'mailto:support@hotelos.com' },
+                  { label: 'Contact',        href: '/contact' },
                 ],
               },
               {
