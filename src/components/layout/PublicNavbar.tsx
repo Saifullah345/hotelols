@@ -56,8 +56,8 @@ export default function PublicNavbar() {
           </Link>
         </div>
 
-        {/* Mobile hamburger */}
-        <div className="flex justify-end md:hidden">
+        {/* Mobile hamburger — col-start-3 keeps it in the right column even when nav/buttons are hidden */}
+        <div className="col-start-3 flex justify-end md:hidden">
           <button
             type="button"
             className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 text-gray-600"
