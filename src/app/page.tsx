@@ -18,10 +18,10 @@ const features = [
 ]
 
 const stats = [
-  { value: '500+',  label: 'Hotels',           icon: Building2  },
-  { value: '2M+',   label: 'Bookings handled',  icon: TrendingUp },
-  { value: '99.9%', label: 'Uptime SLA',         icon: Clock      },
-  { value: '40%',   label: 'Faster operations',  icon: Zap        },
+  { value: '14 Days', label: 'Free trial — no card needed', icon: Clock      },
+  { value: '< 1 hr',  label: 'Average hotel setup time',    icon: Zap        },
+  { value: '100%',    label: 'Data privacy — your data stays yours', icon: Shield },
+  { value: '24 / 7',  label: 'Real-time room & booking updates', icon: TrendingUp },
 ]
 
 // ── Review helpers ───────────────────────────────────────────────────────────
@@ -277,7 +277,7 @@ export default async function LandingPage() {
             <div>
               <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-blue-300 text-xs font-semibold px-4 py-1.5 rounded-full mb-6">
                 <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                Trusted by 500+ hotels worldwide
+                Built for independent hotels &amp; growing groups
               </div>
 
               <h1 className="text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-6">
@@ -332,9 +332,9 @@ export default async function LandingPage() {
       {/* ══ Trust bar ═════════════════════════════════════════════════════════ */}
       <section className="py-10 px-6 border-b border-gray-100">
         <div className="max-w-5xl mx-auto text-center">
-          <p className="text-sm text-gray-400 font-medium mb-6">Powering hotel operations across the globe</p>
+          <p className="text-sm text-gray-400 font-medium mb-6">Everything your hotel needs in one platform</p>
           <div className="flex flex-wrap justify-center gap-3">
-            {['The Grand Meridian', 'Boutique Stays Group', 'Skyline Hotels', 'Azure Resorts', 'City Suites', 'Harbor Inn Group'].map(name => (
+            {['Room Management', 'Online Bookings', 'Staff & Roles', 'Stripe Payments', 'Revenue Analytics', 'Mobile App'].map(name => (
               <span key={name} className="px-4 py-1.5 bg-gray-50 border border-gray-100 rounded-full text-sm font-medium text-gray-500">
                 {name}
               </span>
@@ -642,7 +642,7 @@ export default async function LandingPage() {
             Ready to transform<br />your hotel operations?
           </h2>
           <p className="text-slate-300 text-lg mb-10">
-            Join 500+ hoteliers already saving time and growing revenue.
+            Set up your hotel in under an hour and start managing everything from one dashboard.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-3">
             <Link
