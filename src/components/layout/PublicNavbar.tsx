@@ -9,6 +9,7 @@ const links = [
   { href: '/#how-it-works', label: 'How it works' },
   { href: '/#pricing',      label: 'Pricing'      },
   { href: '/#reviews',      label: 'Reviews'      },
+  { href: '/contact',       label: 'Contact'      },
 ]
 
 export default function PublicNavbar() {
