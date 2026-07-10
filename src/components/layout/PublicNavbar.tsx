@@ -29,12 +29,12 @@ export default function PublicNavbar() {
         </Link>
 
         {/* Nav links — truly centred */}
-        <nav className="hidden items-center justify-center gap-7 md:flex">
+        <nav className="hidden items-center justify-center gap-5 md:flex">
           {links.map(link => (
             <Link
               key={link.href}
               href={link.href}
-              className="text-sm font-medium text-gray-600 transition hover:text-gray-900"
+              className="text-sm font-medium text-gray-600 transition hover:text-gray-900 whitespace-nowrap"
             >
               {link.label}
             </Link>
