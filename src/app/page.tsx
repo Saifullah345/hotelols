@@ -48,19 +48,19 @@ const plans = [
     name: 'Starter', price: '$29', period: '/mo',
     desc: 'Perfect for small independent hotels.',
     features: ['Up to 20 rooms', 'Room & booking management', 'Guest profiles', 'Basic reports', 'Email support'],
-    cta: 'Start free trial', highlight: false,
+    cta: 'Start free trial', href: '/register-hotel', highlight: false,
   },
   {
     name: 'Professional', price: '$79', period: '/mo',
     desc: 'For growing hotels that need full power.',
     features: ['Unlimited rooms', 'Staff management & roles', 'Advanced analytics', 'Stripe payments', 'Priority support'],
-    cta: 'Start free trial', highlight: true,
+    cta: 'Start free trial', href: '/register-hotel', highlight: true,
   },
   {
     name: 'Enterprise', price: '$199', period: '/mo',
     desc: 'For hotel groups and management companies.',
     features: ['Multi-property dashboard', 'Custom branding', 'Dedicated account manager', 'Custom integrations', 'SLA guarantee'],
-    cta: 'Contact sales', highlight: false,
+    cta: 'Contact sales', href: '/contact', highlight: false,
   },
 ]
 
@@ -628,7 +628,7 @@ export default async function LandingPage() {
                   </ul>
 
                   <Link
-                    href="/register-hotel"
+                    href={plan.href}
                     className={`block text-center font-bold py-3 rounded-xl text-sm transition-colors ${
                       plan.highlight
                         ? 'bg-white text-blue-600 hover:bg-blue-50'
