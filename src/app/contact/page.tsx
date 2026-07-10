@@ -4,9 +4,9 @@ import PublicNavbar from '@/components/layout/PublicNavbar'
 
 export const metadata = { title: 'Contact Us' }
 
-const PHONE    = '+92 352 5258421'
-const WA_LINK  = 'https://wa.me/923525258421'
-const EMAIL    = 'info@n6solution.com'
+const PHONE    = '+92 325 5258421'
+const WA_LINK  = 'https://wa.me/923255258421'
+const EMAIL    = 'sales@n6solution.com'
 
 export default function ContactPage() {
   return (
@@ -45,7 +45,7 @@ export default function ContactPage() {
               <Phone className="h-6 w-6" />
             </div>
             <h3 className="font-bold text-gray-900 text-lg mb-1">Call us</h3>
-            <p className="text-sm text-gray-400 mb-3">Mon – Sat, 9 am – 6 pm</p>
+            <p className="text-sm text-gray-400 mb-3">Mon – Sat, 10 am – 7 pm</p>
             <p className="text-blue-600 font-semibold">{PHONE}</p>
           </a>
 
@@ -87,7 +87,7 @@ export default function ContactPage() {
             </div>
             <div>
               <p className="font-semibold text-gray-900 mb-0.5">Business Hours</p>
-              <p className="text-sm text-gray-500">Monday – Saturday: 9:00 am – 6:00 pm PKT</p>
+              <p className="text-sm text-gray-500">Monday – Saturday: 10:00 am – 7:00 pm PKT</p>
               <p className="text-sm text-gray-500">Sunday: Closed</p>
             </div>
           </div>
@@ -97,7 +97,7 @@ export default function ContactPage() {
             </div>
             <div>
               <p className="font-semibold text-gray-900 mb-0.5">Company</p>
-              <p className="text-sm text-gray-500">N6 Solution</p>
+              <p className="text-sm text-gray-500">N6 Solution SMC PVT LTD</p>
               <p className="text-sm text-gray-500">Pakistan</p>
             </div>
           </div>

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 
-const WA_NUMBER  = '923525258421'
+const WA_NUMBER  = '923255258421'
 const WA_MESSAGE = encodeURIComponent('Hi! I have a question about HotelOS.')
 const WA_LINK    = `https://wa.me/${WA_NUMBER}?text=${WA_MESSAGE}`
 
