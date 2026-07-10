@@ -439,24 +439,34 @@ export default async function LandingPage() {
       </section>
 
       {/* ══ Stats strip ═══════════════════════════════════════════════════════ */}
-      <section className="py-20 px-6 bg-blue-600">
-        <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-10 text-center">
-          {stats.map(({ value, label, icon: Icon }) => (
-            <div key={label}>
-              <div className="flex justify-center mb-3">
-                <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center">
-                  <Icon className="h-5 w-5 text-white" />
+      <section className="relative bg-blue-600">
+        {/* Wave in from gray features section */}
+        <svg viewBox="0 0 1440 56" className="w-full fill-blue-600 block" xmlns="http://www.w3.org/2000/svg" style={{ marginTop: -1 }}>
+          <path d="M0,28 C360,56 1080,0 1440,28 L1440,0 L0,0 Z" />
+        </svg>
+        <div className="py-20 px-6">
+          <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-10 text-center">
+            {stats.map(({ value, label, icon: Icon }) => (
+              <div key={label}>
+                <div className="flex justify-center mb-3">
+                  <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center">
+                    <Icon className="h-5 w-5 text-white" />
+                  </div>
                 </div>
+                <p className="text-4xl font-extrabold text-white mb-1">{value}</p>
+                <p className="text-sm text-blue-200 font-medium">{label}</p>
               </div>
-              <p className="text-4xl font-extrabold text-white mb-1">{value}</p>
-              <p className="text-sm text-blue-200 font-medium">{label}</p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
+        {/* Wave out to white mobile section */}
+        <svg viewBox="0 0 1440 56" className="w-full fill-white block -mb-px" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0,28 C480,56 960,0 1440,28 L1440,56 L0,56 Z" />
+        </svg>
       </section>
 
       {/* ══ Mobile App ════════════════════════════════════════════════════════ */}
-      <section className="py-24 px-6 bg-white border-t border-gray-100">
+      <section className="py-24 px-6 bg-white">
         <div className="max-w-6xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
 
@@ -635,28 +645,34 @@ export default async function LandingPage() {
       </section>
 
       {/* ══ Final CTA ═════════════════════════════════════════════════════════ */}
-      <section className="py-24 px-6 relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
-        <div className="absolute top-0 left-1/3 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative max-w-3xl mx-auto text-center">
-          <h2 className="text-4xl sm:text-5xl font-extrabold text-white mb-5 leading-tight">
-            Ready to transform<br />your hotel operations?
-          </h2>
-          <p className="text-slate-300 text-lg mb-10">
-            Set up your hotel in under an hour and start managing everything from one dashboard.
-          </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-3">
-            <Link
-              href="/register-hotel"
-              className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-9 py-4 rounded-xl text-base transition-all shadow-lg shadow-blue-900/50"
-            >
-              Register your hotel <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/login"
-              className="inline-flex items-center justify-center border border-white/20 hover:bg-white/10 text-white font-semibold px-9 py-4 rounded-xl text-base transition-all"
-            >
-              Sign in
-            </Link>
+      <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
+        {/* Wave in from white pricing section */}
+        <svg viewBox="0 0 1440 56" className="w-full block" xmlns="http://www.w3.org/2000/svg" style={{ fill: '#0f172a', marginTop: -1 }}>
+          <path d="M0,28 C360,0 1080,56 1440,28 L1440,0 L0,0 Z" />
+        </svg>
+        <div className="py-24 px-6 relative">
+          <div className="absolute top-0 left-1/3 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative max-w-3xl mx-auto text-center">
+            <h2 className="text-4xl sm:text-5xl font-extrabold text-white mb-5 leading-tight">
+              Ready to transform<br />your hotel operations?
+            </h2>
+            <p className="text-slate-300 text-lg mb-10">
+              Set up your hotel in under an hour and start managing everything from one dashboard.
+            </p>
+            <div className="flex flex-col sm:flex-row justify-center gap-3">
+              <Link
+                href="/register-hotel"
+                className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-9 py-4 rounded-xl text-base transition-all shadow-lg shadow-blue-900/50"
+              >
+                Register your hotel <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                href="/login"
+                className="inline-flex items-center justify-center border border-white/20 hover:bg-white/10 text-white font-semibold px-9 py-4 rounded-xl text-base transition-all"
+              >
+                Sign in
+              </Link>
+            </div>
           </div>
         </div>
       </section>
