@@ -290,6 +290,35 @@ export function otpEmailTemplate(code: string): { subject: string; html: string 
   }
 }
 
+/** Branded password-reset code email. */
+export function passwordResetEmailTemplate(code: string): { subject: string; html: string } {
+  const spaced = code.split('').join('&nbsp;&nbsp;')
+  const bodyHtml = `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td align="center" style="padding:8px 0 4px;">
+          <div style="display:inline-block;background:${BRAND.bg};border:1px solid ${BRAND.border};border-radius:12px;padding:18px 28px;">
+            <div style="font-size:32px;font-weight:800;letter-spacing:6px;color:${BRAND.primaryDark};font-family:'Inter',Arial,sans-serif;">${spaced}</div>
+          </div>
+        </td>
+      </tr>
+    </table>
+    <p style="margin:20px 0 0;font-size:14px;line-height:1.6;color:${BRAND.muted};">
+      This code expires in <strong style="color:${BRAND.text};">10 minutes</strong>. Enter it along with your new password to finish resetting your account.
+    </p>`
+
+  return {
+    subject: `Your ${BRAND.name} password reset code: ${code}`,
+    html: renderBrandedEmail({
+      preview: `Your ${BRAND.name} password reset code is ${code}`,
+      heading: 'Reset your password',
+      intro: 'Use the one-time code below to set a new password for your account.',
+      bodyHtml,
+      footnote: "For your security, never share this code with anyone. If you didn't request this, you can safely ignore this email.",
+    }),
+  }
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, '&amp;')

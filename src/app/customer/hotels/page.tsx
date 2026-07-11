@@ -2,15 +2,20 @@ import { createClient } from '@/lib/supabase/server'
 import { MapPin, Star, Search, SlidersHorizontal, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
+import GuestsRoomsSelector from './GuestsRoomsSelector'
 
 export const metadata = { title: 'Search Hotels' }
 
 export default async function CustomerHotelsPage({
   searchParams
 }: {
-  searchParams: Promise<{ city?: string; q?: string }>
+  searchParams: Promise<{ city?: string; q?: string; adults?: string; children?: string; rooms?: string }>
 }) {
-  const { city, q } = await searchParams
+  const { city, q, adults: adultsParam, children: childrenParam, rooms: roomsParam } = await searchParams
+  const adults = Math.max(1, Number(adultsParam) || 2)
+  const children = Math.max(0, Number(childrenParam) || 0)
+  const roomsNeeded = Math.max(1, Number(roomsParam) || 1)
+  const totalGuests = adults + children
   const supabase = await createClient()
 
   let query = supabase
@@ -22,7 +27,29 @@ export default async function CustomerHotelsPage({
   if (city) query = query.ilike('city', `%${city}%`)
   if (q) query = query.ilike('name', `%${q}%`)
 
-  const { data: hotels } = await query
+  const { data: hotelsMatchingSearch } = await query
+
+  // Only keep hotels that can actually accommodate the requested party: at
+  // least `roomsNeeded` available rooms whose room type sleeps `totalGuests`.
+  let hotels = hotelsMatchingSearch
+  const hotelIds = (hotelsMatchingSearch ?? []).map(h => h.id)
+  if (hotelIds.length) {
+    const { data: candidateRooms } = await supabase
+      .from('rooms')
+      .select('hotel_id, room_type:room_types(capacity)')
+      .in('hotel_id', hotelIds)
+      .eq('status', 'available')
+
+    const suitableRoomCountByHotel = new Map<string, number>()
+    for (const room of candidateRooms ?? []) {
+      const capacity = (room.room_type as { capacity?: number } | null)?.capacity ?? 0
+      if (capacity >= totalGuests) {
+        suitableRoomCountByHotel.set(room.hotel_id, (suitableRoomCountByHotel.get(room.hotel_id) ?? 0) + 1)
+      }
+    }
+    hotels = (hotelsMatchingSearch ?? []).filter(h => (suitableRoomCountByHotel.get(h.id) ?? 0) >= roomsNeeded)
+  }
+
   const count = hotels?.length ?? 0
 
   return (
@@ -62,6 +89,7 @@ export default async function CustomerHotelsPage({
                 placeholder="City"
               />
             </div>
+            <GuestsRoomsSelector defaultAdults={adults} defaultChildren={children} defaultRooms={roomsNeeded} />
             <button type="submit" className="btn-primary px-6">Search</button>
           </form>
           {(q || city) && (
@@ -75,6 +103,10 @@ export default async function CustomerHotelsPage({
               </Link>
             </div>
           )}
+          <p className="mt-3 text-xs text-primary-100">
+            {adults} adult{adults === 1 ? '' : 's'}
+            {children ? `, ${children} child${children === 1 ? '' : 'ren'}` : ''} · {roomsNeeded} room{roomsNeeded === 1 ? '' : 's'}
+          </p>
         </div>
       </section>
 

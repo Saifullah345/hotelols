@@ -38,6 +38,8 @@ export default function HotelSettingsPage() {
 
   const saveHotel = async (data: Record<string, unknown>) => {
     const supabase = createClient()
+    const latitude = data.latitude === '' || data.latitude == null ? null : Number(data.latitude)
+    const longitude = data.longitude === '' || data.longitude == null ? null : Number(data.longitude)
     const { error } = await supabase.from('hotels').update({
       name: data.name,
       description: data.description,
@@ -48,6 +50,8 @@ export default function HotelSettingsPage() {
       country: data.country,
       check_in_time: data.check_in_time,
       check_out_time: data.check_out_time,
+      latitude,
+      longitude,
       cover_image: coverImage,
       images: hotelImages,
     }).eq('id', tenantId!)
@@ -194,6 +198,24 @@ export default function HotelSettingsPage() {
             <div>
               <label className="label">Check-out Time</label>
               <input {...hotelForm.register('check_out_time')} type="time" className="input" />
+            </div>
+            <div>
+              <label className="label">Latitude</label>
+              <input {...hotelForm.register('latitude')} type="number" step="any" placeholder="31.5497" className="input" />
+            </div>
+            <div>
+              <label className="label">Longitude</label>
+              <input {...hotelForm.register('longitude')} type="number" step="any" placeholder="74.3436" className="input" />
+            </div>
+            <div className="md:col-span-2 -mt-2">
+              <a
+                href="https://www.google.com/maps"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-medium text-primary-600 underline"
+              >
+                Find your coordinates on Google Maps (right-click the pin → copy the numbers shown)
+              </a>
             </div>
           </div>
           <div className="flex justify-end pt-2 border-t border-gray-100">

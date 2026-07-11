@@ -8,6 +8,7 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import BookRoomButton from './BookRoomButton'
 import HotelImageCarousel from './HotelImageCarousel'
+import HotelLocationMap from './HotelLocationMap'
 
 function getAmenityIcon(name: string): LucideIcon {
   const key = name.toLowerCase()
@@ -137,6 +138,13 @@ export default async function HotelDetailPage({ params }: { params: Promise<{ id
           </div>
         )}
       </div>
+
+      <HotelLocationMap
+        latitude={hotel.latitude}
+        longitude={hotel.longitude}
+        name={hotel.name}
+        address={`${hotel.address}, ${hotel.city}, ${hotel.country}`}
+      />
 
       <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
         {/* Main column */}
