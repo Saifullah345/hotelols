@@ -1,49 +1,119 @@
-'use client'
-
 import Link from 'next/link'
+import { ArrowLeft, Phone, Mail, MessageCircle, Clock, MapPin } from 'lucide-react'
 import PublicNavbar from '@/components/layout/PublicNavbar'
-import PublicFooter from '@/components/layout/PublicFooter'
-import { ArrowRight, Mail, Phone, MapPin } from 'lucide-react'
+
+export const metadata = { title: 'Contact Us' }
+
+const PHONE    = '+92 325 5258421'
+const WA_LINK  = 'https://wa.me/923255258421'
+const EMAIL    = 'sales@n6solution.com'
 
 export default function ContactPage() {
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-white">
       <PublicNavbar />
-      <main className="mx-auto grid max-w-6xl gap-8 px-4 py-16 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8">
-        <section className="card p-8">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-primary-600">Contact</p>
-          <h1 className="mt-3 text-4xl font-bold text-gray-900">Let’s build a better hotel experience together.</h1>
-          <p className="mt-5 text-lg leading-8 text-gray-600">Reach out for product tours, onboarding help, or custom hospitality workflows that fit your team.</p>
-          <div className="mt-8 space-y-4 text-sm text-gray-600">
-            <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4">
-              <Mail className="h-5 w-5 text-primary-600" />
-              <span>hello@hotelos.example</span>
-            </div>
-            <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4">
-              <Phone className="h-5 w-5 text-primary-600" />
-              <span>+1 (555) 014-2050</span>
-            </div>
-            <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4">
-              <MapPin className="h-5 w-5 text-primary-600" />
-              <span>Dubai, UAE</span>
-            </div>
-          </div>
-        </section>
 
-        <section className="card p-8">
-          <div className="rounded-3xl border border-primary-100 bg-primary-50 p-6">
-            <h2 className="text-2xl font-semibold text-gray-900">Book a demo</h2>
-            <p className="mt-3 text-sm leading-7 text-gray-600">Tell us about your property and we’ll help you discover the right setup for your team.</p>
-            <div className="mt-6 space-y-3">
-              <input className="input" placeholder="Your name" />
-              <input className="input" placeholder="Email address" />
-              <textarea className="input h-28 resize-none" placeholder="Tell us what you need" />
-              <Link href="/register" className="btn-primary inline-flex">Request demo <ArrowRight className="ml-2 h-4 w-4" /></Link>
+      {/* Hero */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 py-20 px-6 text-center">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative max-w-2xl mx-auto">
+          <Link href="/" className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white mb-8 transition-colors">
+            <ArrowLeft className="h-4 w-4" /> Back to home
+          </Link>
+          <p className="text-sm font-bold text-blue-400 uppercase tracking-widest mb-3">Get in touch</p>
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4">We&apos;d love to hear from you</h1>
+          <p className="text-slate-300 text-lg">
+            Have a question about HotelOS? Reach out — we typically respond within a few hours.
+          </p>
+        </div>
+        <svg viewBox="0 0 1440 56" className="w-full fill-white block absolute bottom-0 left-0" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0,32 C480,56 960,8 1440,32 L1440,56 L0,56 Z" />
+        </svg>
+      </section>
+
+      <main className="max-w-5xl mx-auto px-6 py-20">
+
+        {/* Contact cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-20">
+
+          {/* Phone */}
+          <a
+            href={`tel:${PHONE.replace(/\s/g, '')}`}
+            className="group flex flex-col items-center text-center bg-white border border-gray-100 rounded-2xl p-8 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+          >
+            <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-5 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+              <Phone className="h-6 w-6" />
+            </div>
+            <h3 className="font-bold text-gray-900 text-lg mb-1">Call us</h3>
+            <p className="text-sm text-gray-400 mb-3">Mon – Sat, 10 am – 7 pm</p>
+            <p className="text-blue-600 font-semibold">{PHONE}</p>
+          </a>
+
+          {/* WhatsApp */}
+          <a
+            href={WA_LINK}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex flex-col items-center text-center bg-white border border-gray-100 rounded-2xl p-8 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+          >
+            <div className="w-14 h-14 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center mb-5 group-hover:bg-green-500 group-hover:text-white transition-colors">
+              <MessageCircle className="h-6 w-6" />
+            </div>
+            <h3 className="font-bold text-gray-900 text-lg mb-1">WhatsApp</h3>
+            <p className="text-sm text-gray-400 mb-3">Chat with us instantly</p>
+            <p className="text-green-600 font-semibold">{PHONE}</p>
+          </a>
+
+          {/* Email */}
+          <a
+            href={`mailto:${EMAIL}`}
+            className="group flex flex-col items-center text-center bg-white border border-gray-100 rounded-2xl p-8 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+          >
+            <div className="w-14 h-14 bg-violet-50 text-violet-600 rounded-2xl flex items-center justify-center mb-5 group-hover:bg-violet-600 group-hover:text-white transition-colors">
+              <Mail className="h-6 w-6" />
+            </div>
+            <h3 className="font-bold text-gray-900 text-lg mb-1">Email us</h3>
+            <p className="text-sm text-gray-400 mb-3">We reply within 24 hours</p>
+            <p className="text-violet-600 font-semibold break-all">{EMAIL}</p>
+          </a>
+
+        </div>
+
+        {/* Info strip */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="flex items-start gap-4 rounded-2xl bg-gray-50 border border-gray-100 px-6 py-5">
+            <div className="w-10 h-10 bg-white border border-gray-200 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+              <Clock className="h-5 w-5 text-gray-500" />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900 mb-0.5">Business Hours</p>
+              <p className="text-sm text-gray-500">Monday – Saturday: 10:00 am – 7:00 pm PKT</p>
+              <p className="text-sm text-gray-500">Sunday: Closed</p>
             </div>
           </div>
-        </section>
+          <div className="flex items-start gap-4 rounded-2xl bg-gray-50 border border-gray-100 px-6 py-5">
+            <div className="w-10 h-10 bg-white border border-gray-200 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+              <MapPin className="h-5 w-5 text-gray-500" />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900 mb-0.5">Company</p>
+              <p className="text-sm text-gray-500">N6 Solution SMC PVT LTD</p>
+              <p className="text-sm text-gray-500">Pakistan</p>
+            </div>
+          </div>
+        </div>
+
       </main>
-      <PublicFooter />
+
+      <footer className="border-t border-gray-100 py-8 px-6">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3 text-sm text-gray-400">
+          <p>© {new Date().getFullYear()} HotelOS. All rights reserved.</p>
+          <div className="flex gap-5">
+            <Link href="/privacy" className="hover:text-gray-700 transition-colors">Privacy Policy</Link>
+            <Link href="/terms"   className="hover:text-gray-700 transition-colors">Terms</Link>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

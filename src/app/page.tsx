@@ -18,10 +18,10 @@ const features = [
 ]
 
 const stats = [
-  { value: '500+',  label: 'Hotels',           icon: Building2  },
-  { value: '2M+',   label: 'Bookings handled',  icon: TrendingUp },
-  { value: '99.9%', label: 'Uptime SLA',         icon: Clock      },
-  { value: '40%',   label: 'Faster operations',  icon: Zap        },
+  { value: '14 Days', label: 'Free trial — no card needed', icon: Clock      },
+  { value: '< 1 hr',  label: 'Average hotel setup time',    icon: Zap        },
+  { value: '100%',    label: 'Data privacy — your data stays yours', icon: Shield },
+  { value: '24 / 7',  label: 'Real-time room & booking updates', icon: TrendingUp },
 ]
 
 // ── Review helpers ───────────────────────────────────────────────────────────
@@ -48,19 +48,19 @@ const plans = [
     name: 'Starter', price: '$29', period: '/mo',
     desc: 'Perfect for small independent hotels.',
     features: ['Up to 20 rooms', 'Room & booking management', 'Guest profiles', 'Basic reports', 'Email support'],
-    cta: 'Start free trial', highlight: false,
+    cta: 'Start free trial', href: '/register-hotel', highlight: false,
   },
   {
     name: 'Professional', price: '$79', period: '/mo',
     desc: 'For growing hotels that need full power.',
     features: ['Unlimited rooms', 'Staff management & roles', 'Advanced analytics', 'Stripe payments', 'Priority support'],
-    cta: 'Start free trial', highlight: true,
+    cta: 'Start free trial', href: '/register-hotel', highlight: true,
   },
   {
     name: 'Enterprise', price: '$199', period: '/mo',
     desc: 'For hotel groups and management companies.',
     features: ['Multi-property dashboard', 'Custom branding', 'Dedicated account manager', 'Custom integrations', 'SLA guarantee'],
-    cta: 'Contact sales', highlight: false,
+    cta: 'Contact sales', href: '/contact', highlight: false,
   },
 ]
 
@@ -277,7 +277,7 @@ export default async function LandingPage() {
             <div>
               <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-blue-300 text-xs font-semibold px-4 py-1.5 rounded-full mb-6">
                 <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                Trusted by 500+ hotels worldwide
+                Built for independent hotels &amp; growing groups
               </div>
 
               <h1 className="text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-6">
@@ -293,10 +293,10 @@ export default async function LandingPage() {
 
               <div className="flex flex-col sm:flex-row gap-3 mb-8">
                 <Link
-                  href="/register"
+                  href="/register-hotel"
                   className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-7 py-3.5 rounded-xl text-base transition-all shadow-lg shadow-blue-900/50 hover:-translate-y-0.5 transform"
                 >
-                  Start free trial <ArrowRight className="h-4 w-4" />
+                  Register your hotel <ArrowRight className="h-4 w-4" />
                 </Link>
                 <Link
                   href="/login"
@@ -332,13 +332,80 @@ export default async function LandingPage() {
       {/* ══ Trust bar ═════════════════════════════════════════════════════════ */}
       <section className="py-10 px-6 border-b border-gray-100">
         <div className="max-w-5xl mx-auto text-center">
-          <p className="text-sm text-gray-400 font-medium mb-6">Powering hotel operations across the globe</p>
+          <p className="text-sm text-gray-400 font-medium mb-6">Everything your hotel needs in one platform</p>
           <div className="flex flex-wrap justify-center gap-3">
-            {['The Grand Meridian', 'Boutique Stays Group', 'Skyline Hotels', 'Azure Resorts', 'City Suites', 'Harbor Inn Group'].map(name => (
+            {['Room Management', 'Online Bookings', 'Staff & Roles', 'Stripe Payments', 'Revenue Analytics', 'Mobile App'].map(name => (
               <span key={name} className="px-4 py-1.5 bg-gray-50 border border-gray-100 rounded-full text-sm font-medium text-gray-500">
                 {name}
               </span>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══ How It Works ══════════════════════════════════════════════════════ */}
+      <section id="how-it-works" className="py-24 px-6 bg-white">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-16">
+            <p className="text-sm font-bold text-blue-600 uppercase tracking-widest mb-3">Getting Started</p>
+            <h2 className="text-4xl font-extrabold text-gray-900 mb-4">Up and running in minutes</h2>
+            <p className="text-lg text-gray-500 max-w-xl mx-auto">
+              Register your hotel, configure your rooms, and start accepting bookings — all in one afternoon.
+            </p>
+          </div>
+
+          <div className="relative">
+            {/* Connector line (desktop) */}
+            <div className="hidden md:block absolute top-10 left-[16.666%] right-[16.666%] h-px bg-gradient-to-r from-blue-200 via-blue-400 to-blue-200" />
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+              {[
+                {
+                  step: '01',
+                  icon: Building2,
+                  title: 'Register Your Hotel',
+                  desc: 'Create your account and add your hotel — name, location, amenities, contact details. Takes under 5 minutes.',
+                  color: 'bg-blue-600',
+                },
+                {
+                  step: '02',
+                  icon: Users,
+                  title: 'Set Up Rooms & Staff',
+                  desc: 'Define room types, set pricing and availability, then invite your front desk and housekeeping team with role-based access.',
+                  color: 'bg-blue-600',
+                },
+                {
+                  step: '03',
+                  icon: BarChart3,
+                  title: 'Manage Everything',
+                  desc: 'Accept bookings, track occupancy live, process payments via Stripe, and watch your revenue analytics grow.',
+                  color: 'bg-blue-600',
+                },
+              ].map(({ step, icon: Icon, title, desc, color }) => (
+                <div key={step} className="flex flex-col items-center text-center">
+                  <div className="relative mb-6">
+                    <div className={`w-20 h-20 ${color} rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200`}>
+                      <Icon className="h-8 w-8 text-white" />
+                    </div>
+                    <span className="absolute -top-2 -right-2 w-6 h-6 bg-white border-2 border-blue-600 text-blue-600 rounded-full text-xs font-extrabold flex items-center justify-center">
+                      {step.replace('0', '')}
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-extrabold text-gray-900 mb-3">{title}</h3>
+                  <p className="text-gray-500 text-sm leading-relaxed max-w-xs">{desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-14 text-center">
+            <Link
+              href="/register"
+              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-3.5 rounded-xl text-base transition-all shadow-lg shadow-blue-200"
+            >
+              Register your hotel now <ArrowRight className="h-4 w-4" />
+            </Link>
+            <p className="mt-3 text-sm text-gray-400">14-day free trial · No credit card required</p>
           </div>
         </div>
       </section>
@@ -372,24 +439,34 @@ export default async function LandingPage() {
       </section>
 
       {/* ══ Stats strip ═══════════════════════════════════════════════════════ */}
-      <section className="py-20 px-6 bg-blue-600">
-        <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-10 text-center">
-          {stats.map(({ value, label, icon: Icon }) => (
-            <div key={label}>
-              <div className="flex justify-center mb-3">
-                <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center">
-                  <Icon className="h-5 w-5 text-white" />
+      <section className="relative bg-blue-600">
+        {/* Wave in from gray features section */}
+        <svg viewBox="0 0 1440 56" className="w-full fill-blue-600 block" xmlns="http://www.w3.org/2000/svg" style={{ marginTop: -1 }}>
+          <path d="M0,28 C360,56 1080,0 1440,28 L1440,0 L0,0 Z" />
+        </svg>
+        <div className="py-20 px-6">
+          <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-10 text-center">
+            {stats.map(({ value, label, icon: Icon }) => (
+              <div key={label}>
+                <div className="flex justify-center mb-3">
+                  <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center">
+                    <Icon className="h-5 w-5 text-white" />
+                  </div>
                 </div>
+                <p className="text-4xl font-extrabold text-white mb-1">{value}</p>
+                <p className="text-sm text-blue-200 font-medium">{label}</p>
               </div>
-              <p className="text-4xl font-extrabold text-white mb-1">{value}</p>
-              <p className="text-sm text-blue-200 font-medium">{label}</p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
+        {/* Wave out to white mobile section */}
+        <svg viewBox="0 0 1440 56" className="w-full fill-white block -mb-px" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0,28 C480,56 960,0 1440,28 L1440,56 L0,56 Z" />
+        </svg>
       </section>
 
       {/* ══ Mobile App ════════════════════════════════════════════════════════ */}
-      <section className="py-24 px-6 bg-white border-t border-gray-100">
+      <section className="py-24 px-6 bg-white">
         <div className="max-w-6xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
 
@@ -551,7 +628,7 @@ export default async function LandingPage() {
                   </ul>
 
                   <Link
-                    href="/register"
+                    href={plan.href}
                     className={`block text-center font-bold py-3 rounded-xl text-sm transition-colors ${
                       plan.highlight
                         ? 'bg-white text-blue-600 hover:bg-blue-50'
@@ -568,28 +645,34 @@ export default async function LandingPage() {
       </section>
 
       {/* ══ Final CTA ═════════════════════════════════════════════════════════ */}
-      <section className="py-24 px-6 relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
-        <div className="absolute top-0 left-1/3 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative max-w-3xl mx-auto text-center">
-          <h2 className="text-4xl sm:text-5xl font-extrabold text-white mb-5 leading-tight">
-            Ready to transform<br />your hotel operations?
-          </h2>
-          <p className="text-slate-300 text-lg mb-10">
-            Join 500+ hoteliers already saving time and growing revenue.
-          </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-3">
-            <Link
-              href="/register"
-              className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-9 py-4 rounded-xl text-base transition-all shadow-lg shadow-blue-900/50"
-            >
-              Start your free trial <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/login"
-              className="inline-flex items-center justify-center border border-white/20 hover:bg-white/10 text-white font-semibold px-9 py-4 rounded-xl text-base transition-all"
-            >
-              Sign in
-            </Link>
+      <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
+        {/* Wave in from white pricing section */}
+        <svg viewBox="0 0 1440 56" className="w-full block" xmlns="http://www.w3.org/2000/svg" style={{ fill: '#0f172a', marginTop: -1 }}>
+          <path d="M0,28 C360,0 1080,56 1440,28 L1440,0 L0,0 Z" />
+        </svg>
+        <div className="py-24 px-6 relative">
+          <div className="absolute top-0 left-1/3 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative max-w-3xl mx-auto text-center">
+            <h2 className="text-4xl sm:text-5xl font-extrabold text-white mb-5 leading-tight">
+              Ready to transform<br />your hotel operations?
+            </h2>
+            <p className="text-slate-300 text-lg mb-10">
+              Set up your hotel in under an hour and start managing everything from one dashboard.
+            </p>
+            <div className="flex flex-col sm:flex-row justify-center gap-3">
+              <Link
+                href="/register-hotel"
+                className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-9 py-4 rounded-xl text-base transition-all shadow-lg shadow-blue-900/50"
+              >
+                Register your hotel <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                href="/login"
+                className="inline-flex items-center justify-center border border-white/20 hover:bg-white/10 text-white font-semibold px-9 py-4 rounded-xl text-base transition-all"
+              >
+                Sign in
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -612,16 +695,39 @@ export default async function LandingPage() {
             </div>
 
             {[
-              { title: 'Product',  links: ['Features', 'Pricing', 'Security', 'Integrations'] },
-              { title: 'Company',  links: ['About', 'Blog', 'Careers', 'Contact']             },
-              { title: 'Legal',    links: ['Privacy', 'Terms', 'Cookies', 'GDPR']             },
+              {
+                title: 'Product',
+                links: [
+                  { label: 'Features',     href: '/#features'     },
+                  { label: 'How it works', href: '/#how-it-works' },
+                  { label: 'Pricing',      href: '/#pricing'      },
+                  { label: 'Reviews',      href: '/#reviews'      },
+                ],
+              },
+              {
+                title: 'Company',
+                links: [
+                  { label: 'Register Hotel', href: '/register-hotel' },
+                  { label: 'Sign In',        href: '/login'          },
+                  { label: 'Contact',        href: '/contact' },
+                ],
+              },
+              {
+                title: 'Legal',
+                links: [
+                  { label: 'Privacy Policy', href: '/privacy'         },
+                  { label: 'Terms & Conditions', href: '/terms'       },
+                  { label: 'Cookies',        href: '/privacy#cookies' },
+                  { label: 'GDPR',           href: '/privacy#gdpr'   },
+                ],
+              },
             ].map(col => (
               <div key={col.title}>
                 <h4 className="text-white font-semibold text-sm mb-4 uppercase tracking-widest">{col.title}</h4>
                 <ul className="space-y-2.5">
                   {col.links.map(link => (
-                    <li key={link}>
-                      <a href="#" className="text-sm hover:text-white transition-colors">{link}</a>
+                    <li key={link.label}>
+                      <Link href={link.href} className="text-sm hover:text-white transition-colors">{link.label}</Link>
                     </li>
                   ))}
                 </ul>
@@ -632,9 +738,9 @@ export default async function LandingPage() {
           <div className="border-t border-slate-800 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-slate-500">
             <p>© {new Date().getFullYear()} HotelOS. All rights reserved.</p>
             <div className="flex gap-6">
-              <a href="#" className="hover:text-white transition-colors">Privacy</a>
-              <a href="#" className="hover:text-white transition-colors">Terms</a>
-              <a href="#" className="hover:text-white transition-colors">Cookies</a>
+              <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
+              <Link href="/terms"   className="hover:text-white transition-colors">Terms</Link>
+              <Link href="/privacy#cookies" className="hover:text-white transition-colors">Cookies</Link>
             </div>
           </div>
         </div>

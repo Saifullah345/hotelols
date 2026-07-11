@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { Toaster } from 'sonner'
+import NextTopLoader from 'nextjs-toploader'
+import WhatsAppButton from '@/components/WhatsAppButton'
 
 export const metadata: Metadata = {
   title: { default: 'HotelOS — Hotel Management Platform', template: '%s | HotelOS' },
@@ -11,7 +13,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="h-full">
       <body className="min-h-screen bg-gray-50">
+        <NextTopLoader color="#2563eb" height={3} showSpinner={false} />
         {children}
+        <WhatsAppButton />
         <Toaster richColors position="top-right" />
       </body>
     </html>

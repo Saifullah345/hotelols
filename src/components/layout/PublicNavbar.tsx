@@ -9,6 +9,7 @@ const links = [
   { href: '/#how-it-works', label: 'How it works' },
   { href: '/#pricing',      label: 'Pricing'      },
   { href: '/#reviews',      label: 'Reviews'      },
+  { href: '/contact',       label: 'Contact'      },
 ]
 
 export default function PublicNavbar() {
@@ -28,12 +29,12 @@ export default function PublicNavbar() {
         </Link>
 
         {/* Nav links — truly centred */}
-        <nav className="hidden items-center justify-center gap-7 md:flex">
+        <nav className="hidden items-center justify-center gap-5 md:flex">
           {links.map(link => (
             <Link
               key={link.href}
               href={link.href}
-              className="text-sm font-medium text-gray-600 transition hover:text-gray-900"
+              className="text-sm font-medium text-gray-600 transition hover:text-gray-900 whitespace-nowrap"
             >
               {link.label}
             </Link>
@@ -49,15 +50,15 @@ export default function PublicNavbar() {
             Sign in
           </Link>
           <Link
-            href="/register"
+            href="/register-hotel"
             className="text-sm font-semibold px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm shadow-blue-200"
           >
-            Get started
+            Register Hotel
           </Link>
         </div>
 
-        {/* Mobile hamburger */}
-        <div className="flex justify-end md:hidden">
+        {/* Mobile hamburger — col-start-3 keeps it in the right column even when nav/buttons are hidden */}
+        <div className="col-start-3 flex justify-end md:hidden">
           <button
             type="button"
             className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 text-gray-600"
@@ -92,11 +93,11 @@ export default function PublicNavbar() {
                 Sign in
               </Link>
               <Link
-                href="/register"
+                href="/register-hotel"
                 className="text-sm font-semibold px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors text-center"
                 onClick={() => setOpen(false)}
               >
-                Get started
+                Register Hotel
               </Link>
             </div>
           </div>
