@@ -3,35 +3,31 @@
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts'
+import { formatCurrency, formatCurrencyCompact } from '@/lib/currency'
 
 interface TooltipPayload {
   active?: boolean
   payload?: { value: number }[]
   label?: string
+  currency?: string
 }
 
-function CustomTooltip({ active, payload, label }: TooltipPayload) {
+function CustomTooltip({ active, payload, label, currency = 'USD' }: TooltipPayload) {
   if (!active || !payload?.length) return null
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-lg px-4 py-3 text-left">
       <p className="text-xs font-medium text-gray-400 mb-1">{label}</p>
-      <p className="text-lg font-bold text-gray-900">${payload[0].value.toLocaleString()}</p>
+      <p className="text-lg font-bold text-gray-900">{formatCurrency(payload[0].value, currency)}</p>
     </div>
   )
 }
 
-function formatY(v: number) {
-  if (v === 0) return '$0'
-  if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`
-  if (v >= 1000) return `$${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k`
-  return `$${v}`
-}
-
 interface RevenueChartProps {
   data: { month: string; revenue: number; bookings: number }[]
+  currency?: string
 }
 
-export function RevenueChart({ data }: RevenueChartProps) {
+export function RevenueChart({ data, currency = 'USD' }: RevenueChartProps) {
   const total = data.reduce((s, d) => s + d.revenue, 0)
   const maxRevenue = Math.max(...data.map(d => d.revenue), 0)
   const yMax = maxRevenue ? Math.ceil((maxRevenue * 1.25) / 500) * 500 : 500
@@ -44,7 +40,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
           <p className="text-xs text-gray-400 mt-0.5">Last 6 months</p>
         </div>
         <div className="text-right">
-          <p className="text-xl font-bold text-gray-900">${total.toLocaleString()}</p>
+          <p className="text-xl font-bold text-gray-900">{formatCurrency(total, currency)}</p>
           <p className="text-xs text-gray-400">Total revenue</p>
         </div>
       </div>
@@ -71,13 +67,13 @@ export function RevenueChart({ data }: RevenueChartProps) {
             tick={{ fontSize: 11, fill: '#9ca3af' }}
             tickLine={false}
             axisLine={false}
-            tickFormatter={formatY}
+            tickFormatter={v => formatCurrencyCompact(v, currency)}
             tickCount={5}
             domain={[0, yMax]}
-            width={46}
+            width={56}
           />
 
-          <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#e5e7eb', strokeWidth: 1 }} />
+          <Tooltip content={<CustomTooltip currency={currency} />} cursor={{ stroke: '#e5e7eb', strokeWidth: 1 }} />
 
           <Area
             type="monotone"

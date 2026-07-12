@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, Calendar, DoorOpen, Phone, MessageCircle, Globe } from 'lucide-react'
 import BookingActions from './BookingActions'
+import { formatCurrency } from '@/lib/currency'
 
 export const metadata = { title: 'Bookings' }
 
@@ -41,6 +42,9 @@ export default async function BookingsPage({
   if (status) query = query.eq('status', status)
 
   const { data: bookings } = await query
+
+  const { data: hotelInfo } = await supabase.from('hotels').select('currency').eq('id', tenantId).single()
+  const currency = (hotelInfo as { currency?: string } | null)?.currency ?? 'USD'
 
   const filterTabs = ['all', 'pending', 'confirmed', 'checked_in', 'checked_out', 'cancelled']
 
@@ -124,7 +128,7 @@ export default async function BookingsPage({
                     )
                   })()}
                 </td>
-                <td className="table-cell font-semibold">${b.total_amount}</td>
+                <td className="table-cell font-semibold">{formatCurrency(b.total_amount, currency)}</td>
                 <td className="table-cell">
                   <span className={statusBadge[b.status] ?? 'badge-gray'}>{b.status.replace('_', ' ')}</span>
                 </td>

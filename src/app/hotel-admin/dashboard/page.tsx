@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { StatsCard } from '@/components/dashboard/StatsCard'
 import { RevenueChart } from '@/components/dashboard/RevenueChart'
 import { BedDouble, CalendarCheck, DollarSign, Clock, TrendingUp, Building2 } from 'lucide-react'
+import { formatCurrency } from '@/lib/currency'
 
 export const metadata = { title: 'Dashboard' }
 
@@ -31,8 +32,7 @@ export default async function HotelAdminDashboard() {
 
   const today = new Date().toISOString().split('T')[0]
 
-  const [
-    { count: totalRooms },
+  const [{ data: hotelInfo }, { count: totalRooms },
     { count: availableRooms },
     { count: totalBookings },
     { count: pendingBookings },
@@ -40,6 +40,7 @@ export default async function HotelAdminDashboard() {
     { data: recentBookings },
     { count: checkedInToday },
   ] = await Promise.all([
+    supabase.from('hotels').select('currency').eq('id', tenantId).single(),
     supabase.from('rooms').select('*', { count: 'exact', head: true }).eq('hotel_id', tenantId),
     supabase.from('rooms').select('*', { count: 'exact', head: true }).eq('hotel_id', tenantId).eq('status', 'available'),
     supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('hotel_id', tenantId),
@@ -54,6 +55,7 @@ export default async function HotelAdminDashboard() {
       .eq('hotel_id', tenantId).eq('status', 'checked_in').eq('check_in', today),
   ])
 
+  const currency = (hotelInfo as { currency?: string } | null)?.currency ?? 'USD'
   const totalRevenue = revenueData?.reduce((s, p) => s + p.amount, 0) ?? 0
   const occupancyRate = totalRooms ? Math.round(((totalRooms - (availableRooms ?? 0)) / totalRooms) * 100) : 0
 
@@ -69,7 +71,7 @@ export default async function HotelAdminDashboard() {
     { title: 'Total Rooms', value: totalRooms ?? 0, icon: BedDouble, iconBg: 'bg-blue-50', iconColor: 'text-blue-600' },
     { title: 'Available Rooms', value: availableRooms ?? 0, icon: BedDouble, iconBg: 'bg-green-50', iconColor: 'text-green-600' },
     { title: 'Total Bookings', value: totalBookings ?? 0, icon: CalendarCheck, iconBg: 'bg-purple-50', iconColor: 'text-purple-600', change: 15 },
-    { title: 'Total Revenue', value: totalRevenue, icon: DollarSign, iconBg: 'bg-gold-50', iconColor: 'text-gold-600', prefix: '$', change: 8 },
+    { title: 'Total Revenue', value: formatCurrency(totalRevenue, currency), icon: DollarSign, iconBg: 'bg-green-50', iconColor: 'text-green-600', change: 8 },
   ]
 
   const statusColors: Record<string, string> = {
@@ -102,7 +104,7 @@ export default async function HotelAdminDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <RevenueChart data={monthlyRevenue} />
+          <RevenueChart data={monthlyRevenue} currency={currency} />
         </div>
 
         <div className="card">
@@ -152,7 +154,7 @@ export default async function HotelAdminDashboard() {
                   <td className="table-cell text-gray-500">Room {(b.room as { room_number?: string })?.room_number}</td>
                   <td className="table-cell text-gray-500">{new Date(b.check_in).toLocaleDateString()}</td>
                   <td className="table-cell text-gray-500">{new Date(b.check_out).toLocaleDateString()}</td>
-                  <td className="table-cell font-medium">${b.total_amount}</td>
+                  <td className="table-cell font-medium">{formatCurrency(b.total_amount, currency)}</td>
                   <td className="table-cell">
                     <span className={statusColors[b.status] ?? 'badge-gray'}>{b.status.replace('_', ' ')}</span>
                   </td>

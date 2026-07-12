@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
+import { CURRENCIES } from '@/lib/currency'
 
 const schema = z.object({
   name: z.string().min(2, 'Hotel name required'),
@@ -19,6 +20,7 @@ const schema = z.object({
   country: z.string().min(2),
   check_in_time: z.string(),
   check_out_time: z.string(),
+  currency: z.string().min(3, 'Select a currency'),
   plan_id: z.string().uuid('Select a plan'),
   owner_email: z.string().email('Valid owner email required'),
   owner_name: z.string().min(2, 'Owner name is required'),
@@ -32,7 +34,7 @@ export default function NewHotelPage() {
   const [showPassword, setShowPassword] = useState(false)
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { check_in_time: '14:00', check_out_time: '11:00' },
+    defaultValues: { check_in_time: '14:00', check_out_time: '11:00', currency: 'PKR' },
   })
 
   useEffect(() => {
@@ -82,6 +84,7 @@ export default function NewHotelPage() {
       country: data.country,
       check_in_time: data.check_in_time,
       check_out_time: data.check_out_time,
+      currency: data.currency,
       plan_id: data.plan_id,
       owner_id: ownerId,
       // New hotels start hidden from the public site. The super admin reviews and
@@ -168,6 +171,16 @@ export default function NewHotelPage() {
           <div>
             <label className="label">Check-out Time</label>
             <input {...register('check_out_time')} type="time" className="input" />
+          </div>
+
+          <div>
+            <label className="label">Currency</label>
+            <select {...register('currency')} className="input">
+              {CURRENCIES.map(c => (
+                <option key={c.code} value={c.code}>{c.label}</option>
+              ))}
+            </select>
+            {errors.currency && <p className="text-red-500 text-xs mt-1">{errors.currency.message}</p>}
           </div>
 
           <div>

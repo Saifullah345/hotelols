@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Plus, BedDouble, Search } from 'lucide-react'
 import RoomStatusToggle from './RoomStatusToggle'
 import AutoFilterForm from '@/components/ui/AutoFilterForm'
+import { formatCurrency } from '@/lib/currency'
 
 export const metadata = { title: 'Rooms' }
 
@@ -42,6 +43,9 @@ export default async function RoomsPage({
 
   const { data: allRooms } = await supabase
     .from('rooms').select('status').eq('hotel_id', tenantId)
+
+  const { data: hotelInfo } = await supabase.from('hotels').select('currency').eq('id', tenantId).single()
+  const currency = (hotelInfo as { currency?: string } | null)?.currency ?? 'USD'
 
   const available   = allRooms?.filter(r => r.status === 'available').length ?? 0
   const booked      = allRooms?.filter(r => r.status === 'booked').length ?? 0
@@ -125,7 +129,7 @@ export default async function RoomsPage({
                 <td className="table-cell text-gray-500">{(room.room_type as { name?: string })?.name}</td>
                 <td className="table-cell text-gray-500">Floor {room.floor}</td>
                 <td className="table-cell text-gray-500">{(room.room_type as { capacity?: number })?.capacity} guests</td>
-                <td className="table-cell font-medium">${room.price_per_night}</td>
+                <td className="table-cell font-medium">{formatCurrency(room.price_per_night, currency)}</td>
                 <td className="table-cell">
                   <span className={statusBadge[room.status] ?? 'badge-gray'}>{room.status}</span>
                 </td>

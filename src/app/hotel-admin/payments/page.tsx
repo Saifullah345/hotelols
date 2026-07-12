@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { CreditCard, CheckCircle, XCircle, Clock, Search } from 'lucide-react'
 import AutoFilterForm from '@/components/ui/AutoFilterForm'
+import { formatCurrency } from '@/lib/currency'
 
 export const metadata = { title: 'Payments' }
 
@@ -44,6 +45,9 @@ export default async function PaymentsPage({
   const { data: allPayments } = await supabase
     .from('payments').select('status, amount').eq('hotel_id', tenantId)
 
+  const { data: hotelInfo } = await supabase.from('hotels').select('currency').eq('id', tenantId).single()
+  const currency = (hotelInfo as { currency?: string } | null)?.currency ?? 'USD'
+
   const totalRevenue  = allPayments?.filter(p => p.status === 'completed').reduce((s, p) => s + p.amount, 0) ?? 0
   const pendingAmount = allPayments?.filter(p => p.status === 'pending').reduce((s, p) => s + p.amount, 0) ?? 0
 
@@ -68,11 +72,11 @@ export default async function PaymentsPage({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="card p-5">
           <p className="text-sm text-gray-500">Total Revenue</p>
-          <p className="text-2xl font-bold text-green-700 mt-1">${totalRevenue.toLocaleString()}</p>
+          <p className="text-2xl font-bold text-green-700 mt-1">{formatCurrency(totalRevenue, currency)}</p>
         </div>
         <div className="card p-5">
           <p className="text-sm text-gray-500">Pending Amount</p>
-          <p className="text-2xl font-bold text-orange-600 mt-1">${pendingAmount.toLocaleString()}</p>
+          <p className="text-2xl font-bold text-orange-600 mt-1">{formatCurrency(pendingAmount, currency)}</p>
         </div>
         <div className="card p-5">
           <p className="text-sm text-gray-500">Transactions</p>
@@ -135,7 +139,7 @@ export default async function PaymentsPage({
                 <td className="table-cell text-gray-500">
                   Room {((p.booking as { room?: { room_number?: string } })?.room)?.room_number}
                 </td>
-                <td className="table-cell font-bold text-gray-900">${p.amount}</td>
+                <td className="table-cell font-bold text-gray-900">{formatCurrency(p.amount, currency)}</td>
                 <td className="table-cell">
                   <span className="flex items-center gap-1 text-sm text-gray-600">
                     <CreditCard className="h-3 w-3" />
