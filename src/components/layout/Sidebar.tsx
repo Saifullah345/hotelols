@@ -85,18 +85,24 @@ export function Sidebar({ role, hotelName }: SidebarProps) {
   return (
     <aside className="w-64 bg-white border-r border-gray-200 flex flex-col h-screen sticky top-0">
       {/* Logo */}
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center gap-2">
-          <Building2 className="h-6 w-6 text-primary-600" />
-          <div>
-            <span className="font-bold text-gray-900">HotelOS</span>
-            <p className="text-xs text-gray-500">{hotelName || titleMap[role]}</p>
+      <div className="h-16 px-4 flex items-center border-b border-gray-200">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 flex-shrink-0 bg-primary-600 rounded-xl flex items-center justify-center">
+            <Building2 className="h-5 w-5 text-white" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-bold text-gray-900 text-sm truncate" title={hotelName || titleMap[role]}>
+              HotelOS
+              {(hotelName || titleMap[role]) && (
+                <span className="font-normal text-gray-400 ml-1">· {hotelName || titleMap[role]}</span>
+              )}
+            </p>
           </div>
         </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-3 pt-2 pb-4 space-y-0.5 overflow-y-auto">
         {navItems.map(item => {
           const Icon = item.icon
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
