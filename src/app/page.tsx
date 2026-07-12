@@ -6,6 +6,7 @@ import {
 import PublicNavbar from '@/components/layout/PublicNavbar'
 import { createAdminClient } from '@/lib/supabase/server'
 import WhatsAppButton from '@/components/WhatsAppButton'
+import { ProductShowcase } from '@/components/landing/ProductShowcase'
 
 /* ─── Data ─────────────────────────────────────────────────────────────────── */
 
@@ -524,6 +525,9 @@ export default async function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* ══ Product Showcase ══════════════════════════════════════════════════ */}
+      <ProductShowcase />
 
       {/* ══ Reviews ═══════════════════════════════════════════════════════════ */}
       <section id="reviews" className="py-24 px-6 bg-gray-50">
