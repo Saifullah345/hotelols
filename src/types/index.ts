@@ -5,7 +5,7 @@ export type BookingSource = 'online' | 'whatsapp' | 'phone' | 'walk_in'
 export type HotelStatus = 'active' | 'suspended' | 'pending'
 export type PlanName = 'basic' | 'pro' | 'enterprise'
 export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded'
-export type PaymentMethod = 'online' | 'offline'
+export type PaymentMethod = 'online' | 'offline' | 'cash' | 'card_pos' | 'bank_transfer' | 'cheque' | 'other'
 export type WhatsAppBotState = 'idle' | 'awaiting_checkin' | 'awaiting_checkout' | 'awaiting_room' | 'confirming'
 export type ConversationStatus = 'open' | 'resolved'
 

@@ -10,9 +10,11 @@ import { createClient } from '@/lib/supabase/client'
 import {
   Loader2, ArrowLeft, Search, User, BedDouble,
   MessageCircle, Phone, DoorOpen, Globe,
+  Banknote, CreditCard, Building2, FileText, HelpCircle, CheckCircle,
 } from 'lucide-react'
 import Link from 'next/link'
 import type { BookingSource } from '@/types'
+import { formatCurrency } from '@/lib/currency'
 
 // ─── Schemas ─────────────────────────────────────────────────
 const dateRefineMsg = { message: 'Check-out must be after check-in', path: ['check_out'] }
@@ -66,6 +68,14 @@ const SOURCES: { value: BookingSource; label: string; icon: React.ElementType; c
   { value: 'online',   label: 'Online',   icon: Globe,           color: 'text-purple-600 bg-purple-50 border-purple-200' },
 ]
 
+const PAY_METHODS: { value: string; label: string; icon: React.ElementType }[] = [
+  { value: 'cash',          label: 'Cash',          icon: Banknote   },
+  { value: 'card_pos',      label: 'Card (POS)',    icon: CreditCard },
+  { value: 'bank_transfer', label: 'Bank Transfer', icon: Building2  },
+  { value: 'cheque',        label: 'Cheque',        icon: FileText   },
+  { value: 'other',         label: 'Other',         icon: HelpCircle },
+]
+
 export default function NewBookingPage() {
   const router = useRouter()
   const [source, setSource]             = useState<BookingSource>('walk_in')
@@ -76,6 +86,12 @@ export default function NewBookingPage() {
   const [nights, setNights]             = useState(0)
   const [totalAmount, setTotalAmount]   = useState(0)
   const [submitting, setSubmitting]     = useState(false)
+  const [currency, setCurrency]         = useState('USD')
+
+  // Payment collection state (for offline bookings)
+  const [payMethod, setPayMethod] = useState('cash')
+  const [payNow, setPayNow]       = useState(true)
+  const [payNotes, setPayNotes]   = useState('')
 
   const isOffline = source !== 'online'
 
@@ -99,20 +115,44 @@ export default function NewBookingPage() {
   const activeCheckOut = isOffline ? checkOutOff : checkOut
   const activeRoomId   = isOffline ? roomIdOff   : roomIdOnline
 
-  // Load rooms
+  // Load rooms + hotel currency
   useEffect(() => {
-    createClient()
-      .from('rooms')
-      .select('id, room_number, floor, price_per_night, room_type:room_types(name)')
-      .order('room_number')
-      .then(({ data }) => {
-        if (data) {
-          setRooms((data as unknown[]).map((r: unknown) => {
-            const room = r as { id: string; room_number: string; floor: number; price_per_night: number; room_type: { name: string }[] | null }
-            return { ...room, room_type: room.room_type?.[0] ?? null }
-          }) as Room[])
+    const init = async () => {
+      const supabase = createClient()
+      const [{ data: roomData }, { data: profileData }] = await Promise.all([
+        supabase
+          .from('rooms')
+          .select('id, room_number, floor, price_per_night, room_type:room_types(name)')
+          .order('room_number'),
+        supabase.auth.getUser(),
+      ])
+
+      if (roomData) {
+        setRooms((roomData as unknown[]).map((r: unknown) => {
+          const room = r as { id: string; room_number: string; floor: number; price_per_night: number; room_type: { name: string }[] | null }
+          return { ...room, room_type: room.room_type?.[0] ?? null }
+        }) as Room[])
+      }
+
+      if (profileData.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('tenant_id')
+          .eq('id', profileData.user.id)
+          .single()
+        if (profile?.tenant_id) {
+          const { data: hotel } = await supabase
+            .from('hotels')
+            .select('currency')
+            .eq('id', profile.tenant_id)
+            .single()
+          if ((hotel as { currency?: string } | null)?.currency) {
+            setCurrency((hotel as { currency: string }).currency)
+          }
         }
-      })
+      }
+    }
+    init()
   }, [])
 
   // Recalculate total
@@ -146,22 +186,28 @@ export default function NewBookingPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        guest_name:  data.guest_name,
-        guest_phone: data.guest_phone,
-        room_id:     data.room_id,
-        check_in:    data.check_in,
-        check_out:   data.check_out,
-        adults:      data.adults,
-        children:    data.children,
+        guest_name:       data.guest_name,
+        guest_phone:      data.guest_phone,
+        room_id:          data.room_id,
+        check_in:         data.check_in,
+        check_out:        data.check_out,
+        adults:           data.adults,
+        children:         data.children,
         special_requests: data.special_requests,
-        status:  data.status,
+        status:           data.status,
         source,
+        payment_method:   payMethod,
+        payment_collected: payNow,
+        payment_notes:    payNotes || undefined,
       }),
     })
     setSubmitting(false)
     const json = await res.json()
     if (!res.ok) { toast.error(json.error ?? 'Failed to create booking'); return }
-    toast.success('Booking created')
+    toast.success(payNow
+      ? `Booking created & ${formatCurrency(totalAmount, currency)} collected`
+      : 'Booking created — payment pending'
+    )
     router.push('/hotel-admin/bookings')
   }
 
@@ -204,7 +250,7 @@ export default function NewBookingPage() {
               <option value="">Select a room</option>
               {rooms.map(r => (
                 <option key={r.id} value={r.id}>
-                  Room {r.room_number} — {r.room_type?.name ?? 'Standard'} · ${r.price_per_night}/night
+                  Room {r.room_number} — {r.room_type?.name ?? 'Standard'} · {formatCurrency(r.price_per_night, currency)}/night
                 </option>
               ))}
             </select>
@@ -226,7 +272,7 @@ export default function NewBookingPage() {
             <div className="flex items-center gap-2 text-gray-600">
               <BedDouble className="h-4 w-4" />{nights} night{nights !== 1 ? 's' : ''}
             </div>
-            <span className="font-semibold text-gray-900">${totalAmount.toFixed(2)}</span>
+            <span className="font-semibold text-gray-900">{formatCurrency(totalAmount, currency)}</span>
           </div>
         )}
       </div>
@@ -257,6 +303,98 @@ export default function NewBookingPage() {
         </div>
       </div>
     </>
+  )
+
+  // Payment collection block (offline bookings only)
+  const PaymentBlock = () => (
+    <div className="card p-5 space-y-4">
+      <p className="text-sm font-semibold text-gray-700">Payment Collection</p>
+
+      {/* Method */}
+      <div>
+        <label className="label">Payment Method</label>
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+          {PAY_METHODS.map(m => {
+            const Icon = m.icon
+            const active = payMethod === m.value
+            return (
+              <button
+                key={m.value}
+                type="button"
+                onClick={() => setPayMethod(m.value)}
+                className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all text-xs font-medium
+                  ${active
+                    ? 'border-primary-500 bg-primary-50 text-primary-700'
+                    : 'border-gray-200 text-gray-500 hover:border-gray-300 bg-white'}`}
+              >
+                <Icon className="h-4 w-4" />
+                {m.label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Collect now or later */}
+      <div>
+        <label className="label">Collection Status</label>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setPayNow(true)}
+            className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-medium transition-all
+              ${payNow
+                ? 'border-green-500 bg-green-50 text-green-700'
+                : 'border-gray-200 text-gray-500 bg-white hover:border-gray-300'}`}
+          >
+            <CheckCircle className="h-4 w-4" />
+            Paid Now
+          </button>
+          <button
+            type="button"
+            onClick={() => setPayNow(false)}
+            className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-medium transition-all
+              ${!payNow
+                ? 'border-orange-500 bg-orange-50 text-orange-700'
+                : 'border-gray-200 text-gray-500 bg-white hover:border-gray-300'}`}
+          >
+            <Loader2 className="h-4 w-4" />
+            Pay Later
+          </button>
+        </div>
+      </div>
+
+      {/* Reference / Notes */}
+      <div>
+        <label className="label">
+          Reference / Notes <span className="text-gray-400 font-normal">(optional)</span>
+        </label>
+        <input
+          value={payNotes}
+          onChange={e => setPayNotes(e.target.value)}
+          className="input"
+          placeholder="Cheque no., transfer ref, receipt number..."
+        />
+      </div>
+
+      {/* Summary */}
+      {payNow && nights > 0 && (
+        <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+          <CheckCircle className="h-4 w-4 flex-shrink-0" />
+          <span>
+            {formatCurrency(totalAmount, currency)} collected via{' '}
+            {PAY_METHODS.find(m => m.value === payMethod)?.label}
+            {payNotes && <span className="text-green-600"> · Ref: {payNotes}</span>}
+          </span>
+        </div>
+      )}
+      {!payNow && (
+        <div className="flex items-center gap-2 p-3 bg-orange-50 border border-orange-200 rounded-lg text-sm text-orange-700">
+          <Loader2 className="h-4 w-4 flex-shrink-0" />
+          Payment pending — guest will pay later. You can collect it from the Payments page.
+        </div>
+      )}
+    </div>
   )
 
   return (
@@ -322,6 +460,8 @@ export default function NewBookingPage() {
             offlineForm.formState.errors as Record<string, { message?: string }>,
             checkInOff,
           )}
+
+          <PaymentBlock />
 
           <div className="flex justify-end gap-3">
             <Link href="/hotel-admin/bookings" className="btn-secondary">Cancel</Link>

@@ -32,9 +32,11 @@ export async function POST(request: Request) {
     special_requests,
     status,
     source = 'walk_in',
+    payment_method,
+    payment_collected,
+    payment_notes,
   } = body
 
-  // Either a registered guest or a walk-in name is required
   if (!guest_user_id && !guest_name) {
     return NextResponse.json({ error: 'Provide guest_user_id or guest_name' }, { status: 400 })
   }
@@ -49,7 +51,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Check-out must be after check-in' }, { status: 400 })
   }
 
-  // Verify room belongs to this hotel
   const { data: room } = await supabase
     .from('rooms')
     .select('id, price_per_night, hotel_id')
@@ -60,7 +61,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Room not found' }, { status: 404 })
   }
 
-  // Check for conflicts
   const { data: conflicts } = await supabase
     .from('bookings')
     .select('id')
@@ -71,6 +71,14 @@ export async function POST(request: Request) {
   if (conflicts && conflicts.length > 0) {
     return NextResponse.json({ error: 'Room is not available for the selected dates' }, { status: 409 })
   }
+
+  // Get hotel currency
+  const { data: hotel } = await supabase
+    .from('hotels')
+    .select('currency')
+    .eq('id', hotelId)
+    .single()
+  const currency = (hotel as { currency?: string } | null)?.currency ?? 'USD'
 
   const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / 86400000)
   const total_amount = nights * (room.price_per_night ?? 0)
@@ -95,17 +103,20 @@ export async function POST(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
-  const paymentMethod = typeof body?.payment_method === 'string' ? body.payment_method : 'offline'
-  const paymentStatus = (status ?? 'confirmed') === 'confirmed' ? 'completed' : 'pending'
+  // Determine payment method and status
+  const finalPaymentMethod = payment_method ?? (source === 'online' ? 'online' : 'cash')
+  const isPaid = payment_collected !== false  // default true for walk-in/phone/whatsapp
+  const paymentStatus = source === 'online' ? 'pending' : (isPaid ? 'completed' : 'pending')
 
   const { error: paymentError } = await supabase.from('payments').insert({
     booking_id: booking.id,
     hotel_id: hotelId,
     user_id: guest_user_id ?? null,
     amount: total_amount,
-    currency: 'USD',
+    currency,
     status: paymentStatus,
-    payment_method: paymentMethod,
+    payment_method: finalPaymentMethod,
+    payment_notes: payment_notes ?? null,
     paid_at: paymentStatus === 'completed' ? new Date().toISOString() : null,
   })
 
