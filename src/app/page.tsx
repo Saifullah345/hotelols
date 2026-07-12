@@ -22,14 +22,6 @@ const features = [
   { icon: Zap,        title: 'Real-Time Updates',    desc: 'New bookings, check-ins, and task assignments appear instantly across every device on your team.',                glow: 'shadow-cyan-500/40',    ring: 'bg-cyan-500/10 text-cyan-400'    },
 ]
 
-const heroFeatures = [
-  { icon: CalendarCheck, title: 'Smart Bookings',     desc: 'Manage reservations in real-time' },
-  { icon: BedDouble,     title: 'Room Management',    desc: 'Organize rooms, rates & availability' },
-  { icon: Users,         title: 'Guest Experience',   desc: 'Delight guests from check-in to checkout' },
-  { icon: CreditCard,    title: 'Secure Payments',    desc: 'Accept payments safely & easily' },
-  { icon: BarChart3,     title: 'Powerful Analytics', desc: 'Track performance & grow revenue' },
-  { icon: Settings,      title: 'Staff Management',   desc: 'Manage your team with ease' },
-]
 
 const stats = [
   { value: '14 Days', label: 'Free trial — no card needed', icon: Clock      },
@@ -452,18 +444,6 @@ export default async function LandingPage() {
             </Reveal>
           </div>
 
-          {/* Feature strip */}
-          <RevealGroup className="relative mt-24 pt-10 border-t border-white/10">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-6 gap-y-10 text-center">
-              {heroFeatures.map(({ icon: Icon, title, desc }) => (
-                <RevealItem key={title} className="flex flex-col items-center">
-                  <Icon className="h-7 w-7 text-blue-400 mb-3" />
-                  <h3 className="text-white font-bold text-sm mb-1">{title}</h3>
-                  <p className="text-slate-400 text-xs leading-relaxed">{desc}</p>
-                </RevealItem>
-              ))}
-            </div>
-          </RevealGroup>
         </div>
 
         {/* Bottom wave */}
