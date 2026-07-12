@@ -305,40 +305,39 @@ export function ProductShowcase() {
           ))}
         </div>
 
-        {/* Browser frame */}
-        <div className="rounded-2xl overflow-hidden shadow-2xl border border-gray-200 ring-1 ring-black/5">
-          {/* Chrome bar */}
-          <div className="flex items-center gap-3 px-4 py-3 bg-gray-100 border-b border-gray-200">
-            <div className="flex gap-1.5 flex-shrink-0">
-              <span className="w-3 h-3 rounded-full bg-red-400 block" />
-              <span className="w-3 h-3 rounded-full bg-yellow-400 block" />
-              <span className="w-3 h-3 rounded-full bg-green-400 block" />
-            </div>
-            <div className="flex-1 flex justify-center">
-              <div className="bg-white rounded-md px-4 py-1.5 text-xs text-gray-400 w-72 text-center">
-                app.hotelos.pk/hotel-admin/{active}
+        {/* Screenshot — real image (already has browser chrome baked in) */}
+        {hasImage ? (
+          <div className="rounded-2xl overflow-hidden shadow-2xl ring-1 ring-black/5"
+            style={{ animation: 'fadeIn 0.25s ease' }}>
+            <img
+              key={active}
+              src={screen.file}
+              alt={`HotelOS — ${screen.label}`}
+              className="w-full block"
+              onError={() => setImgError(prev => ({ ...prev, [active]: true }))}
+            />
+          </div>
+        ) : (
+          /* Mockup fallback — show browser chrome only here */
+          <div className="rounded-2xl overflow-hidden shadow-2xl border border-gray-200 ring-1 ring-black/5"
+            style={{ animation: 'fadeIn 0.25s ease' }}>
+            <div className="flex items-center gap-3 px-4 py-3 bg-gray-100 border-b border-gray-200">
+              <div className="flex gap-1.5 flex-shrink-0">
+                <span className="w-3 h-3 rounded-full bg-red-400 block" />
+                <span className="w-3 h-3 rounded-full bg-yellow-400 block" />
+                <span className="w-3 h-3 rounded-full bg-green-400 block" />
+              </div>
+              <div className="flex-1 flex justify-center">
+                <div className="bg-white rounded-md px-4 py-1.5 text-xs text-gray-400 w-72 text-center">
+                  app.hotelos.pk/hotel-admin/{active}
+                </div>
               </div>
             </div>
+            <div className="w-full overflow-hidden" style={{ aspectRatio: '16/9' }}>
+              <MockUI screen={screen} />
+            </div>
           </div>
-
-          {/* Screenshot or live mockup */}
-          <div className="w-full overflow-hidden" style={{ aspectRatio: '16/9' }}>
-            {hasImage ? (
-              <img
-                key={active}
-                src={screen.file}
-                alt={`HotelOS — ${screen.label}`}
-                className="w-full h-full object-cover object-top"
-                style={{ animation: 'fadeIn 0.25s ease' }}
-                onError={() => setImgError(prev => ({ ...prev, [active]: true }))}
-              />
-            ) : (
-              <div style={{ animation: 'fadeIn 0.25s ease', height: '100%' }}>
-                <MockUI screen={screen} />
-              </div>
-            )}
-          </div>
-        </div>
+        )}
 
         <p className="text-center text-gray-500 text-sm mt-5 max-w-xl mx-auto">{screen.desc}</p>
       </div>
