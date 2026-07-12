@@ -2,11 +2,14 @@ import Link from 'next/link'
 import {
   Building2, Users, CreditCard, BarChart3, Shield, Zap,
   CheckCircle2, Star, ArrowRight, TrendingUp, Clock,
+  LayoutDashboard, CalendarCheck, Calendar, BedDouble,
+  UserCog, FileBarChart, Settings, ShieldCheck, ChevronDown,
 } from 'lucide-react'
 import PublicNavbar from '@/components/layout/PublicNavbar'
 import { createAdminClient } from '@/lib/supabase/server'
 import WhatsAppButton from '@/components/WhatsAppButton'
 import { ProductShowcase } from '@/components/landing/ProductShowcase'
+import { Reveal, RevealGroup, RevealItem } from '@/components/motion/Reveal'
 
 /* ─── Data ─────────────────────────────────────────────────────────────────── */
 
@@ -17,6 +20,15 @@ const features = [
   { icon: BarChart3,  title: 'Revenue Analytics',    desc: 'ADR, RevPAR, and occupancy trends. Spot problems and opportunities before they hit the bottom line.',             glow: 'shadow-amber-500/40',   ring: 'bg-amber-500/10 text-amber-400'  },
   { icon: Shield,     title: 'Enterprise Security',  desc: 'Row-level tenant isolation on every query. Your data stays yours — no cross-hotel leakage ever.',                glow: 'shadow-rose-500/40',    ring: 'bg-rose-500/10 text-rose-400'    },
   { icon: Zap,        title: 'Real-Time Updates',    desc: 'New bookings, check-ins, and task assignments appear instantly across every device on your team.',                glow: 'shadow-cyan-500/40',    ring: 'bg-cyan-500/10 text-cyan-400'    },
+]
+
+const heroFeatures = [
+  { icon: CalendarCheck, title: 'Smart Bookings',     desc: 'Manage reservations in real-time' },
+  { icon: BedDouble,     title: 'Room Management',    desc: 'Organize rooms, rates & availability' },
+  { icon: Users,         title: 'Guest Experience',   desc: 'Delight guests from check-in to checkout' },
+  { icon: CreditCard,    title: 'Secure Payments',    desc: 'Accept payments safely & easily' },
+  { icon: BarChart3,     title: 'Powerful Analytics', desc: 'Track performance & grow revenue' },
+  { icon: Settings,      title: 'Staff Management',   desc: 'Manage your team with ease' },
 ]
 
 const stats = [
@@ -161,78 +173,162 @@ function MobileAppMockup() {
 }
 
 /* ─── Dashboard mockup (shown in hero) ─────────────────────────────────────── */
+const sidebarLinks = [
+  { icon: LayoutDashboard, label: 'Dashboard', active: true },
+  { icon: CalendarCheck,   label: 'Bookings' },
+  { icon: Calendar,        label: 'Calendar' },
+  { icon: Users,           label: 'Guests' },
+  { icon: BedDouble,       label: 'Rooms' },
+  { icon: CreditCard,      label: 'Payments' },
+  { icon: UserCog,         label: 'Staff' },
+  { icon: FileBarChart,    label: 'Reports' },
+  { icon: Settings,        label: 'Settings' },
+]
+
+const liveBookings = [
+  { room: '101', guest: 'James Wilson', status: 'Checked In',     dot: 'bg-emerald-400' },
+  { room: '204', guest: 'Maria Garcia', status: 'Checkout Today', dot: 'bg-amber-400'    },
+  { room: '212', guest: 'Ava Clarke',   status: 'Checked In',     dot: 'bg-emerald-400' },
+  { room: '305', guest: 'John Smith',   status: 'Arriving Today', dot: 'bg-violet-400'   },
+]
+
 function DashboardMockup() {
   return (
     <div className="relative">
       {/* Main card */}
-      <div className="bg-slate-800/80 backdrop-blur-sm border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
-        {/* Window chrome */}
-        <div className="flex items-center gap-2 px-4 py-3 bg-slate-900/60 border-b border-white/10">
-          <span className="w-3 h-3 rounded-full bg-red-400" />
-          <span className="w-3 h-3 rounded-full bg-amber-400" />
-          <span className="w-3 h-3 rounded-full bg-green-400" />
-          <span className="ml-3 text-xs text-white/30 font-mono">HotelOS — Dashboard</span>
+      <div className="flex bg-slate-800/90 backdrop-blur-sm border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+        {/* Sidebar */}
+        <div className="hidden sm:flex w-36 flex-col bg-slate-900/60 border-r border-white/10 py-4 px-3 flex-shrink-0">
+          <div className="flex items-center gap-2 px-1 mb-4">
+            <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Building2 className="h-3.5 w-3.5 text-white" />
+            </div>
+            <span className="text-white text-sm font-bold">HotelOS</span>
+          </div>
+          <nav className="space-y-0.5">
+            {sidebarLinks.map(({ icon: Icon, label, active }) => (
+              <div
+                key={label}
+                className={`flex items-center gap-2.5 px-2.5 py-1 rounded-lg text-xs font-medium ${
+                  active ? 'bg-blue-600 text-white' : 'text-white/50'
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5 flex-shrink-0" />
+                {label}
+              </div>
+            ))}
+          </nav>
         </div>
 
-        <div className="p-4">
+        {/* Main content */}
+        <div className="flex-1 p-4 min-w-0">
+          <p className="text-sm font-bold text-white mb-3">Dashboard</p>
+
           {/* Stats row */}
-          <div className="grid grid-cols-3 gap-3 mb-4">
+          <div className="grid grid-cols-3 gap-2 mb-4">
             {[
-              { label: 'Occupancy',  value: '87%',    color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-              { label: 'Revenue',    value: '$12.4k', color: 'text-blue-400',    bg: 'bg-blue-500/10'    },
-              { label: 'Bookings',   value: '142',    color: 'text-violet-400',  bg: 'bg-violet-500/10'  },
+              { label: 'Occupancy', value: '87%',    color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+              { label: 'Revenue',   value: '$12.4k',  color: 'text-blue-400',    bg: 'bg-blue-500/10'    },
+              { label: 'Bookings',  value: '142',      color: 'text-violet-400',  bg: 'bg-violet-500/10'  },
             ].map(s => (
-              <div key={s.label} className={`${s.bg} rounded-xl p-3`}>
-                <p className={`text-lg font-extrabold ${s.color}`}>{s.value}</p>
-                <p className="text-xs text-white/40 mt-0.5">{s.label}</p>
+              <div key={s.label} className={`${s.bg} rounded-xl p-2.5`}>
+                <p className={`text-base font-extrabold ${s.color}`}>{s.value}</p>
+                <p className="text-[10px] text-white/40 mt-0.5">{s.label}</p>
               </div>
             ))}
           </div>
 
-          {/* Room list */}
-          <p className="text-xs font-semibold text-white/30 uppercase tracking-widest mb-2">Live rooms</p>
-          <div className="space-y-2">
-            {[
-              { room: '101', guest: 'James Wilson',  status: 'Checked In',    dot: 'bg-emerald-400' },
-              { room: '204', guest: 'Maria Garcia',  status: 'Checkout Today', dot: 'bg-amber-400'  },
-              { room: '312', guest: 'Available',     status: 'Cleaning',       dot: 'bg-blue-400'   },
-              { room: '405', guest: 'Alex Thompson', status: 'Arriving Today', dot: 'bg-violet-400' },
-            ].map(r => (
-              <div key={r.room} className="flex items-center justify-between bg-white/5 hover:bg-white/10 transition-colors rounded-lg px-3 py-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center text-xs font-bold text-white/60">
-                    {r.room}
+          {/* Live bookings + revenue overview */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white/5 rounded-xl p-3">
+              <p className="text-[10px] font-semibold text-white/40 uppercase tracking-widest mb-2">Live Bookings</p>
+              <div className="space-y-2">
+                {liveBookings.map(b => (
+                  <div key={b.room} className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-[10px] font-bold text-white/40 flex-shrink-0">{b.room}</span>
+                      <span className="text-[10px] text-white/70 truncate">{b.guest}</span>
+                    </div>
+                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${b.dot}`} />
                   </div>
-                  <span className="text-sm text-white/70">{r.guest}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className={`w-1.5 h-1.5 rounded-full ${r.dot}`} />
-                  <span className="text-xs text-white/40">{r.status}</span>
-                </div>
+                ))}
               </div>
-            ))}
+            </div>
+
+            <div className="bg-white/5 rounded-xl p-3">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[10px] font-semibold text-white/40 uppercase tracking-widest">Revenue</p>
+                <ChevronDown className="h-3 w-3 text-white/30" />
+              </div>
+              <p className="text-lg font-extrabold text-white">$48,290</p>
+              <p className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1 mb-2">
+                <TrendingUp className="h-2.5 w-2.5" /> +12.5%
+              </p>
+              <svg viewBox="0 0 100 30" className="w-full h-8" preserveAspectRatio="none">
+                <polyline
+                  points="0,22 15,18 30,24 45,12 60,16 75,6 100,2"
+                  fill="none"
+                  stroke="#60a5fa"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Floating notification */}
-      <div className="absolute -top-3 -right-3 bg-white rounded-xl shadow-xl border border-gray-100 p-3 flex items-center gap-3 w-52">
+      {/* Floating "New Booking" notification */}
+      <div className="absolute -top-4 -right-4 bg-white rounded-xl shadow-xl border border-gray-100 p-3 flex items-center gap-3 w-52">
         <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+          <CalendarCheck className="h-4 w-4 text-emerald-600" />
         </div>
         <div>
           <p className="text-xs font-bold text-gray-900">New Booking</p>
-          <p className="text-xs text-gray-400">Room 205 · 3 nights</p>
+          <p className="text-xs text-gray-400">Room 202 · 2 nights</p>
         </div>
       </div>
+    </div>
+  )
+}
 
-      {/* Floating revenue card */}
-      <div className="absolute -bottom-3 -left-3 bg-white rounded-xl shadow-xl border border-gray-100 px-4 py-3 w-44">
-        <p className="text-xs text-gray-400 mb-0.5">This month</p>
-        <p className="text-xl font-extrabold text-gray-900">$48,290</p>
-        <p className="text-xs text-emerald-600 font-semibold flex items-center gap-1 mt-0.5">
-          <TrendingUp className="h-3 w-3" /> +18% vs last month
-        </p>
+/* ─── Compact phone mockup (shown overlapping the hero dashboard) ──────────── */
+function HeroPhoneMockup() {
+  return (
+    <div className="relative mx-auto" style={{ width: 132 }}>
+      <div
+        className="relative bg-slate-900 rounded-[24px] p-1.5"
+        style={{ boxShadow: '0 24px 48px rgba(0,0,0,0.5), inset 0 0 0 2px rgba(255,255,255,0.08)' }}
+      >
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-3 bg-black rounded-full z-10" />
+        <div className="bg-slate-800 rounded-[18px] overflow-hidden px-2.5 pt-6 pb-2.5">
+          <p className="text-white/50 text-[8px]">Good morning,</p>
+          <p className="text-white font-bold text-xs mb-2">Admin</p>
+
+          <div className="space-y-1.5">
+            <div className="bg-white/10 rounded-lg px-2 py-1.5 flex items-center justify-between">
+              <span className="text-white/60 text-[7px] leading-tight">Today&apos;s<br />Check-ins</span>
+              <span className="text-white font-extrabold text-xs">12</span>
+            </div>
+            <div className="bg-white/10 rounded-lg px-2 py-1.5 flex items-center justify-between">
+              <span className="text-white/60 text-[7px] leading-tight">Today&apos;s<br />Check-outs</span>
+              <span className="text-white font-extrabold text-xs">8</span>
+            </div>
+          </div>
+
+          <div className="bg-white/10 rounded-lg px-2 py-1.5 mt-1.5 flex items-center justify-between">
+            <div>
+              <p className="text-white/60 text-[7px] mb-0.5">Occupancy Rate</p>
+              <p className="text-emerald-400 font-extrabold text-xs leading-none">87%</p>
+              <p className="text-emerald-400 text-[7px] mt-0.5">+5.2%</p>
+            </div>
+            <svg viewBox="0 0 36 36" className="w-6 h-6 -rotate-90 flex-shrink-0">
+              <circle cx="18" cy="18" r="15.5" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="3" />
+              <circle cx="18" cy="18" r="15.5" fill="none" stroke="#34d399" strokeWidth="3" strokeDasharray="97.4" strokeDashoffset="12.6" strokeLinecap="round" />
+            </svg>
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -273,30 +369,29 @@ export default async function LandingPage() {
           style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px)', backgroundSize: '32px 32px' }}
         />
 
-        <div className="relative max-w-7xl mx-auto px-6 py-24 lg:py-32">
+        <div className="relative max-w-7xl mx-auto px-6 pt-20 pb-24 lg:pt-24">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             {/* Left: copy */}
-            <div>
-              <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-blue-300 text-xs font-semibold px-4 py-1.5 rounded-full mb-6">
-                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                Built for independent hotels &amp; growing groups
-              </div>
+            <RevealGroup>
+              <RevealItem>
+                <h1 className="text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-6">
+                  Run your hotel<br />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
+                    smarter, not harder
+                  </span>
+                </h1>
+              </RevealItem>
 
-              <h1 className="text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-6">
-                Run your hotel<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
-                  smarter, not harder
-                </span>
-              </h1>
+              <RevealItem>
+                <p className="text-lg text-slate-300 leading-relaxed mb-8 max-w-lg">
+                  The beautifully simple platform for rooms, bookings, staff, payments, and analytics. Set up in minutes, built to last for years.
+                </p>
+              </RevealItem>
 
-              <p className="text-lg text-slate-300 leading-relaxed mb-8 max-w-lg">
-                One beautifully simple platform for rooms, bookings, staff, payments, and analytics. Set up in minutes, built to last years.
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-3 mb-8">
+              <RevealItem className="flex flex-col sm:flex-row gap-3 mb-8">
                 <Link
                   href="/register-hotel"
-                  className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-7 py-3.5 rounded-xl text-base transition-all shadow-lg shadow-blue-900/50 hover:-translate-y-0.5 transform"
+                  className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-7 py-3.5 rounded-xl text-base transition-all shadow-lg shadow-blue-900/50 hover:-translate-y-0.5 hover:scale-[1.02] transform"
                 >
                   Register your hotel <ArrowRight className="h-4 w-4" />
                 </Link>
@@ -306,23 +401,69 @@ export default async function LandingPage() {
                 >
                   Sign in
                 </Link>
-              </div>
+              </RevealItem>
 
-              <div className="flex flex-wrap gap-4">
-                {['No credit card needed', '14-day free trial', 'Cancel anytime'].map(t => (
-                  <span key={t} className="flex items-center gap-1.5 text-sm text-slate-400">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-shrink-0" />
-                    {t}
+              <RevealItem className="flex flex-wrap gap-5">
+                {[
+                  { icon: CheckCircle2, label: 'No credit card needed' },
+                  { icon: ShieldCheck,  label: '14-day free trial'     },
+                  { icon: Clock,        label: 'Cancel anytime'        },
+                ].map(({ icon: Icon, label }) => (
+                  <span key={label} className="flex items-center gap-1.5 text-sm text-slate-400">
+                    <Icon className="h-4 w-4 text-emerald-400 flex-shrink-0" />
+                    {label}
                   </span>
                 ))}
-              </div>
-            </div>
+              </RevealItem>
+            </RevealGroup>
 
-            {/* Right: dashboard mockup */}
-            <div className="hidden lg:block">
-              <DashboardMockup />
-            </div>
+            {/* Right: dashboard + phone mockup over a night pool scene */}
+            <Reveal delay={0.15} x={30} y={0} className="hidden lg:block relative pb-14">
+              {/* Backdrop scene */}
+              <div className="absolute -inset-8 rounded-[2rem] overflow-hidden pointer-events-none">
+                <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-blue-950/80 to-slate-900" />
+                {/* Lit hotel windows, right edge */}
+                <div className="absolute right-0 top-0 bottom-0 w-2/5">
+                  <div className="grid grid-cols-5 gap-1.5 p-4 h-full content-start pt-10">
+                    {[1,0,1,1,0,0,1,1,1,0,0,1,0,1,1,0,1,0,0,1,1,1,0,1,0,0,1,1,0,1].map((lit, i) => (
+                      <div key={i} className={`h-3 rounded-sm ${lit ? 'bg-amber-300/60' : 'bg-white/5'}`} />
+                    ))}
+                  </div>
+                </div>
+                {/* Palm silhouette */}
+                <svg viewBox="0 0 60 100" className="absolute bottom-6 left-4 w-12 h-28 opacity-70 fill-slate-950">
+                  <rect x="27" y="42" width="5" height="56" />
+                  <path d="M30 44 C10 32 0 22 5 12 C15 22 25 32 30 44Z" />
+                  <path d="M30 44 C50 32 60 22 55 12 C45 22 35 32 30 44Z" />
+                  <path d="M30 44 C15 37 5 37 0 42 C10 47 22 48 30 44Z" />
+                  <path d="M30 44 C45 37 55 37 60 42 C50 47 38 48 30 44Z" />
+                </svg>
+                {/* Pool water glow */}
+                <div className="absolute bottom-0 inset-x-0 h-1/3 bg-gradient-to-t from-cyan-500/25 via-blue-500/10 to-transparent" />
+              </div>
+
+              {/* Dashboard card (phone mockup floats off its own bottom-left corner; pb-40 reserves room so the phone never collides with the feature strip below) */}
+              <div className="relative z-10 pb-40">
+                <DashboardMockup />
+                <div className="absolute bottom-0 -left-6 z-20">
+                  <HeroPhoneMockup />
+                </div>
+              </div>
+            </Reveal>
           </div>
+
+          {/* Feature strip */}
+          <RevealGroup className="relative mt-24 pt-10 border-t border-white/10">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-6 gap-y-10 text-center">
+              {heroFeatures.map(({ icon: Icon, title, desc }) => (
+                <RevealItem key={title} className="flex flex-col items-center">
+                  <Icon className="h-7 w-7 text-blue-400 mb-3" />
+                  <h3 className="text-white font-bold text-sm mb-1">{title}</h3>
+                  <p className="text-slate-400 text-xs leading-relaxed">{desc}</p>
+                </RevealItem>
+              ))}
+            </div>
+          </RevealGroup>
         </div>
 
         {/* Bottom wave */}
@@ -336,10 +477,12 @@ export default async function LandingPage() {
         <div className="max-w-5xl mx-auto text-center">
           <p className="text-sm text-gray-400 font-medium mb-6">Everything your hotel needs in one platform</p>
           <div className="flex flex-wrap justify-center gap-3">
-            {['Room Management', 'Online Bookings', 'Staff & Roles', 'Stripe Payments', 'Revenue Analytics', 'Mobile App'].map(name => (
-              <span key={name} className="px-4 py-1.5 bg-gray-50 border border-gray-100 rounded-full text-sm font-medium text-gray-500">
-                {name}
-              </span>
+            {['Room Management', 'Online Bookings', 'Staff & Roles', 'Stripe Payments', 'Revenue Analytics', 'Mobile App'].map((name, i) => (
+              <Reveal key={name} delay={i * 0.05} y={12}>
+                <span className="px-4 py-1.5 bg-gray-50 border border-gray-100 rounded-full text-sm font-medium text-gray-500">
+                  {name}
+                </span>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -348,19 +491,19 @@ export default async function LandingPage() {
       {/* ══ How It Works ══════════════════════════════════════════════════════ */}
       <section id="how-it-works" className="py-24 px-6 bg-white">
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16">
+          <Reveal className="text-center mb-16">
             <p className="text-sm font-bold text-blue-600 uppercase tracking-widest mb-3">Getting Started</p>
             <h2 className="text-4xl font-extrabold text-gray-900 mb-4">Up and running in minutes</h2>
             <p className="text-lg text-gray-500 max-w-xl mx-auto">
               Register your hotel, configure your rooms, and start accepting bookings — all in one afternoon.
             </p>
-          </div>
+          </Reveal>
 
           <div className="relative">
             {/* Connector line (desktop) */}
             <div className="hidden md:block absolute top-10 left-[16.666%] right-[16.666%] h-px bg-gradient-to-r from-blue-200 via-blue-400 to-blue-200" />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+            <RevealGroup className="grid grid-cols-1 md:grid-cols-3 gap-10" stagger={0.15}>
               {[
                 {
                   step: '01',
@@ -384,7 +527,7 @@ export default async function LandingPage() {
                   color: 'bg-blue-600',
                 },
               ].map(({ step, icon: Icon, title, desc, color }) => (
-                <div key={step} className="flex flex-col items-center text-center">
+                <RevealItem key={step} className="flex flex-col items-center text-center">
                   <div className="relative mb-6">
                     <div className={`w-20 h-20 ${color} rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200`}>
                       <Icon className="h-8 w-8 text-white" />
@@ -395,37 +538,37 @@ export default async function LandingPage() {
                   </div>
                   <h3 className="text-xl font-extrabold text-gray-900 mb-3">{title}</h3>
                   <p className="text-gray-500 text-sm leading-relaxed max-w-xs">{desc}</p>
-                </div>
+                </RevealItem>
               ))}
-            </div>
+            </RevealGroup>
           </div>
 
-          <div className="mt-14 text-center">
+          <Reveal delay={0.2} className="mt-14 text-center">
             <Link
               href="/register-hotel"
-              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-3.5 rounded-xl text-base transition-all shadow-lg shadow-blue-200"
+              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-3.5 rounded-xl text-base transition-all shadow-lg shadow-blue-200 hover:scale-[1.03] transform"
             >
               Register your hotel now <ArrowRight className="h-4 w-4" />
             </Link>
             <p className="mt-3 text-sm text-gray-400">14-day free trial · No credit card required</p>
-          </div>
+          </Reveal>
         </div>
       </section>
 
       {/* ══ Features ══════════════════════════════════════════════════════════ */}
       <section id="features" className="py-24 px-6 bg-gray-50">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
+          <Reveal className="text-center mb-16">
             <p className="text-sm font-bold text-blue-600 uppercase tracking-widest mb-3">Platform</p>
             <h2 className="text-4xl font-extrabold text-gray-900 mb-4">Everything in one place</h2>
             <p className="text-lg text-gray-500 max-w-xl mx-auto">
               No more jumping between tools. HotelOS brings your entire operation together.
             </p>
-          </div>
+          </Reveal>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <RevealGroup className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map(({ icon: Icon, title, desc, ring }) => (
-              <div
+              <RevealItem
                 key={title}
                 className="group bg-white border border-gray-100 rounded-2xl p-6 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
               >
@@ -434,9 +577,9 @@ export default async function LandingPage() {
                 </div>
                 <h3 className="font-bold text-gray-900 text-lg mb-2">{title}</h3>
                 <p className="text-gray-500 text-sm leading-relaxed">{desc}</p>
-              </div>
+              </RevealItem>
             ))}
-          </div>
+          </RevealGroup>
         </div>
       </section>
 
@@ -447,9 +590,9 @@ export default async function LandingPage() {
           <path d="M0,28 C360,56 1080,0 1440,28 L1440,0 L0,0 Z" />
         </svg>
         <div className="py-20 px-6">
-          <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-10 text-center">
+          <RevealGroup className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-10 text-center">
             {stats.map(({ value, label, icon: Icon }) => (
-              <div key={label}>
+              <RevealItem key={label}>
                 <div className="flex justify-center mb-3">
                   <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center">
                     <Icon className="h-5 w-5 text-white" />
@@ -457,9 +600,9 @@ export default async function LandingPage() {
                 </div>
                 <p className="text-4xl font-extrabold text-white mb-1">{value}</p>
                 <p className="text-sm text-blue-200 font-medium">{label}</p>
-              </div>
+              </RevealItem>
             ))}
-          </div>
+          </RevealGroup>
         </div>
         {/* Wave out to white mobile section */}
         <svg viewBox="0 0 1440 56" className="w-full fill-white block -mb-px" xmlns="http://www.w3.org/2000/svg">
@@ -473,12 +616,12 @@ export default async function LandingPage() {
           <div className="grid lg:grid-cols-2 gap-16 items-center">
 
             {/* Phone mockup */}
-            <div className="flex justify-center lg:justify-end order-2 lg:order-1">
+            <Reveal x={-30} y={0} className="flex justify-center lg:justify-end order-2 lg:order-1">
               <MobileAppMockup />
-            </div>
+            </Reveal>
 
             {/* Text + QR */}
-            <div className="order-1 lg:order-2">
+            <Reveal delay={0.15} x={30} y={0} className="order-1 lg:order-2">
               <p className="text-sm font-bold text-blue-600 uppercase tracking-widest mb-3">Mobile App</p>
               <h2 className="text-4xl font-extrabold text-gray-900 leading-tight mb-4">
                 Manage your hotel<br />from your pocket
@@ -521,18 +664,20 @@ export default async function LandingPage() {
                   <p className="text-xs text-gray-400 mt-2">Android &amp; iOS supported</p>
                 </div>
               </div>
-            </div>
+            </Reveal>
           </div>
         </div>
       </section>
 
       {/* ══ Product Showcase ══════════════════════════════════════════════════ */}
-      <ProductShowcase />
+      <Reveal>
+        <ProductShowcase />
+      </Reveal>
 
       {/* ══ Reviews ═══════════════════════════════════════════════════════════ */}
       <section id="reviews" className="py-24 px-6 bg-gray-50">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
+          <Reveal className="text-center mb-16">
             <p className="text-sm font-bold text-blue-600 uppercase tracking-widest mb-3">Reviews</p>
             <h2 className="text-4xl font-extrabold text-gray-900 mb-4">What hoteliers say</h2>
             {avgRating && (
@@ -545,17 +690,17 @@ export default async function LandingPage() {
                 </span>
               </div>
             )}
-          </div>
+          </Reveal>
 
           {liveReviews.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <RevealGroup className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {liveReviews.map((review, idx) => {
                 const name = review.user?.full_name ?? 'Guest'
                 const hotel = review.hotel?.name ?? ''
                 const color = avatarColors[idx % avatarColors.length]
                 const date = new Date(review.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
                 return (
-                  <div key={review.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow p-6 flex flex-col">
+                  <RevealItem key={review.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow p-6 flex flex-col">
                     <div className="flex gap-0.5 mb-4">
                       {Array.from({ length: review.rating }).map((_, i) => (
                         <Star key={i} className="h-4 w-4 text-amber-400 fill-amber-400" />
@@ -577,10 +722,10 @@ export default async function LandingPage() {
                         <p className="text-xs text-gray-400">{date}</p>
                       </div>
                     </div>
-                  </div>
+                  </RevealItem>
                 )
               })}
-            </div>
+            </RevealGroup>
           ) : (
             <p className="text-center text-gray-400 py-12">No reviews yet — be the first!</p>
           )}
@@ -590,17 +735,17 @@ export default async function LandingPage() {
       {/* ══ Pricing ═══════════════════════════════════════════════════════════ */}
       <section id="pricing" className="py-24 px-6">
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16">
+          <Reveal className="text-center mb-16">
             <p className="text-sm font-bold text-blue-600 uppercase tracking-widest mb-3">Pricing</p>
             <h2 className="text-4xl font-extrabold text-gray-900 mb-4">Simple, honest pricing</h2>
             <p className="text-lg text-gray-500">14-day free trial on every plan. No credit card required.</p>
-          </div>
+          </Reveal>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+          <RevealGroup className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
             {plans.map(plan => (
-              <div
+              <RevealItem
                 key={plan.name}
-                className={`rounded-2xl flex flex-col overflow-hidden transition-all ${
+                className={`rounded-2xl flex flex-col overflow-hidden transition-all hover:-translate-y-1 duration-300 ${
                   plan.highlight
                     ? 'bg-gradient-to-b from-blue-600 to-blue-700 shadow-2xl shadow-blue-200 md:-my-4'
                     : 'bg-white border border-gray-200 shadow-sm'
@@ -643,9 +788,9 @@ export default async function LandingPage() {
                     {plan.cta}
                   </Link>
                 </div>
-              </div>
+              </RevealItem>
             ))}
-          </div>
+          </RevealGroup>
         </div>
       </section>
 
@@ -657,7 +802,7 @@ export default async function LandingPage() {
         </svg>
         <div className="py-24 px-6 relative">
           <div className="absolute top-0 left-1/3 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
-          <div className="relative max-w-3xl mx-auto text-center">
+          <Reveal className="relative max-w-3xl mx-auto text-center">
             <h2 className="text-4xl sm:text-5xl font-extrabold text-white mb-5 leading-tight">
               Ready to transform<br />your hotel operations?
             </h2>
@@ -667,7 +812,7 @@ export default async function LandingPage() {
             <div className="flex flex-col sm:flex-row justify-center gap-3">
               <Link
                 href="/register-hotel"
-                className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-9 py-4 rounded-xl text-base transition-all shadow-lg shadow-blue-900/50"
+                className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-9 py-4 rounded-xl text-base transition-all shadow-lg shadow-blue-900/50 hover:scale-[1.03] transform"
               >
                 Register your hotel <ArrowRight className="h-4 w-4" />
               </Link>
@@ -678,7 +823,7 @@ export default async function LandingPage() {
                 Sign in
               </Link>
             </div>
-          </div>
+          </Reveal>
         </div>
       </section>
 
