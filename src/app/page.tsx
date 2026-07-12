@@ -402,7 +402,7 @@ export default async function LandingPage() {
 
           <div className="mt-14 text-center">
             <Link
-              href="/register"
+              href="/register-hotel"
               className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-3.5 rounded-xl text-base transition-all shadow-lg shadow-blue-200"
             >
               Register your hotel now <ArrowRight className="h-4 w-4" />
