@@ -3,8 +3,9 @@
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
-import { MoreHorizontal } from 'lucide-react'
+import { MoreHorizontal, Wallet } from 'lucide-react'
 import { ActionMenu } from '@/components/ui/ActionMenu'
+import Link from 'next/link'
 
 const transitions: Record<string, string[]> = {
   pending: ['confirmed', 'cancelled'],
@@ -67,26 +68,44 @@ export default function BookingActions({ bookingId, currentStatus }: { bookingId
     return <span className="text-xs text-gray-400">—</span>
   }
 
+  const showRecordPayment = ['pending', 'confirmed', 'checked_in'].includes(currentStatus)
+
   return (
     <ActionMenu
       button={<MoreHorizontal className="h-4 w-4 text-gray-500" />}
       buttonClassName="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
       buttonAriaLabel="Booking actions"
     >
-      {close =>
-        next.map(status => (
-          <button
-            key={status}
-            role="menuitem"
-            onClick={() => updateStatus(status, close)}
-            className={`w-full px-4 py-2 text-sm text-left hover:bg-gray-50 capitalize ${
-              status === 'cancelled' ? 'text-red-700' : 'text-gray-700'
-            }`}
-          >
-            {status.replace('_', ' ')}
-          </button>
-        ))
-      }
+      {close => (
+        <>
+          {next.map(status => (
+            <button
+              key={status}
+              role="menuitem"
+              onClick={() => updateStatus(status, close)}
+              className={`w-full px-4 py-2 text-sm text-left hover:bg-gray-50 capitalize ${
+                status === 'cancelled' ? 'text-red-700' : 'text-gray-700'
+              }`}
+            >
+              {status.replace('_', ' ')}
+            </button>
+          ))}
+          {showRecordPayment && (
+            <>
+              {next.length > 0 && <div className="border-t border-gray-100 my-1" />}
+              <Link
+                href={`/hotel-admin/payments/collect?booking_id=${bookingId}`}
+                role="menuitem"
+                onClick={close}
+                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-left text-emerald-700 hover:bg-emerald-50"
+              >
+                <Wallet className="h-3.5 w-3.5" />
+                Record Payment
+              </Link>
+            </>
+          )}
+        </>
+      )}
     </ActionMenu>
   )
 }

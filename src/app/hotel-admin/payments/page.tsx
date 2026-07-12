@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { CreditCard, CheckCircle, XCircle, Clock, Search } from 'lucide-react'
+import { CreditCard, CheckCircle, XCircle, Clock, Search, Plus } from 'lucide-react'
 import AutoFilterForm from '@/components/ui/AutoFilterForm'
 import { formatCurrency } from '@/lib/currency'
 
@@ -55,9 +55,14 @@ export default async function PaymentsPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">Payments</h2>
-        <p className="text-gray-500 text-sm mt-1">{payments?.length ?? 0} transactions shown</p>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Payments</h2>
+          <p className="text-gray-500 text-sm mt-1">{payments?.length ?? 0} transactions shown</p>
+        </div>
+        <Link href="/hotel-admin/payments/collect" className="btn-primary flex items-center gap-2 text-sm shrink-0">
+          <Plus className="h-4 w-4" /> Collect Payment
+        </Link>
       </div>
 
       {ok && (
