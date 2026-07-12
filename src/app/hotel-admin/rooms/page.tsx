@@ -1,8 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, BedDouble } from 'lucide-react'
+import { Plus, BedDouble, Search } from 'lucide-react'
 import RoomStatusToggle from './RoomStatusToggle'
+import AutoFilterForm from '@/components/ui/AutoFilterForm'
 
 export const metadata = { title: 'Rooms' }
 
@@ -11,7 +12,15 @@ const statusBadge: Record<string, string> = {
   maintenance: 'badge-red', cleaning: 'badge-yellow',
 }
 
-export default async function RoomsPage() {
+const STATUSES = ['available', 'booked', 'maintenance', 'cleaning']
+
+export default async function RoomsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string; q?: string }>
+}) {
+  const { status, q } = await searchParams
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -20,22 +29,30 @@ export default async function RoomsPage() {
   const tenantId = profile?.tenant_id
   if (!tenantId) redirect('/login')
 
-  const { data: rooms } = await supabase
+  let query = supabase
     .from('rooms')
     .select('*, room_type:room_types(name, capacity)')
     .eq('hotel_id', tenantId)
     .order('room_number')
 
-  const available = rooms?.filter(r => r.status === 'available').length ?? 0
-  const booked = rooms?.filter(r => r.status === 'booked').length ?? 0
-  const maintenance = rooms?.filter(r => r.status === 'maintenance').length ?? 0
+  if (status) query = query.eq('status', status)
+  if (q)      query = query.ilike('room_number', `%${q}%`)
+
+  const { data: rooms } = await query
+
+  const { data: allRooms } = await supabase
+    .from('rooms').select('status').eq('hotel_id', tenantId)
+
+  const available   = allRooms?.filter(r => r.status === 'available').length ?? 0
+  const booked      = allRooms?.filter(r => r.status === 'booked').length ?? 0
+  const maintenance = allRooms?.filter(r => r.status === 'maintenance').length ?? 0
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Rooms</h2>
-          <p className="text-gray-500 text-sm mt-1">{rooms?.length ?? 0} total rooms</p>
+          <p className="text-gray-500 text-sm mt-1">{rooms?.length ?? 0} rooms shown</p>
         </div>
         <Link href="/hotel-admin/rooms/new" className="btn-primary flex items-center gap-2 text-sm">
           <Plus className="h-4 w-4" /> Add Room
@@ -46,8 +63,8 @@ export default async function RoomsPage() {
       <div className="grid grid-cols-3 gap-4">
         {[
           { label: 'Available', count: available, color: 'bg-green-50 text-green-700 border-green-200' },
-          { label: 'Occupied', count: booked, color: 'bg-blue-50 text-blue-700 border-blue-200' },
-          { label: 'Maintenance', count: maintenance, color: 'bg-red-50 text-red-700 border-red-200' },
+          { label: 'Occupied',  count: booked,    color: 'bg-blue-50 text-blue-700 border-blue-200'   },
+          { label: 'Maintenance', count: maintenance, color: 'bg-red-50 text-red-700 border-red-200'  },
         ].map(s => (
           <div key={s.label} className={`rounded-xl border p-4 text-center ${s.color}`}>
             <p className="text-2xl font-bold">{s.count}</p>
@@ -55,6 +72,32 @@ export default async function RoomsPage() {
           </div>
         ))}
       </div>
+
+      {/* Filter bar */}
+      <AutoFilterForm className="flex flex-wrap items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3">
+        <div className="relative flex-1 min-w-[160px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="Search room number…"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+        </div>
+        <select
+          name="status"
+          defaultValue={status ?? ''}
+          className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+        >
+          <option value="">All Statuses</option>
+          {STATUSES.map(s => (
+            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+          ))}
+        </select>
+        {(status || q) && (
+          <Link href="/hotel-admin/rooms" className="text-sm text-gray-500 hover:text-gray-800">Clear</Link>
+        )}
+      </AutoFilterForm>
 
       <div className="card overflow-hidden">
         <table className="w-full">
@@ -83,9 +126,7 @@ export default async function RoomsPage() {
                 <td className="table-cell text-gray-500">{(room.room_type as { capacity?: number })?.capacity} guests</td>
                 <td className="table-cell font-medium">${room.price_per_night}</td>
                 <td className="table-cell">
-                  <span className={statusBadge[room.status] ?? 'badge-gray'}>
-                    {room.status}
-                  </span>
+                  <span className={statusBadge[room.status] ?? 'badge-gray'}>{room.status}</span>
                 </td>
                 <td className="table-cell">
                   <RoomStatusToggle roomId={room.id} currentStatus={room.status} />
@@ -93,7 +134,7 @@ export default async function RoomsPage() {
               </tr>
             ))}
             {!rooms?.length && (
-              <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-500">No rooms yet. Add your first room.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-500">No rooms match your filters.</td></tr>
             )}
           </tbody>
         </table>
