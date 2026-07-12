@@ -1,10 +1,11 @@
 import React from 'react'
 import Link from 'next/link'
 import {
-  Building2, Users, CreditCard, BarChart3, Shield, Zap,
+  Building2, Users, CreditCard,
   CheckCircle2, Star, ArrowRight, TrendingUp, Clock,
   LayoutDashboard, CalendarCheck, Calendar, BedDouble,
   UserCog, FileBarChart, Settings, ShieldCheck, ChevronDown,
+  BarChart3, Shield, Zap,
 } from 'lucide-react'
 import PublicNavbar from '@/components/layout/PublicNavbar'
 import { createAdminClient } from '@/lib/supabase/server'
@@ -13,17 +14,9 @@ import { ProductShowcase } from '@/components/landing/ProductShowcase'
 import { Reveal, RevealGroup, RevealItem } from '@/components/motion/Reveal'
 import { Marquee } from '@/components/motion/Marquee'
 import { CountUp } from '@/components/motion/CountUp'
+import { FeatureCards } from '@/components/landing/FeatureCards'
 
 /* ─── Data ─────────────────────────────────────────────────────────────────── */
-
-const features = [
-  { icon: Building2,  title: 'Room Management',     desc: 'Live room status, housekeeping queues, and maintenance requests — all from one screen.',                          glow: 'shadow-blue-500/40',    ring: 'bg-blue-500/10 text-blue-400'    },
-  { icon: Users,      title: 'Staff & Roles',        desc: 'Role-based access for admins, front desk, and housekeeping. Everyone sees only what they need.',                  glow: 'shadow-violet-500/40',  ring: 'bg-violet-500/10 text-violet-400'},
-  { icon: CreditCard, title: 'Payments',             desc: 'Online and walk-in payments via Stripe with automatic reconciliation and daily reports.',                         glow: 'shadow-emerald-500/40', ring: 'bg-emerald-500/10 text-emerald-400'},
-  { icon: BarChart3,  title: 'Revenue Analytics',    desc: 'ADR, RevPAR, and occupancy trends. Spot problems and opportunities before they hit the bottom line.',             glow: 'shadow-amber-500/40',   ring: 'bg-amber-500/10 text-amber-400'  },
-  { icon: Shield,     title: 'Enterprise Security',  desc: 'Row-level tenant isolation on every query. Your data stays yours — no cross-hotel leakage ever.',                glow: 'shadow-rose-500/40',    ring: 'bg-rose-500/10 text-rose-400'    },
-  { icon: Zap,        title: 'Real-Time Updates',    desc: 'New bookings, check-ins, and task assignments appear instantly across every device on your team.',                glow: 'shadow-cyan-500/40',    ring: 'bg-cyan-500/10 text-cyan-400'    },
-]
 
 
 const stats: { count: number | null; fixed?: string; suffix?: string; label: string; icon: React.ElementType }[] = [
@@ -541,20 +534,7 @@ export default async function LandingPage() {
             </p>
           </Reveal>
 
-          <RevealGroup className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map(({ icon: Icon, title, desc, ring }) => (
-              <RevealItem
-                key={title}
-                className="group bg-white border border-gray-100 rounded-2xl p-6 hover:shadow-xl hover:shadow-blue-100 hover:-translate-y-1.5 transition-all duration-300 cursor-default"
-              >
-                <div className={`w-12 h-12 ${ring} rounded-xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300`}>
-                  <Icon className="h-5 w-5" />
-                </div>
-                <h3 className="font-bold text-gray-900 text-lg mb-2">{title}</h3>
-                <p className="text-gray-500 text-sm leading-relaxed">{desc}</p>
-              </RevealItem>
-            ))}
-          </RevealGroup>
+          <FeatureCards />
         </div>
       </section>
 
