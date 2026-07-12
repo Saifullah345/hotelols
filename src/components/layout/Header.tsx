@@ -1,6 +1,6 @@
 'use client'
 
-import { User, LogOut, Settings } from 'lucide-react'
+import { User, LogOut, Settings, Menu } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -11,9 +11,10 @@ import { NotificationBell } from './NotificationBell'
 interface HeaderProps {
   title: string
   profile?: Profile | null
+  onMenuOpen?: () => void
 }
 
-export function Header({ title, profile }: HeaderProps) {
+export function Header({ title, profile, onMenuOpen }: HeaderProps) {
   const [showDropdown, setShowDropdown] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
@@ -48,8 +49,19 @@ export function Header({ title, profile }: HeaderProps) {
   }
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 px-6 flex items-center justify-between sticky top-0 z-10">
-      <h1 className="text-lg font-semibold text-gray-900">{title}</h1>
+    <header className="h-16 bg-white border-b border-gray-200 px-4 md:px-6 flex items-center justify-between sticky top-0 z-10">
+      <div className="flex items-center gap-2">
+        {onMenuOpen && (
+          <button
+            onClick={onMenuOpen}
+            className="md:hidden p-2 rounded-lg hover:bg-gray-100 text-gray-600 -ml-1"
+            aria-label="Open menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        )}
+        <h1 className="text-base md:text-lg font-semibold text-gray-900 truncate">{title}</h1>
+      </div>
       <div className="flex items-center gap-3">
         <NotificationBell
           userId={profile?.id}

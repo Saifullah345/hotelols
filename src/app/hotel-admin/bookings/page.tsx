@@ -57,12 +57,12 @@ export default async function BookingsPage({
       </div>
 
       {/* Filters */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex gap-2 overflow-x-auto pb-1 px-0.5">
         {filterTabs.map(tab => (
           <Link
             key={tab}
             href={tab === 'all' ? '/hotel-admin/bookings' : `/hotel-admin/bookings?status=${tab}`}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+            className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
               (tab === 'all' && !status) || status === tab
                 ? 'bg-primary-600 text-white'
                 : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
@@ -74,7 +74,8 @@ export default async function BookingsPage({
       </div>
 
       <div className="card overflow-hidden">
-        <table className="w-full">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px]">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th className="table-header">Guest</th>
@@ -137,6 +138,7 @@ export default async function BookingsPage({
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )

@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import PublicNavbar from '@/components/layout/PublicNavbar'
 import { createAdminClient } from '@/lib/supabase/server'
+import WhatsAppButton from '@/components/WhatsAppButton'
 
 /* ─── Data ─────────────────────────────────────────────────────────────────── */
 
@@ -746,5 +747,6 @@ export default async function LandingPage() {
         </div>
       </footer>
     </div>
+    <WhatsAppButton />
   )
 }

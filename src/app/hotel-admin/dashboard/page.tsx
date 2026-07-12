@@ -79,17 +79,17 @@ export default async function HotelAdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
           <p className="text-gray-500 text-sm mt-1">Today, {new Date().toLocaleDateString('en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="card px-4 py-2 flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="card px-3 py-2 flex items-center gap-2 text-sm">
             <Clock className="h-4 w-4 text-orange-500" />
             <span className="font-medium text-orange-700">{pendingBookings} pending</span>
           </div>
-          <div className="card px-4 py-2 flex items-center gap-2 text-sm">
+          <div className="card px-3 py-2 flex items-center gap-2 text-sm">
             <TrendingUp className="h-4 w-4 text-green-500" />
             <span className="font-medium text-green-700">{occupancyRate}% occupancy</span>
           </div>
@@ -124,44 +124,46 @@ export default async function HotelAdminDashboard() {
         </div>
       </div>
 
-      <div className="card">
+      <div className="card overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="font-semibold text-gray-900">Recent Bookings</h3>
         </div>
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="table-header">Guest</th>
-              <th className="table-header">Room</th>
-              <th className="table-header">Check-in</th>
-              <th className="table-header">Check-out</th>
-              <th className="table-header">Amount</th>
-              <th className="table-header">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {recentBookings?.map(b => (
-              <tr key={b.id} className="hover:bg-gray-50">
-                <td className="table-cell font-medium">
-                  {(b.user as { full_name?: string } | null)?.full_name
-                    || (b as { guest_name?: string }).guest_name
-                    || (b.user as { email?: string } | null)?.email
-                    || '—'}
-                </td>
-                <td className="table-cell text-gray-500">Room {(b.room as { room_number?: string })?.room_number}</td>
-                <td className="table-cell text-gray-500">{new Date(b.check_in).toLocaleDateString()}</td>
-                <td className="table-cell text-gray-500">{new Date(b.check_out).toLocaleDateString()}</td>
-                <td className="table-cell font-medium">${b.total_amount}</td>
-                <td className="table-cell">
-                  <span className={statusColors[b.status] ?? 'badge-gray'}>{b.status.replace('_', ' ')}</span>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px]">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="table-header">Guest</th>
+                <th className="table-header">Room</th>
+                <th className="table-header">Check-in</th>
+                <th className="table-header">Check-out</th>
+                <th className="table-header">Amount</th>
+                <th className="table-header">Status</th>
               </tr>
-            ))}
-            {!recentBookings?.length && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">No bookings yet</td></tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {recentBookings?.map(b => (
+                <tr key={b.id} className="hover:bg-gray-50">
+                  <td className="table-cell font-medium">
+                    {(b.user as { full_name?: string } | null)?.full_name
+                      || (b as { guest_name?: string }).guest_name
+                      || (b.user as { email?: string } | null)?.email
+                      || '—'}
+                  </td>
+                  <td className="table-cell text-gray-500">Room {(b.room as { room_number?: string })?.room_number}</td>
+                  <td className="table-cell text-gray-500">{new Date(b.check_in).toLocaleDateString()}</td>
+                  <td className="table-cell text-gray-500">{new Date(b.check_out).toLocaleDateString()}</td>
+                  <td className="table-cell font-medium">${b.total_amount}</td>
+                  <td className="table-cell">
+                    <span className={statusColors[b.status] ?? 'badge-gray'}>{b.status.replace('_', ' ')}</span>
+                  </td>
+                </tr>
+              ))}
+              {!recentBookings?.length && (
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">No bookings yet</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )
