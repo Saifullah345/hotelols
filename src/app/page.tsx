@@ -746,7 +746,7 @@ export default async function LandingPage() {
           </div>
         </div>
       </footer>
+      <WhatsAppButton />
     </div>
-    <WhatsAppButton />
   )
 }

@@ -13,7 +13,7 @@ export default function AutoFilterForm({
   const router   = useRouter()
   const pathname = usePathname()
   const formRef  = useRef<HTMLFormElement>(null)
-  const timer    = useRef<ReturnType<typeof setTimeout>>()
+  const timer    = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const push = useCallback((delay: number) => {
     clearTimeout(timer.current)
