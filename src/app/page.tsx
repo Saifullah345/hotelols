@@ -1,3 +1,4 @@
+import React from 'react'
 import Link from 'next/link'
 import {
   Building2, Users, CreditCard, BarChart3, Shield, Zap,
@@ -10,6 +11,8 @@ import { createAdminClient } from '@/lib/supabase/server'
 import WhatsAppButton from '@/components/WhatsAppButton'
 import { ProductShowcase } from '@/components/landing/ProductShowcase'
 import { Reveal, RevealGroup, RevealItem } from '@/components/motion/Reveal'
+import { Marquee } from '@/components/motion/Marquee'
+import { CountUp } from '@/components/motion/CountUp'
 
 /* ─── Data ─────────────────────────────────────────────────────────────────── */
 
@@ -23,11 +26,11 @@ const features = [
 ]
 
 
-const stats = [
-  { value: '14 Days', label: 'Free trial — no card needed', icon: Clock      },
-  { value: '< 1 hr',  label: 'Average hotel setup time',    icon: Zap        },
-  { value: '100%',    label: 'Data privacy — your data stays yours', icon: Shield },
-  { value: '24 / 7',  label: 'Real-time room & booking updates', icon: TrendingUp },
+const stats: { count: number | null; fixed?: string; suffix?: string; label: string; icon: React.ElementType }[] = [
+  { count: 14,   suffix: ' Days', label: 'Free trial — no card needed',          icon: Clock      },
+  { count: null, fixed: '< 1 hr', label: 'Average hotel setup time',             icon: Zap        },
+  { count: 100,  suffix: '%',     label: 'Data privacy — your data stays yours', icon: Shield     },
+  { count: null, fixed: '24 / 7', label: 'Real-time room & booking updates',     icon: TrendingUp },
 ]
 
 // ── Review helpers ───────────────────────────────────────────────────────────
@@ -272,7 +275,7 @@ function DashboardMockup() {
       </div>
 
       {/* Floating "New Booking" notification */}
-      <div className="absolute -top-4 -right-4 bg-white rounded-xl shadow-xl border border-gray-100 p-3 flex items-center gap-3 w-52">
+      <div className="absolute -top-4 -right-4 bg-white rounded-xl shadow-xl border border-gray-100 p-3 flex items-center gap-3 w-52 animate-float">
         <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
           <CalendarCheck className="h-4 w-4 text-emerald-600" />
         </div>
@@ -383,7 +386,7 @@ export default async function LandingPage() {
               <RevealItem className="flex flex-col sm:flex-row gap-3 mb-8">
                 <Link
                   href="/register-hotel"
-                  className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-7 py-3.5 rounded-xl text-base transition-all shadow-lg shadow-blue-900/50 hover:-translate-y-0.5 hover:scale-[1.02] transform"
+                  className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-7 py-3.5 rounded-xl text-base transition-all shadow-lg shadow-blue-900/50 hover:-translate-y-0.5 hover:scale-[1.02] transform animate-pulse-glow"
                 >
                   Register your hotel <ArrowRight className="h-4 w-4" />
                 </Link>
@@ -437,7 +440,7 @@ export default async function LandingPage() {
               {/* Dashboard card (phone mockup floats off its own bottom-left corner; pb-40 reserves room so the phone never collides with the feature strip below) */}
               <div className="relative z-10 pb-40">
                 <DashboardMockup />
-                <div className="absolute bottom-0 -left-6 z-20">
+                <div className="absolute bottom-0 -left-6 z-20 animate-float-alt">
                   <HeroPhoneMockup />
                 </div>
               </div>
@@ -453,19 +456,11 @@ export default async function LandingPage() {
       </section>
 
       {/* ══ Trust bar ═════════════════════════════════════════════════════════ */}
-      <section className="py-10 px-6 border-b border-gray-100">
-        <div className="max-w-5xl mx-auto text-center">
-          <p className="text-sm text-gray-400 font-medium mb-6">Everything your hotel needs in one platform</p>
-          <div className="flex flex-wrap justify-center gap-3">
-            {['Room Management', 'Online Bookings', 'Staff & Roles', 'Stripe Payments', 'Revenue Analytics', 'Mobile App'].map((name, i) => (
-              <Reveal key={name} delay={i * 0.05} y={12}>
-                <span className="px-4 py-1.5 bg-gray-50 border border-gray-100 rounded-full text-sm font-medium text-gray-500">
-                  {name}
-                </span>
-              </Reveal>
-            ))}
-          </div>
-        </div>
+      <section className="py-10 border-b border-gray-100">
+        <Reveal className="text-center mb-6 px-6">
+          <p className="text-sm text-gray-400 font-medium">Everything your hotel needs in one platform</p>
+        </Reveal>
+        <Marquee />
       </section>
 
       {/* ══ How It Works ══════════════════════════════════════════════════════ */}
@@ -550,9 +545,9 @@ export default async function LandingPage() {
             {features.map(({ icon: Icon, title, desc, ring }) => (
               <RevealItem
                 key={title}
-                className="group bg-white border border-gray-100 rounded-2xl p-6 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+                className="group bg-white border border-gray-100 rounded-2xl p-6 hover:shadow-xl hover:shadow-blue-100 hover:-translate-y-1.5 transition-all duration-300 cursor-default"
               >
-                <div className={`w-12 h-12 ${ring} rounded-xl flex items-center justify-center mb-5`}>
+                <div className={`w-12 h-12 ${ring} rounded-xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300`}>
                   <Icon className="h-5 w-5" />
                 </div>
                 <h3 className="font-bold text-gray-900 text-lg mb-2">{title}</h3>
@@ -571,14 +566,18 @@ export default async function LandingPage() {
         </svg>
         <div className="py-20 px-6">
           <RevealGroup className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-10 text-center">
-            {stats.map(({ value, label, icon: Icon }) => (
+            {stats.map(({ count, fixed, suffix, label, icon: Icon }) => (
               <RevealItem key={label}>
                 <div className="flex justify-center mb-3">
                   <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center">
                     <Icon className="h-5 w-5 text-white" />
                   </div>
                 </div>
-                <p className="text-4xl font-extrabold text-white mb-1">{value}</p>
+                <p className="text-4xl font-extrabold text-white mb-1">
+                  {count !== null
+                    ? <CountUp to={count} suffix={suffix ?? ''} />
+                    : fixed}
+                </p>
                 <p className="text-sm text-blue-200 font-medium">{label}</p>
               </RevealItem>
             ))}
@@ -792,7 +791,7 @@ export default async function LandingPage() {
             <div className="flex flex-col sm:flex-row justify-center gap-3">
               <Link
                 href="/register-hotel"
-                className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-9 py-4 rounded-xl text-base transition-all shadow-lg shadow-blue-900/50 hover:scale-[1.03] transform"
+                className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-9 py-4 rounded-xl text-base transition-all shadow-lg shadow-blue-900/50 hover:scale-[1.03] transform animate-pulse-glow"
               >
                 Register your hotel <ArrowRight className="h-4 w-4" />
               </Link>
@@ -810,9 +809,9 @@ export default async function LandingPage() {
       {/* ══ Footer ════════════════════════════════════════════════════════════ */}
       <footer className="bg-slate-900 text-slate-400 py-14 px-6">
         <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-12">
+          <RevealGroup className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-12">
             {/* Brand */}
-            <div className="col-span-2 md:col-span-1">
+            <RevealItem className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                   <Building2 className="h-4 w-4 text-white" />
@@ -822,7 +821,7 @@ export default async function LandingPage() {
               <p className="text-sm leading-relaxed">
                 The modern hotel management platform for independent hotels and growing groups.
               </p>
-            </div>
+            </RevealItem>
 
             {[
               {
@@ -845,14 +844,14 @@ export default async function LandingPage() {
               {
                 title: 'Legal',
                 links: [
-                  { label: 'Privacy Policy', href: '/privacy'         },
-                  { label: 'Terms & Conditions', href: '/terms'       },
-                  { label: 'Cookies',        href: '/privacy#cookies' },
-                  { label: 'GDPR',           href: '/privacy#gdpr'   },
+                  { label: 'Privacy Policy',    href: '/privacy'         },
+                  { label: 'Terms & Conditions', href: '/terms'           },
+                  { label: 'Cookies',           href: '/privacy#cookies' },
+                  { label: 'GDPR',              href: '/privacy#gdpr'    },
                 ],
               },
             ].map(col => (
-              <div key={col.title}>
+              <RevealItem key={col.title}>
                 <h4 className="text-white font-semibold text-sm mb-4 uppercase tracking-widest">{col.title}</h4>
                 <ul className="space-y-2.5">
                   {col.links.map(link => (
@@ -861,18 +860,18 @@ export default async function LandingPage() {
                     </li>
                   ))}
                 </ul>
-              </div>
+              </RevealItem>
             ))}
-          </div>
+          </RevealGroup>
 
-          <div className="border-t border-slate-800 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-slate-500">
+          <Reveal delay={0.2} className="border-t border-slate-800 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-slate-500">
             <p>© {new Date().getFullYear()} HotelOS. All rights reserved.</p>
             <div className="flex gap-6">
               <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
               <Link href="/terms"   className="hover:text-white transition-colors">Terms</Link>
               <Link href="/privacy#cookies" className="hover:text-white transition-colors">Cookies</Link>
             </div>
-          </div>
+          </Reveal>
         </div>
       </footer>
       <WhatsAppButton />
