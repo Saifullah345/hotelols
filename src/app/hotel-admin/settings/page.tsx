@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Loader2, Save, MessageCircle, Copy, ExternalLink, ImagePlus } from 'lucide-react'
+import { CURRENCIES } from '@/lib/currency'
 
 export default function HotelSettingsPage() {
   const [tenantId, setTenantId] = useState<string | null>(null)
@@ -50,6 +51,7 @@ export default function HotelSettingsPage() {
       country: data.country,
       check_in_time: data.check_in_time,
       check_out_time: data.check_out_time,
+      currency: data.currency,
       latitude,
       longitude,
       cover_image: coverImage,
@@ -199,6 +201,16 @@ export default function HotelSettingsPage() {
               <label className="label">Check-out Time</label>
               <input {...hotelForm.register('check_out_time')} type="time" className="input" />
             </div>
+            <div className="md:col-span-2">
+              <label className="label">Currency</label>
+              <select {...hotelForm.register('currency')} className="input">
+                {CURRENCIES.map(c => (
+                  <option key={c.code} value={c.code}>{c.label}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">All prices and revenue across the dashboard will display in this currency.</p>
+            </div>
+
             <div>
               <label className="label">Latitude</label>
               <input {...hotelForm.register('latitude')} type="number" step="any" placeholder="31.5497" className="input" />

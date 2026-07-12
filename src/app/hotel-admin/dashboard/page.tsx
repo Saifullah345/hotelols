@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { StatsCard } from '@/components/dashboard/StatsCard'
 import { RevenueChart } from '@/components/dashboard/RevenueChart'
 import { BedDouble, CalendarCheck, DollarSign, Clock, TrendingUp, Building2 } from 'lucide-react'
+import { formatCurrency } from '@/lib/currency'
 
 export const metadata = { title: 'Dashboard' }
 
@@ -31,8 +32,7 @@ export default async function HotelAdminDashboard() {
 
   const today = new Date().toISOString().split('T')[0]
 
-  const [
-    { count: totalRooms },
+  const [{ data: hotelInfo }, { count: totalRooms },
     { count: availableRooms },
     { count: totalBookings },
     { count: pendingBookings },
@@ -40,6 +40,7 @@ export default async function HotelAdminDashboard() {
     { data: recentBookings },
     { count: checkedInToday },
   ] = await Promise.all([
+    supabase.from('hotels').select('currency').eq('id', tenantId).single(),
     supabase.from('rooms').select('*', { count: 'exact', head: true }).eq('hotel_id', tenantId),
     supabase.from('rooms').select('*', { count: 'exact', head: true }).eq('hotel_id', tenantId).eq('status', 'available'),
     supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('hotel_id', tenantId),
@@ -54,6 +55,7 @@ export default async function HotelAdminDashboard() {
       .eq('hotel_id', tenantId).eq('status', 'checked_in').eq('check_in', today),
   ])
 
+  const currency = (hotelInfo as { currency?: string } | null)?.currency ?? 'USD'
   const totalRevenue = revenueData?.reduce((s, p) => s + p.amount, 0) ?? 0
   const occupancyRate = totalRooms ? Math.round(((totalRooms - (availableRooms ?? 0)) / totalRooms) * 100) : 0
 
@@ -69,7 +71,7 @@ export default async function HotelAdminDashboard() {
     { title: 'Total Rooms', value: totalRooms ?? 0, icon: BedDouble, iconBg: 'bg-blue-50', iconColor: 'text-blue-600' },
     { title: 'Available Rooms', value: availableRooms ?? 0, icon: BedDouble, iconBg: 'bg-green-50', iconColor: 'text-green-600' },
     { title: 'Total Bookings', value: totalBookings ?? 0, icon: CalendarCheck, iconBg: 'bg-purple-50', iconColor: 'text-purple-600', change: 15 },
-    { title: 'Total Revenue', value: totalRevenue, icon: DollarSign, iconBg: 'bg-gold-50', iconColor: 'text-gold-600', prefix: '$', change: 8 },
+    { title: 'Total Revenue', value: formatCurrency(totalRevenue, currency), icon: DollarSign, iconBg: 'bg-green-50', iconColor: 'text-green-600', change: 8 },
   ]
 
   const statusColors: Record<string, string> = {
@@ -79,17 +81,17 @@ export default async function HotelAdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
           <p className="text-gray-500 text-sm mt-1">Today, {new Date().toLocaleDateString('en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="card px-4 py-2 flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="card px-3 py-2 flex items-center gap-2 text-sm">
             <Clock className="h-4 w-4 text-orange-500" />
             <span className="font-medium text-orange-700">{pendingBookings} pending</span>
           </div>
-          <div className="card px-4 py-2 flex items-center gap-2 text-sm">
+          <div className="card px-3 py-2 flex items-center gap-2 text-sm">
             <TrendingUp className="h-4 w-4 text-green-500" />
             <span className="font-medium text-green-700">{occupancyRate}% occupancy</span>
           </div>
@@ -102,7 +104,7 @@ export default async function HotelAdminDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <RevenueChart data={monthlyRevenue} />
+          <RevenueChart data={monthlyRevenue} currency={currency} />
         </div>
 
         <div className="card">
@@ -124,44 +126,46 @@ export default async function HotelAdminDashboard() {
         </div>
       </div>
 
-      <div className="card">
+      <div className="card overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="font-semibold text-gray-900">Recent Bookings</h3>
         </div>
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="table-header">Guest</th>
-              <th className="table-header">Room</th>
-              <th className="table-header">Check-in</th>
-              <th className="table-header">Check-out</th>
-              <th className="table-header">Amount</th>
-              <th className="table-header">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {recentBookings?.map(b => (
-              <tr key={b.id} className="hover:bg-gray-50">
-                <td className="table-cell font-medium">
-                  {(b.user as { full_name?: string } | null)?.full_name
-                    || (b as { guest_name?: string }).guest_name
-                    || (b.user as { email?: string } | null)?.email
-                    || '—'}
-                </td>
-                <td className="table-cell text-gray-500">Room {(b.room as { room_number?: string })?.room_number}</td>
-                <td className="table-cell text-gray-500">{new Date(b.check_in).toLocaleDateString()}</td>
-                <td className="table-cell text-gray-500">{new Date(b.check_out).toLocaleDateString()}</td>
-                <td className="table-cell font-medium">${b.total_amount}</td>
-                <td className="table-cell">
-                  <span className={statusColors[b.status] ?? 'badge-gray'}>{b.status.replace('_', ' ')}</span>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px]">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="table-header">Guest</th>
+                <th className="table-header">Room</th>
+                <th className="table-header">Check-in</th>
+                <th className="table-header">Check-out</th>
+                <th className="table-header">Amount</th>
+                <th className="table-header">Status</th>
               </tr>
-            ))}
-            {!recentBookings?.length && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">No bookings yet</td></tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {recentBookings?.map(b => (
+                <tr key={b.id} className="hover:bg-gray-50">
+                  <td className="table-cell font-medium">
+                    {(b.user as { full_name?: string } | null)?.full_name
+                      || (b as { guest_name?: string }).guest_name
+                      || (b.user as { email?: string } | null)?.email
+                      || '—'}
+                  </td>
+                  <td className="table-cell text-gray-500">Room {(b.room as { room_number?: string })?.room_number}</td>
+                  <td className="table-cell text-gray-500">{new Date(b.check_in).toLocaleDateString()}</td>
+                  <td className="table-cell text-gray-500">{new Date(b.check_out).toLocaleDateString()}</td>
+                  <td className="table-cell font-medium">{formatCurrency(b.total_amount, currency)}</td>
+                  <td className="table-cell">
+                    <span className={statusColors[b.status] ?? 'badge-gray'}>{b.status.replace('_', ' ')}</span>
+                  </td>
+                </tr>
+              ))}
+              {!recentBookings?.length && (
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">No bookings yet</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )

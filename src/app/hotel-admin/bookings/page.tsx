@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, Calendar, DoorOpen, Phone, MessageCircle, Globe } from 'lucide-react'
 import BookingActions from './BookingActions'
+import { formatCurrency } from '@/lib/currency'
 
 export const metadata = { title: 'Bookings' }
 
@@ -42,6 +43,9 @@ export default async function BookingsPage({
 
   const { data: bookings } = await query
 
+  const { data: hotelInfo } = await supabase.from('hotels').select('currency').eq('id', tenantId).single()
+  const currency = (hotelInfo as { currency?: string } | null)?.currency ?? 'USD'
+
   const filterTabs = ['all', 'pending', 'confirmed', 'checked_in', 'checked_out', 'cancelled']
 
   return (
@@ -57,12 +61,12 @@ export default async function BookingsPage({
       </div>
 
       {/* Filters */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex gap-2 overflow-x-auto pb-1 px-0.5">
         {filterTabs.map(tab => (
           <Link
             key={tab}
             href={tab === 'all' ? '/hotel-admin/bookings' : `/hotel-admin/bookings?status=${tab}`}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+            className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
               (tab === 'all' && !status) || status === tab
                 ? 'bg-primary-600 text-white'
                 : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
@@ -74,7 +78,8 @@ export default async function BookingsPage({
       </div>
 
       <div className="card overflow-hidden">
-        <table className="w-full">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px]">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th className="table-header">Guest</th>
@@ -123,7 +128,7 @@ export default async function BookingsPage({
                     )
                   })()}
                 </td>
-                <td className="table-cell font-semibold">${b.total_amount}</td>
+                <td className="table-cell font-semibold">{formatCurrency(b.total_amount, currency)}</td>
                 <td className="table-cell">
                   <span className={statusBadge[b.status] ?? 'badge-gray'}>{b.status.replace('_', ' ')}</span>
                 </td>
@@ -137,6 +142,7 @@ export default async function BookingsPage({
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )

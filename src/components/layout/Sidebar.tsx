@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import {
   Building2, LayoutDashboard, BedDouble, CalendarCheck, Users, BarChart3,
   CreditCard, Star, LogOut, Settings, Hotel, ClipboardList, UserCheck, Search,
-  MessageCircle,
+  MessageCircle, X,
 } from 'lucide-react'
 
 interface NavItem {
@@ -67,9 +67,11 @@ const titleMap: Record<string, string> = {
 interface SidebarProps {
   role: string
   hotelName?: string
+  isOpen?: boolean
+  onClose?: () => void
 }
 
-export function Sidebar({ role, hotelName }: SidebarProps) {
+export function Sidebar({ role, hotelName, isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const navItems = navMap[role] ?? []
@@ -83,20 +85,47 @@ export function Sidebar({ role, hotelName }: SidebarProps) {
   }
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 flex flex-col h-screen sticky top-0">
+    <>
+      {/* Mobile backdrop */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={onClose}
+        />
+      )}
+      <aside className={cn(
+        'w-64 bg-white border-r border-gray-200 flex-col flex-shrink-0',
+        // Desktop: always visible as a sticky sidebar
+        'md:flex md:relative md:h-screen md:sticky md:top-0 md:z-auto',
+        // Mobile: fixed drawer when open, hidden otherwise
+        isOpen ? 'flex fixed inset-y-0 left-0 z-50 h-screen' : 'hidden',
+      )}>
       {/* Logo */}
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center gap-2">
-          <Building2 className="h-6 w-6 text-primary-600" />
-          <div>
-            <span className="font-bold text-gray-900">HotelOS</span>
-            <p className="text-xs text-gray-500">{hotelName || titleMap[role]}</p>
+      <div className="h-16 px-4 flex items-center border-b border-gray-200">
+        {/* Mobile close button */}
+        <button
+          onClick={onClose}
+          className="md:hidden mr-2 p-1 rounded-lg hover:bg-gray-100 text-gray-500"
+        >
+          <X className="h-5 w-5" />
+        </button>
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 flex-shrink-0 bg-primary-600 rounded-xl flex items-center justify-center">
+            <Building2 className="h-5 w-5 text-white" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-bold text-gray-900 text-sm truncate" title={hotelName || titleMap[role]}>
+              HotelOS
+              {(hotelName || titleMap[role]) && (
+                <span className="font-normal text-gray-400 ml-1">· {hotelName || titleMap[role]}</span>
+              )}
+            </p>
           </div>
         </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-3 pt-2 pb-4 space-y-0.5 overflow-y-auto">
         {navItems.map(item => {
           const Icon = item.icon
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
@@ -113,6 +142,7 @@ export function Sidebar({ role, hotelName }: SidebarProps) {
               key={item.href}
               href={item.href}
               className="sidebar-link"
+              onClick={onClose}
             >
               <Icon className="h-4 w-4 flex-shrink-0" />
               {item.label}
@@ -132,5 +162,6 @@ export function Sidebar({ role, hotelName }: SidebarProps) {
         </button>
       </div>
     </aside>
+    </>
   )
 }

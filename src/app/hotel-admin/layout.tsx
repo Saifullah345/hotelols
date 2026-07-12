@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { Sidebar } from '@/components/layout/Sidebar'
-import { Header } from '@/components/layout/Header'
+import { AdminShell } from '@/components/layout/AdminShell'
 
 export default async function HotelAdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -18,12 +17,13 @@ export default async function HotelAdminLayout({ children }: { children: React.R
     .single()
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar role="hotel-admin" hotelName={hotel?.name} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header title={hotel?.name ?? 'Hotel Management'} profile={profile} />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
-      </div>
-    </div>
+    <AdminShell
+      role="hotel-admin"
+      hotelName={hotel?.name}
+      title={hotel?.name ?? 'Hotel Management'}
+      profile={profile}
+    >
+      {children}
+    </AdminShell>
   )
 }
