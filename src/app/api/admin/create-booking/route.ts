@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
@@ -84,7 +84,11 @@ export async function POST(request: Request) {
   const total_amount = nights * (room.price_per_night ?? 0)
   const guests = (adults ?? 1) + (children ?? 0)
 
-  const { data: booking, error } = await supabase.from('bookings').insert({
+  // Use service-role client for writes — walk-in bookings have user_id = null
+  // which the per-user RLS policy would reject on the payments insert.
+  const admin = await createAdminClient()
+
+  const { data: booking, error } = await admin.from('bookings').insert({
     hotel_id: hotelId,
     room_id,
     user_id: guest_user_id ?? null,
@@ -108,7 +112,7 @@ export async function POST(request: Request) {
   const isPaid = payment_collected !== false  // default true for walk-in/phone/whatsapp
   const paymentStatus = source === 'online' ? 'pending' : (isPaid ? 'completed' : 'pending')
 
-  const { error: paymentError } = await supabase.from('payments').insert({
+  const { error: paymentError } = await admin.from('payments').insert({
     booking_id: booking.id,
     hotel_id: hotelId,
     user_id: guest_user_id ?? null,

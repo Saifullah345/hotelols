@@ -1,7 +1,8 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
+  // Auth check using the user's session (respects RLS)
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -26,8 +27,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'booking_id and payment_method are required' }, { status: 400 })
   }
 
+  // Use service-role client for writes — payment inserts for walk-in guests
+  // have user_id = null which the per-user RLS policy would reject.
+  const admin = await createAdminClient()
+
   // Verify booking belongs to this hotel
-  const { data: booking } = await supabase
+  const { data: booking } = await admin
     .from('bookings')
     .select('id, hotel_id, user_id, total_amount')
     .eq('id', booking_id)
@@ -38,7 +43,7 @@ export async function POST(request: Request) {
   }
 
   // Get hotel currency
-  const { data: hotel } = await supabase
+  const { data: hotel } = await admin
     .from('hotels')
     .select('currency')
     .eq('id', hotelId)
@@ -50,15 +55,14 @@ export async function POST(request: Request) {
   const now = new Date().toISOString()
 
   // Check if a payment already exists for this booking
-  const { data: existing } = await supabase
+  const { data: existing } = await admin
     .from('payments')
     .select('id')
     .eq('booking_id', booking_id)
     .maybeSingle()
 
   if (existing) {
-    // Update existing payment record
-    const { error } = await supabase
+    const { error } = await admin
       .from('payments')
       .update({
         status: finalStatus,
@@ -70,8 +74,7 @@ export async function POST(request: Request) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   } else {
-    // Create new payment record
-    const { error } = await supabase.from('payments').insert({
+    const { error } = await admin.from('payments').insert({
       booking_id,
       hotel_id: hotelId,
       user_id: (booking as { user_id?: string | null }).user_id ?? null,
