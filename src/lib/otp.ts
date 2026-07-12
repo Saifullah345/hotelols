@@ -6,6 +6,7 @@ import crypto from 'crypto'
 // extra database table while still being secure against tampering and replay.
 
 export const OTP_COOKIE = 'otp_challenge'
+export const PASSWORD_RESET_COOKIE = 'pwreset_challenge'
 const OTP_TTL_MS = 10 * 60 * 1000 // 10 minutes
 const MAX_ATTEMPTS = 5
 

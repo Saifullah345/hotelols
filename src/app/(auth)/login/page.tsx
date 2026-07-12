@@ -37,6 +37,15 @@ export default function LoginPage() {
   const [verifying, setVerifying] = useState(false)
   const [otpResending, setOtpResending] = useState(false)
 
+  // Forgot-password step state
+  const [forgotStep, setForgotStep] = useState<'none' | 'request' | 'confirm'>('none')
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [sendingReset, setSendingReset] = useState(false)
+  const [resetCode, setResetCode] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [resettingPassword, setResettingPassword] = useState(false)
+
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
@@ -136,6 +145,63 @@ export default function LoginPage() {
     else toast.success('Verification email resent')
   }
 
+  const sendResetCode = async (email: string) => {
+    setSendingReset(true)
+    try {
+      const res = await fetch('/api/auth/password-reset/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(json.error ?? 'Could not send reset code')
+        return
+      }
+      setForgotEmail(email)
+      setForgotStep('confirm')
+      setResetCode('')
+      setNewPassword('')
+      setConfirmPassword('')
+      toast.success('If an account exists for that email, a reset code is on its way')
+    } finally {
+      setSendingReset(false)
+    }
+  }
+
+  const onForgotSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (forgotEmail) sendResetCode(forgotEmail)
+  }
+
+  const onResetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (resetCode.length < 6) { toast.error('Enter the 6-digit code'); return }
+    if (newPassword.length < 6) { toast.error('Password must be at least 6 characters'); return }
+    if (newPassword !== confirmPassword) { toast.error('Passwords do not match'); return }
+    setResettingPassword(true)
+    try {
+      const res = await fetch('/api/auth/password-reset/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail, code: resetCode, newPassword }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(json.error ?? 'Could not reset password')
+        return
+      }
+      toast.success('Password reset! Please sign in with your new password.')
+      setForgotStep('none')
+      setForgotEmail('')
+      setResetCode('')
+      setNewPassword('')
+      setConfirmPassword('')
+    } finally {
+      setResettingPassword(false)
+    }
+  }
+
   // --- Email-not-verified screen ---
   if (unverifiedEmail) {
     return (
@@ -159,6 +225,111 @@ export default function LoginPage() {
         <button
           onClick={() => setUnverifiedEmail(null)}
           className="mt-3 block mx-auto text-sm text-gray-500 hover:text-gray-700"
+        >
+          Back to sign in
+        </button>
+      </div>
+    )
+  }
+
+  // --- Forgot-password: request code ---
+  if (forgotStep === 'request') {
+    return (
+      <div className="py-2">
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Reset your password</h2>
+        <p className="text-gray-500 text-sm mb-6">
+          Enter your account email and we&apos;ll send you a 6-digit code to reset your password.
+        </p>
+        <form onSubmit={onForgotSubmit} className="space-y-4">
+          <div>
+            <label className="label">Email address</label>
+            <input
+              type="email"
+              value={forgotEmail}
+              onChange={e => setForgotEmail(e.target.value)}
+              className="input"
+              placeholder="you@example.com"
+              autoFocus
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={sendingReset || !forgotEmail}
+            className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            {sendingReset && <Loader2 className="h-4 w-4 animate-spin" />}
+            Send reset code
+          </button>
+        </form>
+        <button
+          onClick={() => setForgotStep('none')}
+          className="mt-4 block mx-auto text-sm text-gray-500 hover:text-gray-700"
+        >
+          Back to sign in
+        </button>
+      </div>
+    )
+  }
+
+  // --- Forgot-password: enter code + new password ---
+  if (forgotStep === 'confirm') {
+    return (
+      <div className="py-2">
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Enter your reset code</h2>
+        <p className="text-gray-500 text-sm mb-6">
+          We sent a 6-digit code to <strong>{forgotEmail}</strong>. Enter it below along with your new password.
+        </p>
+        <form onSubmit={onResetSubmit} className="space-y-4">
+          <div>
+            <label className="label">Reset code</label>
+            <input
+              value={resetCode}
+              onChange={e => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="------"
+              className="input text-center text-2xl tracking-[0.5em] font-semibold"
+            />
+          </div>
+          <div>
+            <label className="label">New password</label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={e => setNewPassword(e.target.value)}
+              className="input"
+              placeholder="••••••••"
+            />
+          </div>
+          <div>
+            <label className="label">Confirm new password</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={e => setConfirmPassword(e.target.value)}
+              className="input"
+              placeholder="••••••••"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={resettingPassword}
+            className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            {resettingPassword && <Loader2 className="h-4 w-4 animate-spin" />}
+            Reset password
+          </button>
+        </form>
+        <div className="mt-4 flex items-center justify-center gap-1 text-sm text-gray-500">
+          Didn&apos;t get it?
+          <button onClick={() => sendResetCode(forgotEmail)} disabled={sendingReset} className="text-primary-600 hover:text-primary-700 font-medium inline-flex items-center gap-1">
+            {sendingReset && <Loader2 className="h-3 w-3 animate-spin" />}
+            Resend code
+          </button>
+        </div>
+        <button
+          onClick={() => setForgotStep('none')}
+          className="mt-2 block mx-auto text-sm text-gray-500 hover:text-gray-700"
         >
           Back to sign in
         </button>
@@ -250,6 +421,15 @@ export default function LoginPage() {
             </button>
           </div>
           {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>}
+          <div className="mt-1.5 text-right">
+            <button
+              type="button"
+              onClick={() => { setForgotEmail(''); setForgotStep('request') }}
+              className="text-sm font-medium text-primary-600 hover:text-primary-700"
+            >
+              Forgot password?
+            </button>
+          </div>
         </div>
 
         <button type="submit" disabled={busy} className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed">
