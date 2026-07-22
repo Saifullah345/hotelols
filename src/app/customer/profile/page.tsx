@@ -7,10 +7,11 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Loader2, Save, User } from 'lucide-react'
+import { PHONE_REGEX, PHONE_REGEX_MESSAGE } from '@/lib/validation'
 
 const schema = z.object({
   full_name: z.string().min(2, 'Full name is required'),
-  phone: z.string().min(1, 'Phone number is required').regex(/^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,4}[-\s.]?[0-9]{1,9}$/, 'Invalid phone number format'),
+  phone: z.string().min(1, 'Phone number is required').regex(PHONE_REGEX, PHONE_REGEX_MESSAGE),
   country: z.string().optional(),
   city: z.string().optional(),
   address: z.string().optional(),

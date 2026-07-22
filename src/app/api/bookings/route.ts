@@ -41,7 +41,8 @@ export async function POST(request: Request) {
     .select('id')
     .eq('room_id', room_id)
     .in('status', ['confirmed', 'checked_in'])
-    .or(`check_in.lte.${check_out},check_out.gte.${check_in}`)
+    .lt('check_in', check_out)
+    .gt('check_out', check_in)
 
   if (conflicting && conflicting.length > 0) {
     return NextResponse.json({ error: 'Room is not available for selected dates' }, { status: 409 })
