@@ -15,7 +15,7 @@ import {
 import Link from 'next/link'
 import type { BookingSource } from '@/types'
 import { formatCurrency } from '@/lib/currency'
-import { PHONE_REGEX, PHONE_REGEX_MESSAGE } from '@/lib/validation'
+import { phoneSchema } from '@/lib/validation'
 
 // ─── Schemas ─────────────────────────────────────────────────
 const dateRefineMsg = { message: 'Check-out must be after check-in', path: ['check_out'] }
@@ -36,7 +36,7 @@ const onlineSchema = z.object({
 
 const offlineSchema = z.object({
   guest_name:       z.string().min(2, 'Guest name required'),
-  guest_phone:      z.string().min(1, 'Phone number is required').regex(PHONE_REGEX, PHONE_REGEX_MESSAGE),
+  guest_phone:      phoneSchema,
   room_id:          z.string().min(1, 'Select a room'),
   check_in:         z.string().min(1, 'Check-in date required'),
   check_out:        z.string().min(1, 'Check-out date required'),
@@ -130,10 +130,7 @@ export default function NewBookingPage() {
       ])
 
       if (roomData) {
-        setRooms((roomData as unknown[]).map((r: unknown) => {
-          const room = r as { id: string; room_number: string; floor: number; price_per_night: number; room_type: { name: string; capacity: number }[] | null }
-          return { ...room, room_type: room.room_type?.[0] ?? null }
-        }) as Room[])
+        setRooms(roomData as unknown as Room[])
       }
 
       if (profileData.user) {

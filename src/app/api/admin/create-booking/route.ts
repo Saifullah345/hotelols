@@ -53,12 +53,17 @@ export async function POST(request: Request) {
 
   const { data: room } = await supabase
     .from('rooms')
-    .select('id, price_per_night, hotel_id')
+    .select('id, price_per_night, hotel_id, room_type:room_types(capacity)')
     .eq('id', room_id)
     .single()
 
   if (!room || room.hotel_id !== hotelId) {
     return NextResponse.json({ error: 'Room not found' }, { status: 404 })
+  }
+
+  const capacity = (room.room_type as { capacity?: number } | null)?.capacity
+  if (capacity != null && (adults ?? 1) + (children ?? 0) > capacity) {
+    return NextResponse.json({ error: `This room allows up to ${capacity} guest${capacity !== 1 ? 's' : ''}` }, { status: 400 })
   }
 
   const { data: conflicts } = await supabase
