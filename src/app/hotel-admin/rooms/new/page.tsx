@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2, ArrowLeft, Trash2, ImagePlus, X } from 'lucide-react'
 import Link from 'next/link'
+import { currencySymbol } from '@/lib/currency'
 
 const DEFAULT_AMENITIES = [
   'WiFi', 'TV', 'AC', 'Safe', 'Minibar', 'Balcony',
@@ -17,6 +18,7 @@ const DEFAULT_AMENITIES = [
 
 const schema = z.object({
   room_number: z.string().min(1, 'Room number required'),
+  name: z.string().optional(),
   floor: z.coerce.number().min(0),
   price_per_night: z.coerce.number().min(1, 'Price required'),
   room_type_id: z.string().uuid('Select a room type'),
@@ -46,6 +48,7 @@ export default function NewRoomPage() {
   const [customAmenity, setCustomAmenity] = useState('')
   const [roomImages, setRoomImages] = useState<string[]>([])
   const [uploadingRoomImage, setUploadingRoomImage] = useState(false)
+  const [currency, setCurrency] = useState('USD')
   const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { status: 'available', floor: 1, max_adults: 2, max_children: 0 },
@@ -68,15 +71,19 @@ export default function NewRoomPage() {
       const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
       if (profile?.tenant_id) {
         setTenantId(profile.tenant_id)
-        const [{ data }, { data: rooms }] = await Promise.all([
+        const [{ data }, { data: rooms }, { data: hotel }] = await Promise.all([
           supabase.from('room_types').select('id, name, max_adults, max_children, amenities').eq('hotel_id', profile.tenant_id),
           supabase.from('rooms').select('room_type_id').eq('hotel_id', profile.tenant_id),
+          supabase.from('hotels').select('currency').eq('id', profile.tenant_id).single(),
         ])
         if (data) setRoomTypes(data)
         if (rooms) {
           const counts: Record<string, number> = {}
           for (const r of rooms) counts[r.room_type_id] = (counts[r.room_type_id] ?? 0) + 1
           setRoomCounts(counts)
+        }
+        if ((hotel as { currency?: string } | null)?.currency) {
+          setCurrency((hotel as { currency: string }).currency)
         }
       }
     })
@@ -212,6 +219,11 @@ export default function NewRoomPage() {
             <input {...register('floor')} type="number" className="input" />
             {errors.floor && <p className="text-red-500 text-xs mt-1">{errors.floor.message}</p>}
           </div>
+        </div>
+
+        <div>
+          <label className="label">Room Name <span className="text-gray-400 font-normal">(optional)</span></label>
+          <input {...register('name')} className="input" placeholder="e.g. Ocean View" />
         </div>
 
         <div>
@@ -390,7 +402,7 @@ export default function NewRoomPage() {
         </div>
 
         <div>
-          <label className="label">Price per Night ($)</label>
+          <label className="label">Price per Night ({currencySymbol(currency).trim()})</label>
           <input {...register('price_per_night')} type="number" className="input" placeholder="150" />
           {errors.price_per_night && <p className="text-red-500 text-xs mt-1">{errors.price_per_night.message}</p>}
         </div>

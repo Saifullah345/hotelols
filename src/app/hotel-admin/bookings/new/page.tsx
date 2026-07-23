@@ -55,6 +55,7 @@ type OfflineForm = z.infer<typeof offlineSchema>
 type Room = {
   id: string
   room_number: string
+  name?: string
   floor: number
   price_per_night: number
   max_adults: number
@@ -91,6 +92,7 @@ export default function NewBookingPage() {
   const [totalAmount, setTotalAmount]   = useState(0)
   const [submitting, setSubmitting]     = useState(false)
   const [currency, setCurrency]         = useState('USD')
+  const [tenantId, setTenantId]         = useState<string | null>(null)
 
   // Payment collection state (for offline bookings)
   const [payMethod, setPayMethod] = useState('cash')
@@ -124,38 +126,34 @@ export default function NewBookingPage() {
   const activeChildren = Number(isOffline ? childrenOff : childrenOnline) || 0
   const activeGuests   = activeAdults + activeChildren
 
-  // Load rooms + hotel currency
+  // Load this hotel's rooms + currency
   useEffect(() => {
     const init = async () => {
       const supabase = createClient()
-      const [{ data: roomData }, { data: profileData }] = await Promise.all([
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('tenant_id')
+        .eq('id', user.id)
+        .single()
+
+      if (!profile?.tenant_id) return
+      setTenantId(profile.tenant_id)
+
+      const [{ data: roomData }, { data: hotel }] = await Promise.all([
         supabase
           .from('rooms')
-          .select('id, room_number, floor, price_per_night, max_adults, max_children, capacity, room_type:room_types(name)')
+          .select('id, room_number, name, floor, price_per_night, max_adults, max_children, capacity, room_type:room_types(name)')
+          .eq('hotel_id', profile.tenant_id)
           .order('room_number'),
-        supabase.auth.getUser(),
+        supabase.from('hotels').select('currency').eq('id', profile.tenant_id).single(),
       ])
 
-      if (roomData) {
-        setRooms(roomData as unknown as Room[])
-      }
-
-      if (profileData.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('tenant_id')
-          .eq('id', profileData.user.id)
-          .single()
-        if (profile?.tenant_id) {
-          const { data: hotel } = await supabase
-            .from('hotels')
-            .select('currency')
-            .eq('id', profile.tenant_id)
-            .single()
-          if ((hotel as { currency?: string } | null)?.currency) {
-            setCurrency((hotel as { currency: string }).currency)
-          }
-        }
+      if (roomData) setRooms(roomData as unknown as Room[])
+      if ((hotel as { currency?: string } | null)?.currency) {
+        setCurrency((hotel as { currency: string }).currency)
       }
     }
     init()
@@ -180,20 +178,21 @@ export default function NewBookingPage() {
 
   useEffect(() => {
     const checkAvailability = async () => {
-      if (!activeCheckIn || !activeCheckOut || new Date(activeCheckOut) <= new Date(activeCheckIn)) {
+      if (!tenantId || !activeCheckIn || !activeCheckOut || new Date(activeCheckOut) <= new Date(activeCheckIn)) {
         setUnavailableRoomIds(new Set())
         return
       }
       const { data } = await createClient()
         .from('bookings')
         .select('room_id')
+        .eq('hotel_id', tenantId)
         .in('status', ['confirmed', 'checked_in'])
         .lt('check_in', activeCheckOut)
         .gt('check_out', activeCheckIn)
       setUnavailableRoomIds(new Set((data ?? []).map((b: { room_id: string }) => b.room_id)))
     }
     checkAvailability()
-  }, [activeCheckIn, activeCheckOut])
+  }, [tenantId, activeCheckIn, activeCheckOut])
 
   const selectedRoom = rooms.find(r => r.id === activeRoomId)
   const maxCapacity  = selectedRoom?.capacity
@@ -262,7 +261,11 @@ export default function NewBookingPage() {
             : `Booking created & ${formatCurrency(totalAmount, currency)} collected`)
         : 'Booking created — payment pending'
     )
-    router.push('/hotel-admin/bookings')
+    router.push(
+      payNow && json.payment_id
+        ? `/hotel-admin/payments/${json.payment_id}/receipt`
+        : '/hotel-admin/bookings'
+    )
   }
 
   const submitOnline = async (data: OnlineForm) => {
@@ -310,7 +313,7 @@ export default function NewBookingPage() {
                 const unavailable = unavailableRoomIds.has(r.id)
                 return (
                   <option key={r.id} value={r.id} disabled={unavailable}>
-                    Room {r.room_number} — {r.room_type?.name ?? 'Standard'} · {formatCurrency(r.price_per_night, currency)}/night
+                    Room {r.room_number}{r.name ? ` (${r.name})` : ''} — {r.room_type?.name ?? 'Standard'} · {formatCurrency(r.price_per_night, currency)}/night
                     {unavailable ? ' — Unavailable for these dates' : ''}
                   </option>
                 )
@@ -450,21 +453,25 @@ export default function NewBookingPage() {
             Collect an advance payment instead of the full amount
           </label>
           {isAdvance && (
-            <div className="mt-2">
-              <input
-                type="number"
-                min={0.01}
-                max={totalAmount || undefined}
-                step="0.01"
-                value={advanceAmount}
-                onChange={e => setAdvanceAmount(e.target.value)}
-                className="input"
-                placeholder={`Up to ${formatCurrency(totalAmount, currency)}`}
-              />
-              <p className="text-xs text-gray-400 mt-1">
-                The remaining {formatCurrency(Math.max(totalAmount - (advanceValue || 0), 0), currency)} can be collected later from the Payments page.
-              </p>
-            </div>
+            totalAmount > 0 ? (
+              <div className="mt-2">
+                <input
+                  type="number"
+                  min={0.01}
+                  max={totalAmount}
+                  step="0.01"
+                  value={advanceAmount}
+                  onChange={e => setAdvanceAmount(e.target.value)}
+                  className="input"
+                  placeholder={`Up to ${formatCurrency(totalAmount, currency)}`}
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  The remaining {formatCurrency(Math.max(totalAmount - (advanceValue || 0), 0), currency)} can be collected later from the Payments page.
+                </p>
+              </div>
+            ) : (
+              <p className="text-xs text-amber-600 mt-2">Select a room and valid check-in/check-out dates first — the total isn&apos;t known yet.</p>
+            )
           )}
         </div>
       )}

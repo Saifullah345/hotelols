@@ -65,7 +65,7 @@ export default async function StaffRoomsPage({
           <div key={room.id} className="card p-4">
             <div className="flex items-start justify-between mb-2">
               <div>
-                <p className="font-semibold text-gray-900 text-lg">Room {room.room_number}</p>
+                <p className="font-semibold text-gray-900 text-lg">Room {room.room_number}{room.name && ` — ${room.name}`}</p>
                 <p className="text-sm text-gray-500">{(room.room_type as { name?: string })?.name}</p>
               </div>
               <span className={statusBadge[room.status] ?? 'badge-gray'}>{room.status}</span>

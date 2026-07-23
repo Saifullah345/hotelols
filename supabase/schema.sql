@@ -149,6 +149,7 @@ CREATE TABLE rooms (
   hotel_id UUID NOT NULL REFERENCES hotels(id) ON DELETE CASCADE,
   room_type_id UUID NOT NULL REFERENCES room_types(id),
   room_number TEXT NOT NULL,
+  name TEXT,   -- optional display name, e.g. "Ocean View", "Corner Suite"
   floor INTEGER NOT NULL DEFAULT 1,
   price_per_night NUMERIC(10,2) NOT NULL CHECK (price_per_night > 0),
   status TEXT NOT NULL DEFAULT 'available'
@@ -239,13 +240,13 @@ CREATE TABLE payments (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   booking_id UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
   hotel_id UUID NOT NULL REFERENCES hotels(id),
-  user_id UUID NOT NULL REFERENCES profiles(id),
+  user_id UUID REFERENCES profiles(id),   -- null for walk-in/phone/whatsapp guests with no account
   amount NUMERIC(10,2) NOT NULL CHECK (amount >= 0),
   currency TEXT NOT NULL DEFAULT 'USD',
   status TEXT NOT NULL DEFAULT 'pending'
     CHECK (status IN ('pending', 'completed', 'failed', 'refunded')),
   payment_method TEXT NOT NULL DEFAULT 'online'
-    CHECK (payment_method IN ('online', 'offline')),
+    CHECK (payment_method IN ('online', 'offline', 'cash', 'card_pos', 'bank_transfer', 'cheque', 'other')),
   stripe_payment_intent_id TEXT,
   stripe_session_id TEXT,
   invoice_number TEXT UNIQUE,

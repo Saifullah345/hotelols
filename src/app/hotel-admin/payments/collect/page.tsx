@@ -158,7 +158,7 @@ export default function CollectPaymentPage() {
     const json = await res.json()
     if (!res.ok) { toast.error(json.error ?? 'Failed to record payment'); return }
     toast.success(`${formatCurrency(amountDue, currency)} payment recorded`)
-    router.push('/hotel-admin/payments')
+    router.push(json.paymentId ? `/hotel-admin/payments/${json.paymentId}/receipt` : '/hotel-admin/payments')
   }
 
   const existingPayment = selected?.payments?.[0]

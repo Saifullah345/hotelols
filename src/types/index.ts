@@ -85,6 +85,7 @@ export interface Room {
   hotel_id: string
   room_type_id: string
   room_number: string
+  name?: string
   floor: number
   price_per_night: number
   status: RoomStatus
@@ -156,7 +157,7 @@ export interface Payment {
   id: string
   booking_id: string
   hotel_id: string
-  user_id: string
+  user_id: string | null
   amount: number
   currency: string
   status: PaymentStatus

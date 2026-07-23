@@ -61,6 +61,8 @@ export async function POST(request: Request) {
     .eq('booking_id', booking_id)
     .maybeSingle()
 
+  let paymentId = existing?.id
+
   if (existing) {
     const { error } = await admin
       .from('payments')
@@ -77,7 +79,7 @@ export async function POST(request: Request) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   } else {
-    const { error } = await admin.from('payments').insert({
+    const { data: created, error } = await admin.from('payments').insert({
       booking_id,
       hotel_id: hotelId,
       user_id: (booking as { user_id?: string | null }).user_id ?? null,
@@ -87,10 +89,11 @@ export async function POST(request: Request) {
       payment_method,
       payment_notes: payment_notes ?? null,
       paid_at: isCompleted ? now : null,
-    })
+    }).select('id').single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    paymentId = created?.id
   }
 
-  return NextResponse.json({ success: true })
+  return NextResponse.json({ success: true, paymentId })
 }

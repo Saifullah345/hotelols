@@ -134,7 +134,7 @@ export async function POST(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
-  const { error: paymentError } = await admin.from('payments').insert({
+  const { data: payment, error: paymentError } = await admin.from('payments').insert({
     booking_id: booking.id,
     hotel_id: hotelId,
     user_id: guest_user_id ?? null,
@@ -144,9 +144,9 @@ export async function POST(request: Request) {
     payment_method: finalPaymentMethod,
     payment_notes: payment_notes ?? null,
     paid_at: paymentStatus === 'completed' ? new Date().toISOString() : null,
-  })
+  }).select('id').single()
 
   if (paymentError) return NextResponse.json({ error: paymentError.message }, { status: 400 })
 
-  return NextResponse.json(booking, { status: 201 })
+  return NextResponse.json({ ...booking, payment_id: payment?.id }, { status: 201 })
 }

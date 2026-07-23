@@ -171,7 +171,7 @@ export default async function HotelDetailPage({ params }: { params: Promise<{ id
                     )}
                     <div>
                       <h3 className="font-semibold text-gray-900">
-                        Room {room.room_number} — {(room.room_type as { name?: string })?.name}
+                        Room {room.room_number}{room.name ? ` (${room.name})` : ''} — {(room.room_type as { name?: string })?.name}
                       </h3>
                       <p className="text-sm text-gray-500">
                         Floor {room.floor} · {room.capacity} guests max
