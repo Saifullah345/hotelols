@@ -129,13 +129,16 @@ CREATE TABLE room_types (
   hotel_id UUID NOT NULL REFERENCES hotels(id) ON DELETE CASCADE,
   name TEXT NOT NULL,   -- e.g. 'Standard', 'Deluxe', 'Suite', 'Presidential'
   description TEXT NOT NULL DEFAULT '',
-  capacity INTEGER NOT NULL DEFAULT 2,
+  max_adults INTEGER NOT NULL DEFAULT 2,
+  max_children INTEGER NOT NULL DEFAULT 0,
+  capacity INTEGER GENERATED ALWAYS AS (max_adults + max_children) STORED,
   amenities JSONB NOT NULL DEFAULT '[]',
   images JSONB NOT NULL DEFAULT '[]',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_room_types_hotel ON room_types(hotel_id);
+CREATE UNIQUE INDEX room_types_hotel_name_unique ON room_types (hotel_id, lower(name));
 
 
 -- ============================================================
@@ -150,6 +153,14 @@ CREATE TABLE rooms (
   price_per_night NUMERIC(10,2) NOT NULL CHECK (price_per_night > 0),
   status TEXT NOT NULL DEFAULT 'available'
     CHECK (status IN ('available', 'booked', 'maintenance', 'cleaning')),
+  -- Per-room occupancy override; defaults to the room type's limits at creation
+  -- time but can differ per room (e.g. an extra cot in one Deluxe room).
+  max_adults INTEGER NOT NULL DEFAULT 2,
+  max_children INTEGER NOT NULL DEFAULT 0,
+  capacity INTEGER GENERATED ALWAYS AS (max_adults + max_children) STORED,
+  -- Per-room amenities/photos — rooms of the same type can still differ.
+  amenities JSONB NOT NULL DEFAULT '[]',
+  images JSONB NOT NULL DEFAULT '[]',
   notes TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

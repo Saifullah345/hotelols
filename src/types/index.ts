@@ -72,6 +72,8 @@ export interface RoomType {
   hotel_id: string
   name: string
   description: string
+  max_adults: number
+  max_children: number
   capacity: number
   amenities: string[]
   images: string[]
@@ -86,6 +88,11 @@ export interface Room {
   floor: number
   price_per_night: number
   status: RoomStatus
+  max_adults: number
+  max_children: number
+  capacity: number
+  amenities: string[]
+  images: string[]
   notes?: string
   created_at: string
   updated_at: string

@@ -35,6 +35,7 @@ export async function POST(request: Request) {
     payment_method,
     payment_collected,
     payment_notes,
+    advance_amount,
   } = body
 
   if (!guest_user_id && !guest_name) {
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
 
   const { data: room } = await supabase
     .from('rooms')
-    .select('id, price_per_night, hotel_id, room_type:room_types(capacity)')
+    .select('id, price_per_night, hotel_id, max_adults, max_children, capacity')
     .eq('id', room_id)
     .single()
 
@@ -61,9 +62,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Room not found' }, { status: 404 })
   }
 
-  const capacity = (room.room_type as { capacity?: number } | null)?.capacity
-  if (capacity != null && (adults ?? 1) + (children ?? 0) > capacity) {
-    return NextResponse.json({ error: `This room allows up to ${capacity} guest${capacity !== 1 ? 's' : ''}` }, { status: 400 })
+  if ((adults ?? 1) > room.max_adults || (children ?? 0) > room.max_children) {
+    return NextResponse.json(
+      { error: `This room allows up to ${room.max_adults} adult${room.max_adults !== 1 ? 's' : ''} and ${room.max_children} child${room.max_children !== 1 ? 'ren' : ''}` },
+      { status: 400 },
+    )
   }
 
   const { data: conflicts } = await supabase
@@ -90,6 +93,24 @@ export async function POST(request: Request) {
   const total_amount = nights * (room.price_per_night ?? 0)
   const guests = (adults ?? 1) + (children ?? 0)
 
+  // Determine payment method and status up front so an invalid advance
+  // amount fails before we create the booking, not after.
+  const finalPaymentMethod = payment_method ?? (source === 'online' ? 'online' : 'cash')
+  const isPaid = payment_collected !== false  // default true for walk-in/phone/whatsapp
+  const paymentStatus = source === 'online' ? 'pending' : (isPaid ? 'completed' : 'pending')
+
+  let paymentAmount = total_amount
+  if (paymentStatus === 'completed' && advance_amount != null) {
+    const advance = Number(advance_amount)
+    if (!Number.isFinite(advance) || advance <= 0 || advance > total_amount) {
+      return NextResponse.json(
+        { error: `Advance amount must be greater than 0 and no more than the total (${total_amount})` },
+        { status: 400 },
+      )
+    }
+    paymentAmount = advance
+  }
+
   // Use service-role client for writes — walk-in bookings have user_id = null
   // which the per-user RLS policy would reject on the payments insert.
   const admin = await createAdminClient()
@@ -113,16 +134,11 @@ export async function POST(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
-  // Determine payment method and status
-  const finalPaymentMethod = payment_method ?? (source === 'online' ? 'online' : 'cash')
-  const isPaid = payment_collected !== false  // default true for walk-in/phone/whatsapp
-  const paymentStatus = source === 'online' ? 'pending' : (isPaid ? 'completed' : 'pending')
-
   const { error: paymentError } = await admin.from('payments').insert({
     booking_id: booking.id,
     hotel_id: hotelId,
     user_id: guest_user_id ?? null,
-    amount: total_amount,
+    amount: paymentAmount,
     currency,
     status: paymentStatus,
     payment_method: finalPaymentMethod,

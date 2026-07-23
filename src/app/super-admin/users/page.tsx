@@ -4,6 +4,7 @@ import { User, UserPlus, ChevronLeft, ChevronRight, Search, ArrowLeft } from 'lu
 import Link from 'next/link'
 import VerifyUserButton from '@/components/admin/VerifyUserButton'
 import SuspendUserButton from '@/components/admin/SuspendUserButton'
+import LinkUserHotelControl from '@/components/admin/LinkUserHotelControl'
 import AutoFilterForm from '@/components/ui/AutoFilterForm'
 
 export const metadata = { title: 'Users' }
@@ -61,13 +62,13 @@ export default async function UsersPage({
   )
 
   const hotelNameById = new Map<string, string>()
-  if (tenantIds.length > 0) {
-    const { data: hotels } = await supabase
-      .from('hotels')
-      .select('id, name')
-      .in('id', tenantIds)
+  const { data: hotels } = await supabase
+    .from('hotels')
+    .select('id, name')
+    .order('name')
 
-    for (const hotel of hotels ?? []) {
+  if (tenantIds.length > 0) {
+    for (const hotel of hotels?.filter(hotel => tenantIds.includes(hotel.id)) ?? []) {
       hotelNameById.set(hotel.id, hotel.name)
     }
   }
@@ -105,7 +106,8 @@ export default async function UsersPage({
       </AutoFilterForm>
 
       <div className="card overflow-hidden">
-        <table className="w-full">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[900px]">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th className="table-header">User</th>
@@ -153,6 +155,9 @@ export default async function UsersPage({
                 </td>
                 <td className="table-cell">
                   <div className="flex gap-2">
+                    {user.role !== 'super_admin' && (
+                      <LinkUserHotelControl userId={user.id} hotelId={user.tenant_id} hotels={hotels ?? []} />
+                    )}
                     <VerifyUserButton userId={user.id} isVerified={confirmedById.get(user.id) ?? false} />
                     <SuspendUserButton userId={user.id} suspended={suspendedById.get(user.id) ?? false} />
                   </div>
@@ -164,6 +169,7 @@ export default async function UsersPage({
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       <div className="flex items-center justify-between">

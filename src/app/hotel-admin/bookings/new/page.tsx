@@ -57,7 +57,10 @@ type Room = {
   room_number: string
   floor: number
   price_per_night: number
-  room_type: { name: string; capacity: number } | null
+  max_adults: number
+  max_children: number
+  capacity: number
+  room_type: { name: string } | null
 }
 type GuestProfile = { id: string; full_name: string; email: string }
 
@@ -93,6 +96,8 @@ export default function NewBookingPage() {
   const [payMethod, setPayMethod] = useState('cash')
   const [payNow, setPayNow]       = useState(true)
   const [payNotes, setPayNotes]   = useState('')
+  const [isAdvance, setIsAdvance]         = useState(false)
+  const [advanceAmount, setAdvanceAmount] = useState('')
 
   const isOffline = source !== 'online'
 
@@ -115,7 +120,9 @@ export default function NewBookingPage() {
   const activeCheckIn  = isOffline ? checkInOff  : checkIn
   const activeCheckOut = isOffline ? checkOutOff : checkOut
   const activeRoomId   = isOffline ? roomIdOff   : roomIdOnline
-  const activeGuests   = (Number(isOffline ? adultsOff : adultsOnline) || 0) + (Number(isOffline ? childrenOff : childrenOnline) || 0)
+  const activeAdults   = Number(isOffline ? adultsOff : adultsOnline) || 0
+  const activeChildren = Number(isOffline ? childrenOff : childrenOnline) || 0
+  const activeGuests   = activeAdults + activeChildren
 
   // Load rooms + hotel currency
   useEffect(() => {
@@ -124,7 +131,7 @@ export default function NewBookingPage() {
       const [{ data: roomData }, { data: profileData }] = await Promise.all([
         supabase
           .from('rooms')
-          .select('id, room_number, floor, price_per_night, room_type:room_types(name, capacity)')
+          .select('id, room_number, floor, price_per_night, max_adults, max_children, capacity, room_type:room_types(name)')
           .order('room_number'),
         supabase.auth.getUser(),
       ])
@@ -189,7 +196,9 @@ export default function NewBookingPage() {
   }, [activeCheckIn, activeCheckOut])
 
   const selectedRoom = rooms.find(r => r.id === activeRoomId)
-  const maxCapacity  = selectedRoom?.room_type?.capacity
+  const maxCapacity  = selectedRoom?.capacity
+  const maxAdultsAllowed   = selectedRoom?.max_adults
+  const maxChildrenAllowed = selectedRoom?.max_children
 
   const lookupGuest = useCallback(async (email: string) => {
     if (!email || !/\S+@\S+\.\S+/.test(email)) return
@@ -205,13 +214,21 @@ export default function NewBookingPage() {
   }, [])
 
   const exceedsCapacity = (roomId: string, adults: number, children: number) => {
-    const capacity = rooms.find(r => r.id === roomId)?.room_type?.capacity
-    return capacity != null && adults + children > capacity
+    const room = rooms.find(r => r.id === roomId)
+    if (!room) return false
+    return adults > room.max_adults || children > room.max_children
   }
+
+  const advanceValue = Number(advanceAmount)
+  const advanceInvalid = payNow && isAdvance && (!advanceAmount || !Number.isFinite(advanceValue) || advanceValue <= 0 || advanceValue > totalAmount)
 
   const submitOffline = async (data: OfflineForm) => {
     if (exceedsCapacity(data.room_id, data.adults, data.children)) {
       toast.error('Guest count exceeds this room\'s maximum occupancy')
+      return
+    }
+    if (advanceInvalid) {
+      toast.error(`Advance amount must be greater than 0 and no more than ${formatCurrency(totalAmount, currency)}`)
       return
     }
     setSubmitting(true)
@@ -232,14 +249,18 @@ export default function NewBookingPage() {
         payment_method:   payMethod,
         payment_collected: payNow,
         payment_notes:    payNotes || undefined,
+        advance_amount:   payNow && isAdvance ? advanceValue : undefined,
       }),
     })
     setSubmitting(false)
     const json = await res.json()
     if (!res.ok) { toast.error(json.error ?? 'Failed to create booking'); return }
-    toast.success(payNow
-      ? `Booking created & ${formatCurrency(totalAmount, currency)} collected`
-      : 'Booking created — payment pending'
+    toast.success(
+      payNow
+        ? (isAdvance
+            ? `Booking created & ${formatCurrency(advanceValue, currency)} advance collected`
+            : `Booking created & ${formatCurrency(totalAmount, currency)} collected`)
+        : 'Booking created — payment pending'
     )
     router.push('/hotel-admin/bookings')
   }
@@ -323,21 +344,21 @@ export default function NewBookingPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="label">Adults</label>
-            <input {...reg('adults')} type="number" min={1} max={maxCapacity} className="input" />
+            <input {...reg('adults')} type="number" min={1} max={maxAdultsAllowed} className="input" />
             {errs.adults && <p className="text-red-500 text-xs mt-1">{errs.adults.message}</p>}
           </div>
           <div>
             <label className="label">Children</label>
-            <input {...reg('children')} type="number" min={0} max={maxCapacity} className="input" />
+            <input {...reg('children')} type="number" min={0} max={maxChildrenAllowed} className="input" />
           </div>
           {maxCapacity != null && (
             <div className="md:col-span-2 -mt-2">
-              {activeGuests > maxCapacity ? (
+              {(activeAdults > (maxAdultsAllowed ?? Infinity) || activeChildren > (maxChildrenAllowed ?? Infinity)) ? (
                 <p className="text-red-500 text-xs">
-                  This room allows up to {maxCapacity} guest{maxCapacity !== 1 ? 's' : ''} — reduce adults/children or pick a larger room.
+                  This room allows up to {maxAdultsAllowed} adult{maxAdultsAllowed !== 1 ? 's' : ''} and {maxChildrenAllowed} child{maxChildrenAllowed !== 1 ? 'ren' : ''} — reduce adults/children or pick a larger room.
                 </p>
               ) : (
-                <p className="text-gray-400 text-xs">Max {maxCapacity} guest{maxCapacity !== 1 ? 's' : ''} for this room.</p>
+                <p className="text-gray-400 text-xs">Max {maxAdultsAllowed} adult{maxAdultsAllowed !== 1 ? 's' : ''} and {maxChildrenAllowed} child{maxChildrenAllowed !== 1 ? 'ren' : ''} for this room.</p>
               )}
             </div>
           )}
@@ -416,6 +437,38 @@ export default function NewBookingPage() {
         </div>
       </div>
 
+      {/* Advance / partial payment (optional, only when collecting now) */}
+      {payNow && (
+        <div>
+          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+            <input
+              type="checkbox"
+              checked={isAdvance}
+              onChange={e => { setIsAdvance(e.target.checked); if (!e.target.checked) setAdvanceAmount('') }}
+              className="rounded border-gray-300"
+            />
+            Collect an advance payment instead of the full amount
+          </label>
+          {isAdvance && (
+            <div className="mt-2">
+              <input
+                type="number"
+                min={0.01}
+                max={totalAmount || undefined}
+                step="0.01"
+                value={advanceAmount}
+                onChange={e => setAdvanceAmount(e.target.value)}
+                className="input"
+                placeholder={`Up to ${formatCurrency(totalAmount, currency)}`}
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                The remaining {formatCurrency(Math.max(totalAmount - (advanceValue || 0), 0), currency)} can be collected later from the Payments page.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Reference / Notes */}
       <div>
         <label className="label">
@@ -434,8 +487,9 @@ export default function NewBookingPage() {
         <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
           <CheckCircle className="h-4 w-4 flex-shrink-0" />
           <span>
-            {formatCurrency(totalAmount, currency)} collected via{' '}
+            {formatCurrency(isAdvance ? (advanceValue || 0) : totalAmount, currency)} collected via{' '}
             {PAY_METHODS.find(m => m.value === payMethod)?.label}
+            {isAdvance && ` (advance — ${formatCurrency(Math.max(totalAmount - (advanceValue || 0), 0), currency)} due later)`}
             {payNotes && <span className="text-green-600"> · Ref: {payNotes}</span>}
           </span>
         </div>
@@ -528,7 +582,7 @@ export default function NewBookingPage() {
 
           <div className="flex justify-end gap-3">
             <Link href="/hotel-admin/bookings" className="btn-secondary">Cancel</Link>
-            <button type="submit" disabled={submitting} className="btn-primary flex items-center gap-2">
+            <button type="submit" disabled={submitting || advanceInvalid} className="btn-primary flex items-center gap-2">
               {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
               Create Booking
             </button>

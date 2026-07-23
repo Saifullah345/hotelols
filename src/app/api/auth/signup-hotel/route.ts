@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to create user account' }, { status: 500 })
     }
 
-    const { error: hotelError } = await admin.from('hotels').insert({
+    const { data: hotel, error: hotelError } = await admin.from('hotels').insert({
       name: hotel_name,
       slug,
       city,
@@ -73,11 +73,22 @@ export async function POST(request: Request) {
       owner_id: userId,
       plan_id: plan.id,
       status: 'pending',
-    })
+    }).select('id').single()
 
-    if (hotelError) {
+    if (hotelError || !hotel) {
       await admin.auth.admin.deleteUser(userId)
       return NextResponse.json({ error: 'Failed to create hotel record. Please try again.' }, { status: 500 })
+    }
+
+    // The new-user trigger only sets role/full_name — link this hotel as the
+    // user's tenant now, otherwise they'd sign in with no hotel attached and
+    // a super admin would have to link it manually afterward.
+    const { error: profileError } = await admin.from('profiles').update({ tenant_id: hotel.id }).eq('id', userId)
+
+    if (profileError) {
+      await admin.from('hotels').delete().eq('id', hotel.id)
+      await admin.auth.admin.deleteUser(userId)
+      return NextResponse.json({ error: 'Failed to link your account to the hotel. Please try again.' }, { status: 500 })
     }
 
     try {

@@ -32,7 +32,7 @@ export default async function RoomsPage({
 
   let query = supabase
     .from('rooms')
-    .select('*, room_type:room_types(name, capacity)')
+    .select('*, room_type:room_types(name)')
     .eq('hotel_id', tenantId)
     .order('room_number')
 
@@ -128,10 +128,10 @@ export default async function RoomsPage({
                 </td>
                 <td className="table-cell text-gray-500">{(room.room_type as { name?: string })?.name}</td>
                 <td className="table-cell text-gray-500">Floor {room.floor}</td>
-                <td className="table-cell text-gray-500">{(room.room_type as { capacity?: number })?.capacity} guests</td>
+                <td className="table-cell text-gray-500">{room.capacity} guests</td>
                 <td className="table-cell font-medium">{formatCurrency(room.price_per_night, currency)}</td>
                 <td className="table-cell">
-                  <span className={statusBadge[room.status] ?? 'badge-gray'}>{room.status}</span>
+                  <span className={`${statusBadge[room.status] ?? 'badge-gray'} capitalize`}>{room.status}</span>
                 </td>
                 <td className="table-cell">
                   <RoomStatusToggle roomId={room.id} currentStatus={room.status} />

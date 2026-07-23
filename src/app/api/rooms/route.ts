@@ -18,7 +18,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await supabase
     .from('rooms')
-    .select('*, room_type:room_types(name, capacity)')
+    .select('*, room_type:room_types(name)')
     .eq('hotel_id', hotelId)
     .order('room_number')
 

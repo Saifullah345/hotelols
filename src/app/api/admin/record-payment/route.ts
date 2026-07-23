@@ -65,6 +65,9 @@ export async function POST(request: Request) {
     const { error } = await admin
       .from('payments')
       .update({
+        // Settle to the full total — the existing row may only cover an
+        // advance/partial amount taken at booking time.
+        amount: (booking as { total_amount: number }).total_amount,
         status: finalStatus,
         payment_method,
         payment_notes: payment_notes ?? null,
