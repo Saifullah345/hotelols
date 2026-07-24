@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, BedDouble, Search } from 'lucide-react'
+import { Plus, BedDouble, Search, Pencil } from 'lucide-react'
 import RoomStatusToggle from './RoomStatusToggle'
 import AutoFilterForm from '@/components/ui/AutoFilterForm'
 import { formatCurrency } from '@/lib/currency'
@@ -134,7 +134,15 @@ export default async function RoomsPage({
                   <span className={statusBadge[room.status] ?? 'badge-gray'}>{room.status}</span>
                 </td>
                 <td className="table-cell">
-                  <RoomStatusToggle roomId={room.id} currentStatus={room.status} />
+                  <div className="flex items-center gap-3">
+                    <RoomStatusToggle roomId={room.id} currentStatus={room.status} />
+                    <Link
+                      href={`/hotel-admin/rooms/${room.id}/edit`}
+                      className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800 transition-colors"
+                    >
+                      <Pencil className="h-3.5 w-3.5" /> Edit
+                    </Link>
+                  </div>
                 </td>
               </tr>
             ))}
