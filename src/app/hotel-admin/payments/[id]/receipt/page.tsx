@@ -35,22 +35,26 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
+  // Independent of each other — fetch together rather than in series.
+  // The payment is still authorised against tenant_id below before anything renders.
+  const [{ data: profile }, { data: payment }] = await Promise.all([
+    supabase.from('profiles').select('tenant_id').eq('id', user.id).single(),
+    supabase
+      .from('payments')
+      .select(`
+        id, hotel_id, amount, currency, status, payment_method, payment_notes, invoice_number, paid_at, created_at,
+        booking:bookings(
+          check_in, check_out, adults, children, guests, guest_name, guest_phone, total_amount, special_requests,
+          room:rooms(room_number, name, room_type:room_types(name)),
+          user:profiles(full_name, email)
+        )
+      `)
+      .eq('id', id)
+      .single(),
+  ])
+
   const tenantId = profile?.tenant_id
   if (!tenantId) redirect('/login')
-
-  const { data: payment } = await supabase
-    .from('payments')
-    .select(`
-      id, hotel_id, amount, currency, status, payment_method, payment_notes, invoice_number, paid_at, created_at,
-      booking:bookings(
-        check_in, check_out, adults, children, guests, guest_name, guest_phone, total_amount, special_requests,
-        room:rooms(room_number, name, room_type:room_types(name)),
-        user:profiles(full_name, email)
-      )
-    `)
-    .eq('id', id)
-    .single()
 
   if (!payment || payment.hotel_id !== tenantId) notFound()
 

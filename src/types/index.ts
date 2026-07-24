@@ -103,7 +103,8 @@ export interface Room {
 export interface Booking {
   id: string
   hotel_id: string
-  room_id: string
+  room_id: string          // primary room
+  room_ids: string[]       // every room on the booking, primary included
   user_id: string | null
   check_in: string
   check_out: string
