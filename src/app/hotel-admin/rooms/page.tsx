@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, BedDouble, Search, Pencil } from 'lucide-react'
 import RoomStatusToggle from './RoomStatusToggle'
+import DeleteRoomButton from './DeleteRoomButton'
 import AutoFilterForm from '@/components/ui/AutoFilterForm'
 import { formatCurrency } from '@/lib/currency'
 
@@ -147,6 +148,7 @@ export default async function RoomsPage({
                     >
                       <Pencil className="h-3.5 w-3.5" /> Edit
                     </Link>
+                    <DeleteRoomButton roomId={room.id} />
                   </div>
                 </td>
               </tr>
