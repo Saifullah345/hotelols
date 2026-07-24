@@ -69,8 +69,23 @@ export default async function ViewBookingPage({ params }: Ctx) {
   const statusCfg = statusConfig[booking.status] ?? statusConfig.pending
   const srcCfg    = sourceConfig[booking.source ?? 'walk_in'] ?? sourceConfig.walk_in
   const SrcIcon   = srcCfg.Icon
-  const room      = booking.room as { id: string; room_number: string; name: string | null; floor: number; price_per_night: number; images: string[] | null; room_type: { name?: string } | null } | null
-  const coverImg  = room?.images?.[0] ?? null
+
+  type RoomDetail = { id: string; room_number: string; name: string | null; floor: number; price_per_night: number; images: string[] | null; room_type: { name?: string } | null }
+  const primaryRoom = booking.room as RoomDetail | null
+  const coverImg    = primaryRoom?.images?.[0] ?? null
+
+  // Fetch additional rooms for multi-room bookings
+  const allRoomIds: string[] = (booking.room_ids as string[] | null) ?? (primaryRoom ? [primaryRoom.id] : [])
+  let extraRooms: RoomDetail[] = []
+  if (allRoomIds.length > 1 && primaryRoom) {
+    const extraIds = allRoomIds.filter(rid => rid !== primaryRoom.id)
+    const { data: extraData } = await supabase
+      .from('rooms')
+      .select('id, room_number, name, floor, price_per_night, images, room_type:room_types(name)')
+      .in('id', extraIds)
+    if (extraData) extraRooms = extraData as RoomDetail[]
+  }
+  const allRooms: RoomDetail[] = primaryRoom ? [primaryRoom, ...extraRooms] : []
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -151,49 +166,84 @@ export default async function ViewBookingPage({ params }: Ctx) {
         ))}
       </div>
 
-      {/* Room + Stay */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Room(s) + Stay */}
+      <div className={`grid gap-4 ${allRooms.length > 1 ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
 
-        {/* Room */}
-        <div className="card overflow-hidden">
-          {coverImg ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={coverImg} alt="" className="w-full h-36 object-cover" />
-          ) : (
-            <div className="w-full h-36 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-              <BedDouble className="h-10 w-10 text-gray-300" />
+        {/* Rooms */}
+        {allRooms.length > 1 ? (
+          <div className="card p-4 space-y-3">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{allRooms.length} Rooms</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {allRooms.map(r => (
+                <div key={r.id} className="border border-gray-100 rounded-xl overflow-hidden">
+                  {r.images?.[0] ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={r.images[0]} alt="" className="w-full h-24 object-cover" />
+                  ) : (
+                    <div className="w-full h-24 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                      <BedDouble className="h-7 w-7 text-gray-300" />
+                    </div>
+                  )}
+                  <div className="p-3 space-y-1">
+                    <div className="flex items-start justify-between gap-1">
+                      <p className="font-semibold text-sm text-gray-900 leading-tight">{r.name ?? `Room ${r.room_number}`}</p>
+                      {r.room_type?.name && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-500 shrink-0">
+                          {r.room_type.name}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400">#{r.room_number} · {r.floor === 0 ? 'Ground' : `Floor ${r.floor}`}</p>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-gray-700">{formatCurrency(r.price_per_night, currency)}<span className="text-gray-400 font-normal">/night</span></span>
+                      <Link href={`/hotel-admin/rooms/${r.id}`} className="text-primary-600 hover:text-primary-700 font-medium">View →</Link>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          )}
-          <div className="p-4 space-y-2">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="font-bold text-gray-900">{room?.name ?? `Room ${room?.room_number}`}</p>
-                <p className="text-xs text-gray-400">#{room?.room_number}</p>
+          </div>
+        ) : (
+          <div className="card overflow-hidden">
+            {coverImg ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={coverImg} alt="" className="w-full h-36 object-cover" />
+            ) : (
+              <div className="w-full h-36 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                <BedDouble className="h-10 w-10 text-gray-300" />
               </div>
-              {room?.room_type?.name && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 shrink-0">
-                  {room.room_type.name}
+            )}
+            <div className="p-4 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="font-bold text-gray-900">{primaryRoom?.name ?? `Room ${primaryRoom?.room_number}`}</p>
+                  <p className="text-xs text-gray-400">#{primaryRoom?.room_number}</p>
+                </div>
+                {primaryRoom?.room_type?.name && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 shrink-0">
+                    {primaryRoom.room_type.name}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-500">
+                  {primaryRoom?.floor === 0 ? 'Ground floor' : `Floor ${primaryRoom?.floor}`}
                 </span>
+                <span className="font-semibold text-gray-900">
+                  {formatCurrency(primaryRoom?.price_per_night ?? 0, currency)}<span className="text-gray-400 font-normal">/night</span>
+                </span>
+              </div>
+              {primaryRoom && (
+                <Link
+                  href={`/hotel-admin/rooms/${primaryRoom.id}`}
+                  className="inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium mt-1"
+                >
+                  View room →
+                </Link>
               )}
             </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500">
-                {room?.floor === 0 ? 'Ground floor' : `Floor ${room?.floor}`}
-              </span>
-              <span className="font-semibold text-gray-900">
-                {formatCurrency(room?.price_per_night ?? 0, currency)}<span className="text-gray-400 font-normal">/night</span>
-              </span>
-            </div>
-            {room && (
-              <Link
-                href={`/hotel-admin/rooms/${room.id}`}
-                className="inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium mt-1"
-              >
-                View room →
-              </Link>
-            )}
           </div>
-        </div>
+        )}
 
         {/* Stay */}
         <div className="card p-4 space-y-4">
@@ -229,7 +279,11 @@ export default async function ViewBookingPage({ params }: Ctx) {
 
           <div className="pt-2 border-t border-gray-100">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500">{n} × {formatCurrency(room?.price_per_night ?? 0, currency)}</span>
+              <span className="text-gray-500">
+                {allRooms.length > 1
+                  ? `${n} nights · ${allRooms.length} rooms`
+                  : `${n} × ${formatCurrency(primaryRoom?.price_per_night ?? 0, currency)}`}
+              </span>
               <span className="font-bold text-gray-900">{formatCurrency(booking.total_amount, currency)}</span>
             </div>
           </div>

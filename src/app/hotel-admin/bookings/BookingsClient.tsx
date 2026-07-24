@@ -38,6 +38,7 @@ type Booking = {
   special_requests: string | null
   guest_name: string | null
   guest_phone: string | null
+  room_ids: string[] | null
   user: { full_name?: string; email?: string } | null
   room: BookingRoom | null
 }
@@ -460,11 +461,18 @@ export default function BookingsClient({
                       {/* Room */}
                       <td className="table-cell">
                         <p className="text-sm font-medium text-gray-900">{roomName}</p>
-                        {typeName && (
-                          <span className="inline-flex mt-0.5 items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-500">
-                            {typeName}
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          {typeName && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-500">
+                              {typeName}
+                            </span>
+                          )}
+                          {b.room_ids && b.room_ids.length > 1 && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-100 text-blue-600">
+                              +{b.room_ids.length - 1} more
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Stay */}
