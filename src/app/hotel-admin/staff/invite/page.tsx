@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Loader2, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+import { DEPARTMENTS } from '@/lib/staff-constants'
 
 const STAFF_PERMISSIONS = [
   'rooms:read', 'rooms:write',
@@ -20,7 +21,7 @@ const schema = z.object({
   email: z.string().email('Valid email required'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   department: z.string().min(1, 'Department is required'),
-  position: z.string().min(1, 'Position is required'),
+  position: z.string().min(1, 'Position is required').regex(/[A-Za-z]/, 'Position must be a descriptive name, not just numbers'),
 })
 type FormData = z.infer<typeof schema>
 
@@ -90,7 +91,10 @@ export default function InviteStaffPage() {
 
           <div>
             <label className="label">Department</label>
-            <input {...register('department')} className="input" placeholder="Front Desk" />
+            <select {...register('department')} className="input" defaultValue="">
+              <option value="" disabled>Select a department</option>
+              {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
             {errors.department && <p className="text-red-500 text-xs mt-1">{errors.department.message}</p>}
           </div>
 

@@ -49,7 +49,7 @@ export function Header({ title, profile, onMenuOpen }: HeaderProps) {
   }
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 px-4 md:px-6 flex items-center justify-between sticky top-0 z-10">
+    <header className="h-16 bg-white border-b border-gray-200 px-4 md:px-6 flex items-center justify-between sticky top-0 z-10 print:hidden">
       <div className="flex items-center gap-2">
         {onMenuOpen && (
           <button

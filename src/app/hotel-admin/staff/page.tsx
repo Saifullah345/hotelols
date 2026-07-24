@@ -3,10 +3,9 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, User, Search } from 'lucide-react'
 import AutoFilterForm from '@/components/ui/AutoFilterForm'
+import { DEPARTMENTS } from '@/lib/staff-constants'
 
 export const metadata = { title: 'Staff Management' }
-
-const DEPARTMENTS = ['Front Desk', 'Housekeeping', 'Management', 'Security', 'Kitchen', 'Maintenance']
 
 export default async function StaffPage({
   searchParams,

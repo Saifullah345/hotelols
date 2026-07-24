@@ -129,13 +129,16 @@ CREATE TABLE room_types (
   hotel_id UUID NOT NULL REFERENCES hotels(id) ON DELETE CASCADE,
   name TEXT NOT NULL,   -- e.g. 'Standard', 'Deluxe', 'Suite', 'Presidential'
   description TEXT NOT NULL DEFAULT '',
-  capacity INTEGER NOT NULL DEFAULT 2,
+  max_adults INTEGER NOT NULL DEFAULT 2,
+  max_children INTEGER NOT NULL DEFAULT 0,
+  capacity INTEGER GENERATED ALWAYS AS (max_adults + max_children) STORED,
   amenities JSONB NOT NULL DEFAULT '[]',
   images JSONB NOT NULL DEFAULT '[]',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_room_types_hotel ON room_types(hotel_id);
+CREATE UNIQUE INDEX room_types_hotel_name_unique ON room_types (hotel_id, lower(name));
 
 
 -- ============================================================
@@ -146,10 +149,19 @@ CREATE TABLE rooms (
   hotel_id UUID NOT NULL REFERENCES hotels(id) ON DELETE CASCADE,
   room_type_id UUID NOT NULL REFERENCES room_types(id),
   room_number TEXT NOT NULL,
+  name TEXT,   -- optional display name, e.g. "Ocean View", "Corner Suite"
   floor INTEGER NOT NULL DEFAULT 1,
   price_per_night NUMERIC(10,2) NOT NULL CHECK (price_per_night > 0),
   status TEXT NOT NULL DEFAULT 'available'
     CHECK (status IN ('available', 'booked', 'maintenance', 'cleaning')),
+  -- Per-room occupancy override; defaults to the room type's limits at creation
+  -- time but can differ per room (e.g. an extra cot in one Deluxe room).
+  max_adults INTEGER NOT NULL DEFAULT 2,
+  max_children INTEGER NOT NULL DEFAULT 0,
+  capacity INTEGER GENERATED ALWAYS AS (max_adults + max_children) STORED,
+  -- Per-room amenities/photos — rooms of the same type can still differ.
+  amenities JSONB NOT NULL DEFAULT '[]',
+  images JSONB NOT NULL DEFAULT '[]',
   notes TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -228,13 +240,13 @@ CREATE TABLE payments (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   booking_id UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
   hotel_id UUID NOT NULL REFERENCES hotels(id),
-  user_id UUID NOT NULL REFERENCES profiles(id),
+  user_id UUID REFERENCES profiles(id),   -- null for walk-in/phone/whatsapp guests with no account
   amount NUMERIC(10,2) NOT NULL CHECK (amount >= 0),
   currency TEXT NOT NULL DEFAULT 'USD',
   status TEXT NOT NULL DEFAULT 'pending'
     CHECK (status IN ('pending', 'completed', 'failed', 'refunded')),
   payment_method TEXT NOT NULL DEFAULT 'online'
-    CHECK (payment_method IN ('online', 'offline')),
+    CHECK (payment_method IN ('online', 'offline', 'cash', 'card_pos', 'bank_transfer', 'cheque', 'other')),
   stripe_payment_intent_id TEXT,
   stripe_session_id TEXT,
   invoice_number TEXT UNIQUE,

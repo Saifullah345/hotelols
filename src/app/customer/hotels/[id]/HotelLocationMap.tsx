@@ -39,16 +39,26 @@ export default function HotelLocationMap({ latitude, longitude, name, address }:
   useEffect(() => {
     if (hasCoords || !isLoaded) return
     let cancelled = false
-    const geocoder = new google.maps.Geocoder()
-    geocoder.geocode({ address: `${name}, ${address}` }, (results, status) => {
-      if (cancelled) return
-      if (status === 'OK' && results?.[0]) {
-        const loc = results[0].geometry.location
-        setGeocoded({ lat: loc.lat(), lng: loc.lng() })
-      } else {
-        setGeocodeFailed(true)
-      }
-    })
+    // The Maps script can finish loading its core library before the
+    // Geocoder class is actually attached to `google.maps` — and if the
+    // Geocoding API isn't enabled for this API key, constructing/calling it
+    // can throw synchronously. Either way this is a "nice to have" fallback,
+    // so failures here should never take down the whole page.
+    try {
+      const geocoder = new google.maps.Geocoder()
+      geocoder.geocode({ address: `${name}, ${address}` }, (results, status) => {
+        if (cancelled) return
+        if (status === 'OK' && results?.[0]) {
+          const loc = results[0].geometry.location
+          setGeocoded({ lat: loc.lat(), lng: loc.lng() })
+        } else {
+          setGeocodeFailed(true)
+        }
+      })
+    } catch (err) {
+      console.error('Geocoding failed', err)
+      if (!cancelled) setGeocodeFailed(true)
+    }
     return () => {
       cancelled = true
     }
@@ -64,10 +74,19 @@ export default function HotelLocationMap({ latitude, longitude, name, address }:
 
   useEffect(() => {
     if (!map || !center || !mapId || !isLoaded) return
-    if (!advancedMarkerRef.current) {
-      advancedMarkerRef.current = new google.maps.marker.AdvancedMarkerElement({ map, position: center, title: name })
-    } else {
-      advancedMarkerRef.current.position = center
+    // A Map ID that isn't actually provisioned for Advanced Markers in the
+    // Google Cloud Console (or a `marker` library that hasn't finished
+    // attaching to `google.maps` yet) makes this constructor throw — that
+    // would otherwise crash the whole page since it runs in an effect with
+    // no boundary. Losing the pin is a much smaller failure than that.
+    try {
+      if (!advancedMarkerRef.current) {
+        advancedMarkerRef.current = new google.maps.marker.AdvancedMarkerElement({ map, position: center, title: name })
+      } else {
+        advancedMarkerRef.current.position = center
+      }
+    } catch (err) {
+      console.error('Could not place map marker', err)
     }
   }, [map, center, name, isLoaded])
 

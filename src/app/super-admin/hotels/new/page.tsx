@@ -99,10 +99,10 @@ export default function NewHotelPage() {
 
     // Seed default room types so the Add Room dropdown is never empty
     const { error: roomTypesError } = await supabase.from('room_types').insert([
-      { hotel_id: hotelId, name: 'Standard Room', description: 'Comfortable standard room', capacity: 2, amenities: ['WiFi', 'TV', 'AC', 'Safe'] },
-      { hotel_id: hotelId, name: 'Deluxe Room', description: 'Spacious deluxe room with city view', capacity: 2, amenities: ['WiFi', 'TV', 'AC', 'Safe', 'Minibar', 'Balcony'] },
-      { hotel_id: hotelId, name: 'Suite', description: 'Luxurious suite with separate living area', capacity: 4, amenities: ['WiFi', 'TV', 'AC', 'Safe', 'Minibar', 'Balcony', 'Jacuzzi', 'Kitchen'] },
-      { hotel_id: hotelId, name: 'Presidential Suite', description: 'Ultimate luxury experience', capacity: 6, amenities: ['WiFi', 'TV', 'AC', 'Safe', 'Minibar', 'Balcony', 'Jacuzzi', 'Kitchen', 'Butler service'] },
+      { hotel_id: hotelId, name: 'Standard Room', description: 'Comfortable standard room', max_adults: 2, max_children: 0, amenities: ['WiFi', 'TV', 'AC', 'Safe'] },
+      { hotel_id: hotelId, name: 'Deluxe Room', description: 'Spacious deluxe room with city view', max_adults: 2, max_children: 0, amenities: ['WiFi', 'TV', 'AC', 'Safe', 'Minibar', 'Balcony'] },
+      { hotel_id: hotelId, name: 'Suite', description: 'Luxurious suite with separate living area', max_adults: 2, max_children: 2, amenities: ['WiFi', 'TV', 'AC', 'Safe', 'Minibar', 'Balcony', 'Jacuzzi', 'Kitchen'] },
+      { hotel_id: hotelId, name: 'Presidential Suite', description: 'Ultimate luxury experience', max_adults: 4, max_children: 2, amenities: ['WiFi', 'TV', 'AC', 'Safe', 'Minibar', 'Balcony', 'Jacuzzi', 'Kitchen', 'Butler service'] },
     ])
     if (roomTypesError) toast.error('Hotel created, but default room types failed: ' + roomTypesError.message)
 

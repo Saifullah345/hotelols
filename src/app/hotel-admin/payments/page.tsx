@@ -158,20 +158,27 @@ export default async function PaymentsPage({
                   {new Date(p.created_at).toLocaleDateString()}
                 </td>
                 <td className="table-cell text-right">
-                  {p.status === 'pending' && (
-                    <div className="flex items-center justify-end gap-2">
-                      <form action="/api/payments/confirm" method="post">
-                        <input type="hidden" name="paymentId" value={p.id} />
-                        <input type="hidden" name="action" value="complete" />
-                        <button type="submit" className="btn-primary text-xs py-1 px-3">Confirm</button>
-                      </form>
-                      <form action="/api/payments/confirm" method="post">
-                        <input type="hidden" name="paymentId" value={p.id} />
-                        <input type="hidden" name="action" value="fail" />
-                        <button type="submit" className="btn-danger text-xs py-1 px-3">Reject</button>
-                      </form>
-                    </div>
-                  )}
+                  <div className="flex items-center justify-end gap-2">
+                    {p.status === 'pending' && (
+                      <>
+                        <form action="/api/payments/confirm" method="post">
+                          <input type="hidden" name="paymentId" value={p.id} />
+                          <input type="hidden" name="action" value="complete" />
+                          <button type="submit" className="btn-primary text-xs py-1 px-3">Confirm</button>
+                        </form>
+                        <form action="/api/payments/confirm" method="post">
+                          <input type="hidden" name="paymentId" value={p.id} />
+                          <input type="hidden" name="action" value="fail" />
+                          <button type="submit" className="btn-danger text-xs py-1 px-3">Reject</button>
+                        </form>
+                      </>
+                    )}
+                    {p.status === 'completed' && (
+                      <Link href={`/hotel-admin/payments/${p.id}/receipt`} className="btn-secondary text-xs py-1 px-3">
+                        Receipt
+                      </Link>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

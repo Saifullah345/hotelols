@@ -41,7 +41,7 @@ export default async function HotelDetailPage({ params }: { params: Promise<{ id
 
   const { data: rooms } = await supabase
     .from('rooms')
-    .select('*, room_type:room_types(name, description, capacity, amenities)')
+    .select('*, room_type:room_types(name, description)')
     .eq('hotel_id', id)
     .eq('status', 'available')
     .order('price_per_night')
@@ -156,21 +156,28 @@ export default async function HotelDetailPage({ params }: { params: Promise<{ id
               <span className="text-sm text-gray-500">{rooms?.length ?? 0} room{rooms?.length === 1 ? '' : 's'}</span>
             </div>
             <div className="space-y-4">
-              {rooms?.map(room => (
+              {rooms?.map(room => {
+                const roomImage = (room.images as string[] | null ?? [])[0]
+                return (
                 <div key={room.id} className="card flex flex-col gap-4 p-5 transition duration-200 hover:-translate-y-0.5 hover:shadow-md sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary-50">
-                      <BedDouble className="h-6 w-6 text-primary-600" />
-                    </div>
+                    {roomImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={roomImage} alt={(room.room_type as { name?: string })?.name ?? 'Room photo'} className="h-12 w-12 shrink-0 rounded-xl object-cover" />
+                    ) : (
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary-50">
+                        <BedDouble className="h-6 w-6 text-primary-600" />
+                      </div>
+                    )}
                     <div>
                       <h3 className="font-semibold text-gray-900">
-                        Room {room.room_number} — {(room.room_type as { name?: string })?.name}
+                        Room {room.room_number}{room.name ? ` (${room.name})` : ''} — {(room.room_type as { name?: string })?.name}
                       </h3>
                       <p className="text-sm text-gray-500">
-                        Floor {room.floor} · {(room.room_type as { capacity?: number })?.capacity} guests max
+                        Floor {room.floor} · {room.capacity} guests max
                       </p>
                       <div className="mt-1.5 flex flex-wrap gap-1">
-                        {((room.room_type as { amenities?: string[] })?.amenities ?? []).slice(0, 3).map((a: string) => (
+                        {((room.amenities as string[] | null) ?? []).slice(0, 3).map((a: string) => (
                           <span key={a} className="badge-gray text-xs">{a}</span>
                         ))}
                       </div>
@@ -184,7 +191,8 @@ export default async function HotelDetailPage({ params }: { params: Promise<{ id
                     <BookRoomButton roomId={room.id} hotelId={id} pricePerNight={room.price_per_night} />
                   </div>
                 </div>
-              ))}
+                )
+              })}
               {!rooms?.length && (
                 <div className="card p-8 text-center text-gray-500">No rooms available at this time</div>
               )}

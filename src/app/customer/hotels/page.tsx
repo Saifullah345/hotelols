@@ -36,13 +36,13 @@ export default async function CustomerHotelsPage({
   if (hotelIds.length) {
     const { data: candidateRooms } = await supabase
       .from('rooms')
-      .select('hotel_id, room_type:room_types(capacity)')
+      .select('hotel_id, capacity')
       .in('hotel_id', hotelIds)
       .eq('status', 'available')
 
     const suitableRoomCountByHotel = new Map<string, number>()
     for (const room of candidateRooms ?? []) {
-      const capacity = (room.room_type as { capacity?: number } | null)?.capacity ?? 0
+      const capacity = room.capacity ?? 0
       if (capacity >= totalGuests) {
         suitableRoomCountByHotel.set(room.hotel_id, (suitableRoomCountByHotel.get(room.hotel_id) ?? 0) + 1)
       }

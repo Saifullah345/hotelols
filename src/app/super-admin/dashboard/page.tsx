@@ -56,7 +56,7 @@ export default async function SuperAdminDashboard() {
                   <p className="text-sm font-medium text-gray-900">{hotel.name}</p>
                   <p className="text-xs text-gray-500">{new Date(hotel.created_at).toLocaleDateString()}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 capitalize">
                   <span className="text-xs text-gray-500">{(hotel.plan as { name?: string })?.name}</span>
                   <span className={`badge-${hotel.status === 'active' ? 'green' : hotel.status === 'suspended' ? 'red' : 'yellow'}`}>
                     {hotel.status}

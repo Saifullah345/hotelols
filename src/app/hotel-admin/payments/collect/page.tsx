@@ -23,7 +23,7 @@ type Booking = {
   source: string
   room: { room_number: string; room_type: { name: string } | null } | null
   user: { full_name: string; email: string } | null
-  payments: { id: string; status: string; payment_method: string }[]
+  payments: { id: string; status: string; payment_method: string; amount: number }[]
 }
 
 const PAY_METHODS = [
@@ -49,6 +49,12 @@ function guestName(b: Booking) {
 
 function guestContact(b: Booking) {
   return b.user?.email ?? b.guest_phone ?? ''
+}
+
+function dueAmount(b: Booking) {
+  const payment = (b.payments ?? [])[0]
+  const collected = payment?.status === 'completed' ? payment.amount : 0
+  return b.total_amount - collected
 }
 
 export default function CollectPaymentPage() {
@@ -89,7 +95,7 @@ export default function CollectPaymentPage() {
           id, guest_name, guest_phone, total_amount, check_in, check_out, status, source,
           room:rooms(room_number, room_type:room_types(name)),
           user:profiles(full_name, email),
-          payments(id, status, payment_method)
+          payments(id, status, payment_method, amount)
         `)
         .eq('hotel_id', profile.tenant_id)
         .in('status', ['pending', 'confirmed', 'checked_in'])
@@ -102,10 +108,13 @@ export default function CollectPaymentPage() {
 
     if (raw) {
       const data = raw as unknown as Booking[]
-      // Only keep bookings without a completed payment
+      // Keep bookings with no payment yet, a pending payment, or a completed
+      // payment that only covered an advance (amount short of total_amount).
       const unpaid = data.filter(b => {
-        const payments = b.payments ?? []
-        return payments.length === 0 || payments.some(p => p.status !== 'completed')
+        const payment = (b.payments ?? [])[0]
+        if (!payment) return true
+        if (payment.status !== 'completed') return true
+        return payment.amount < b.total_amount
       })
       setBookings(unpaid)
 
@@ -148,11 +157,13 @@ export default function CollectPaymentPage() {
     setSubmitting(false)
     const json = await res.json()
     if (!res.ok) { toast.error(json.error ?? 'Failed to record payment'); return }
-    toast.success(`${formatCurrency(selected.total_amount, currency)} payment recorded`)
-    router.push('/hotel-admin/payments')
+    toast.success(`${formatCurrency(amountDue, currency)} payment recorded`)
+    router.push(json.paymentId ? `/hotel-admin/payments/${json.paymentId}/receipt` : '/hotel-admin/payments')
   }
 
   const existingPayment = selected?.payments?.[0]
+  const alreadyCollected = existingPayment?.status === 'completed' ? existingPayment.amount : 0
+  const amountDue = selected ? selected.total_amount - alreadyCollected : 0
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -226,12 +237,15 @@ export default function CollectPaymentPage() {
                           </div>
                         </div>
                         <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                          <span className="font-bold text-gray-900 text-sm">{formatCurrency(b.total_amount, currency)}</span>
+                          <span className="font-bold text-gray-900 text-sm">{formatCurrency(dueAmount(b), currency)}</span>
                           <span className={`${statusBadge[b.status] ?? 'badge-gray'} text-xs`}>
                             {b.status.replace('_', ' ')}
                           </span>
                           {isPending && (
                             <span className="badge-yellow text-xs">payment pending</span>
+                          )}
+                          {!isPending && dueAmount(b) < b.total_amount && (
+                            <span className="badge-blue text-xs">advance paid</span>
                           )}
                         </div>
                       </div>
@@ -276,13 +290,21 @@ export default function CollectPaymentPage() {
                     </p>
                   </div>
                 </div>
+                {alreadyCollected > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-500">Advance collected</span>
+                    <span className="font-medium text-gray-700">{formatCurrency(alreadyCollected, currency)}</span>
+                  </div>
+                )}
                 <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
                   <span className="text-gray-500 text-sm">Amount due</span>
-                  <span className="text-xl font-bold text-gray-900">{formatCurrency(selected.total_amount, currency)}</span>
+                  <span className="text-xl font-bold text-gray-900">{formatCurrency(amountDue, currency)}</span>
                 </div>
                 {existingPayment && (
                   <div className="px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-800">
-                    A {existingPayment.status} payment record exists — collecting now will update it to completed.
+                    {existingPayment.status === 'completed'
+                      ? `An advance of ${formatCurrency(alreadyCollected, currency)} has already been collected — this will settle the remaining balance.`
+                      : `A ${existingPayment.status} payment record exists — collecting now will update it to completed.`}
                   </div>
                 )}
               </div>
@@ -332,7 +354,7 @@ export default function CollectPaymentPage() {
                     ? <Loader2 className="h-4 w-4 animate-spin" />
                     : <CheckCircle className="h-4 w-4" />
                   }
-                  Collect {formatCurrency(selected.total_amount, currency)} via{' '}
+                  Collect {formatCurrency(amountDue, currency)} via{' '}
                   {PAY_METHODS.find(m => m.value === payMethod)?.label}
                 </button>
 

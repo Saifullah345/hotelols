@@ -94,7 +94,7 @@ export function Sidebar({ role, hotelName, isOpen = false, onClose }: SidebarPro
         />
       )}
       <aside className={cn(
-        'w-64 bg-white border-r border-gray-200 flex-col flex-shrink-0',
+        'w-64 bg-white border-r border-gray-200 flex-col flex-shrink-0 print:hidden',
         // Desktop: always visible as a sticky sidebar
         'md:flex md:relative md:h-screen md:sticky md:top-0 md:z-auto',
         // Mobile: fixed drawer when open, hidden otherwise

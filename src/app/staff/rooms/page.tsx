@@ -27,7 +27,7 @@ export default async function StaffRoomsPage({
 
   let query = supabase
     .from('rooms')
-    .select('*, room_type:room_types(name, capacity)')
+    .select('*, room_type:room_types(name)')
     .eq('hotel_id', tenantId)
     .order('room_number')
 
@@ -65,14 +65,14 @@ export default async function StaffRoomsPage({
           <div key={room.id} className="card p-4">
             <div className="flex items-start justify-between mb-2">
               <div>
-                <p className="font-semibold text-gray-900 text-lg">Room {room.room_number}</p>
+                <p className="font-semibold text-gray-900 text-lg">Room {room.room_number}{room.name && ` — ${room.name}`}</p>
                 <p className="text-sm text-gray-500">{(room.room_type as { name?: string })?.name}</p>
               </div>
               <span className={statusBadge[room.status] ?? 'badge-gray'}>{room.status}</span>
             </div>
             <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500">
               <span>Floor {room.floor ?? '—'}</span>
-              <span>Up to {(room.room_type as { capacity?: number })?.capacity ?? '—'} guests</span>
+              <span>Up to {room.capacity ?? '—'} guests</span>
             </div>
           </div>
         ))}

@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { cn } from '@/utils/cn'
 import { TrendingUp, TrendingDown } from 'lucide-react'
 
@@ -10,6 +11,7 @@ interface StatsCardProps {
   iconBg?: string
   prefix?: string
   suffix?: string
+  href?: string
 }
 
 export function StatsCard({
@@ -18,11 +20,12 @@ export function StatsCard({
   iconBg = 'bg-primary-50',
   prefix = '',
   suffix = '',
+  href,
 }: StatsCardProps) {
   const isPositive = change !== undefined && change >= 0
 
-  return (
-    <div className="card p-6">
+  const content = (
+    <>
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm font-medium text-gray-500">{title}</p>
         <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center', iconBg)}>
@@ -40,6 +43,16 @@ export function StatsCard({
           </div>
         )}
       </div>
-    </div>
+    </>
   )
+
+  if (href) {
+    return (
+      <Link href={href} className="card p-6 block transition-shadow hover:shadow-md">
+        {content}
+      </Link>
+    )
+  }
+
+  return <div className="card p-6">{content}</div>
 }
