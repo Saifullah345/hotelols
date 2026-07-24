@@ -23,7 +23,8 @@ export async function PATCH(request: Request, { params }: Ctx) {
   }
 
   const body = await request.json()
-  const { room_number, floor, price_per_night, room_type_id, notes, status } = body
+  const { room_number, name, floor, price_per_night, room_type_id,
+          max_adults, max_children, amenities, notes, status } = body
 
   // Duplicate room-number guard
   if (room_number && room_number !== room.room_number) {
@@ -42,12 +43,16 @@ export async function PATCH(request: Request, { params }: Ctx) {
   }
 
   const updates: Record<string, unknown> = {}
-  if (room_number      !== undefined) updates.room_number      = room_number
-  if (floor            !== undefined) updates.floor            = floor
-  if (price_per_night  !== undefined) updates.price_per_night  = price_per_night
-  if (room_type_id     !== undefined) updates.room_type_id     = room_type_id
-  if (notes            !== undefined) updates.notes            = notes
-  if (status           !== undefined) updates.status           = status
+  if (room_number     !== undefined) updates.room_number     = room_number
+  if (name            !== undefined) updates.name            = name       // null clears it
+  if (floor           !== undefined) updates.floor           = floor
+  if (price_per_night !== undefined) updates.price_per_night = price_per_night
+  if (room_type_id    !== undefined) updates.room_type_id    = room_type_id
+  if (max_adults      !== undefined) updates.max_adults      = max_adults
+  if (max_children    !== undefined) updates.max_children    = max_children
+  if (amenities       !== undefined) updates.amenities       = amenities   // capacity is generated — never set it
+  if (notes           !== undefined) updates.notes           = notes
+  if (status          !== undefined) updates.status          = status
 
   const { data: updated, error } = await supabase
     .from('rooms')
