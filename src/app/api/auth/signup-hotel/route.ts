@@ -16,6 +16,7 @@ export async function POST(request: Request) {
   const address      = typeof body?.address      === 'string' ? body.address.trim()                       : ''
   const hotel_phone  = typeof body?.hotel_phone  === 'string' ? body.hotel_phone.trim()                  : ''
   const hotel_email  = typeof body?.hotel_email  === 'string' ? body.hotel_email.trim().toLowerCase()    : email
+  const cover_image  = typeof body?.cover_image  === 'string' ? body.cover_image                          : null
 
   if (!full_name || !email || !password || !hotel_name || !city) {
     return NextResponse.json({ error: 'full_name, email, password, hotel_name, and city are required' }, { status: 400 })
@@ -73,6 +74,7 @@ export async function POST(request: Request) {
       owner_id: userId,
       plan_id: plan.id,
       status: 'pending',
+      ...(cover_image ? { cover_image, images: [cover_image] } : {}),
     }).select('id').single()
 
     if (hotelError || !hotel) {

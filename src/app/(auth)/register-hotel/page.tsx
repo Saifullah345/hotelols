@@ -6,9 +6,10 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import Link from 'next/link'
 import { toast } from 'sonner'
+import { type ChangeEvent } from 'react'
 import {
   Loader2, Eye, EyeOff, MailCheck,
-  User, Building2, ArrowRight, ArrowLeft,
+  User, Building2, ArrowRight, ArrowLeft, ImagePlus,
 } from 'lucide-react'
 
 const schema = z.object({
@@ -35,6 +36,17 @@ export default function RegisterHotelPage() {
   const [step, setStep]           = useState<1 | 2>(1)
   const [showPass, setShowPass]   = useState(false)
   const [done, setDone]           = useState(false)
+  const [coverImage, setCoverImage] = useState<string | null>(null)
+  const [uploadingImg, setUploadingImg] = useState(false)
+
+  const handleCoverImage = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingImg(true)
+    const reader = new FileReader()
+    reader.onload = () => { setCoverImage(reader.result as string); setUploadingImg(false) }
+    reader.readAsDataURL(file)
+  }
 
   const {
     register,
@@ -66,6 +78,7 @@ export default function RegisterHotelPage() {
           address:     data.address  ?? '',
           hotel_phone: data.hotel_phone ?? '',
           hotel_email: data.hotel_email ?? '',
+          cover_image: coverImage ?? null,
         }),
       })
 
@@ -229,6 +242,33 @@ export default function RegisterHotelPage() {
                 <input {...register('hotel_email')} type="email" className="input" placeholder="info@hotel.com" />
                 {errors.hotel_email && <p className="text-red-500 text-xs mt-1">{errors.hotel_email.message}</p>}
               </div>
+            </div>
+
+            {/* Cover image — optional */}
+            <div className="rounded-xl border border-dashed border-blue-200 bg-blue-50/40 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">Cover photo <span className="text-gray-400 font-normal">(optional)</span></p>
+                  <p className="text-xs text-gray-500 mt-0.5">You can add more photos after registration in Settings.</p>
+                </div>
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-primary-600 border border-primary-200 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-primary-50 transition-colors shrink-0">
+                  <ImagePlus className="h-3.5 w-3.5" />
+                  {uploadingImg ? 'Loading…' : coverImage ? 'Change' : 'Upload'}
+                  <input type="file" accept="image/*" className="hidden" onChange={handleCoverImage} />
+                </label>
+              </div>
+              {coverImage && (
+                <div className="mt-3 relative">
+                  <img src={coverImage} alt="Hotel cover preview" className="h-28 w-full object-cover rounded-lg border border-gray-200" />
+                  <button
+                    type="button"
+                    onClick={() => setCoverImage(null)}
+                    className="absolute top-1.5 right-1.5 bg-white/90 hover:bg-white text-gray-600 rounded-full px-2 py-0.5 text-xs font-medium border border-gray-200"
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-3 pt-1">

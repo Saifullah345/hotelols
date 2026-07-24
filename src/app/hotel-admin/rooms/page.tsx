@@ -122,10 +122,13 @@ export default async function RoomsPage({
               <tr key={room.id} className="hover:bg-gray-50">
                 <td className="table-cell">
                   <div className="flex items-center gap-2">
-                    <BedDouble className="h-4 w-4 text-gray-400" />
-                    <span className="font-medium">
-                      Room {room.room_number}{room.name && <span className="text-gray-500 font-normal"> — {room.name}</span>}
-                    </span>
+                    <BedDouble className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium text-gray-900">Room {room.room_number}</p>
+                      {room.name && (
+                        <p className="text-xs text-gray-400 mt-0.5">{room.name}</p>
+                      )}
+                    </div>
                   </div>
                 </td>
                 <td className="table-cell text-gray-500">{(room.room_type as { name?: string })?.name}</td>

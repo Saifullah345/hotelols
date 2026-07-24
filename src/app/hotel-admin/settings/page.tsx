@@ -4,15 +4,20 @@ import { type ChangeEvent, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Loader2, Save, MessageCircle, Copy, ExternalLink, ImagePlus } from 'lucide-react'
+import { Loader2, Save, MessageCircle, Copy, ExternalLink, ImagePlus, Trash2, AlertTriangle } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { CURRENCIES } from '@/lib/currency'
 
 export default function HotelSettingsPage() {
+  const router = useRouter()
   const [tenantId, setTenantId] = useState<string | null>(null)
+  const [hotelName, setHotelName] = useState('')
   const [loading, setLoading] = useState(true)
   const [hotelImages, setHotelImages] = useState<string[]>([])
   const [coverImage, setCoverImage] = useState<string | null>(null)
   const [uploadingImage, setUploadingImage] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState('')
+  const [deleting, setDeleting] = useState(false)
 
   const hotelForm = useForm()
   const waForm = useForm()
@@ -26,6 +31,7 @@ export default function HotelSettingsPage() {
       setTenantId(profile.tenant_id)
       const { data } = await supabase.from('hotels').select('*').eq('id', profile.tenant_id).single()
       hotelForm.reset(data)
+      setHotelName((data?.name as string) ?? '')
       setHotelImages(((data?.images as string[]) ?? []).filter(Boolean))
       setCoverImage((data?.cover_image as string | undefined) ?? null)
       waForm.reset({
@@ -100,6 +106,20 @@ export default function HotelSettingsPage() {
     }
 
     reader.readAsDataURL(file)
+  }
+
+  const deleteHotel = async () => {
+    setDeleting(true)
+    const res = await fetch('/api/admin/delete-hotel', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm_name: deleteConfirm }),
+    })
+    const json = await res.json()
+    setDeleting(false)
+    if (!res.ok) { toast.error(json.error ?? 'Failed to delete hotel'); return }
+    toast.success('Hotel deleted successfully')
+    router.push('/login')
   }
 
   const webhookUrl = typeof window !== 'undefined'
@@ -318,6 +338,50 @@ export default function HotelSettingsPage() {
             </button>
           </div>
         </form>
+      </section>
+      {/* ── Danger Zone ──────────────────────────────────────────── */}
+      <section className="space-y-4">
+        <h3 className="text-base font-semibold text-red-600 border-b border-red-100 pb-2 flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4" /> Danger Zone
+        </h3>
+        <div className="card border-red-200 p-6 space-y-4">
+          <div>
+            <p className="font-semibold text-gray-900">Delete this hotel</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Permanently removes your hotel and <strong>all its data</strong> — rooms, room types, bookings, payments, and staff assignments.
+              This action <strong>cannot be undone</strong>.
+            </p>
+          </div>
+          <div className="bg-red-50 border border-red-100 rounded-xl p-4 text-sm text-red-700 space-y-1">
+            <p className="font-semibold">What gets deleted:</p>
+            <ul className="list-disc list-inside space-y-0.5 text-red-600">
+              <li>All rooms and room types</li>
+              <li>All bookings and payment records</li>
+              <li>Staff role assignments for this hotel</li>
+              <li>WhatsApp and integration settings</li>
+            </ul>
+          </div>
+          <div>
+            <label className="label text-gray-700">
+              Type <span className="font-bold text-gray-900">{hotelName}</span> to confirm
+            </label>
+            <input
+              value={deleteConfirm}
+              onChange={e => setDeleteConfirm(e.target.value)}
+              className="input border-red-200 focus:ring-red-400"
+              placeholder={hotelName}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={deleteHotel}
+            disabled={deleting || deleteConfirm.trim().toLowerCase() !== hotelName.trim().toLowerCase()}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors"
+          >
+            {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            {deleting ? 'Deleting…' : 'Delete hotel permanently'}
+          </button>
+        </div>
       </section>
     </div>
   )
