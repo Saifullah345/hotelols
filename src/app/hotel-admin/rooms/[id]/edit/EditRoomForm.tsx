@@ -185,9 +185,7 @@ export default function EditRoomForm({
           <select {...register('room_type_id')} className="input">
             <option value="">Select type…</option>
             {roomTypes.map(t => (
-              <option key={t.id} value={t.id}>
-                {t.name} · up to {t.capacity} guest{t.capacity > 1 ? 's' : ''}
-              </option>
+              <option key={t.id} value={t.id}>{t.name}</option>
             ))}
           </select>
           {errors.room_type_id && <p className="text-red-500 text-xs mt-1">{errors.room_type_id.message}</p>}

@@ -121,7 +121,7 @@ export default function NewRoomPage() {
           <label className="label">Room Type <span className="text-red-500">*</span></label>
           <select {...register('room_type_id')} className="input">
             <option value="">Select type…</option>
-            {roomTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            {roomTypes.map(t => <option key={t.id} value={t.id} >{t.name}</option>)}
           </select>
           {errors.room_type_id && <p className="text-red-500 text-xs mt-1">{errors.room_type_id.message}</p>}
         </div>
