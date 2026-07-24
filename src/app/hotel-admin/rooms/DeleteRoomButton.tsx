@@ -29,9 +29,10 @@ export default function DeleteRoomButton({ roomId, roomNumber }: { roomId: strin
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 transition-colors"
+        title="Delete room"
+        className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
       >
-        <Trash2 className="h-3.5 w-3.5" /> Delete
+        <Trash2 className="h-3.5 w-3.5" />
       </button>
 
       {open && (

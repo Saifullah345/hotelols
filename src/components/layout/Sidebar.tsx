@@ -129,19 +129,11 @@ export function Sidebar({ role, hotelName, isOpen = false, onClose }: SidebarPro
         {navItems.map(item => {
           const Icon = item.icon
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
-          if (isActive) {
-            return (
-              <span key={item.href} className={cn('sidebar-link active')}>
-                <Icon className="h-4 w-4 flex-shrink-0" />
-                {item.label}
-              </span>
-            )
-          }
           return (
             <Link
               key={item.href}
               href={item.href}
-              className="sidebar-link"
+              className={cn('sidebar-link', isActive && 'active')}
               onClick={onClose}
             >
               <Icon className="h-4 w-4 flex-shrink-0" />

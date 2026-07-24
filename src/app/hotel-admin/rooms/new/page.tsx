@@ -1,16 +1,19 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ChangeEvent } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
-import { Loader2, ArrowLeft, Users } from 'lucide-react'
+import {
+  Loader2, ArrowLeft, Users, Hash, Tag, Sparkles,
+  Settings2, Camera, ImagePlus, Plus, X,
+} from 'lucide-react'
 import Link from 'next/link'
 
-const AMENITIES = [
+const PREDEFINED = [
   'WiFi', 'Air Conditioning', 'TV', 'Mini Bar', 'Safe',
   'Hair Dryer', 'Balcony', 'Sea View', 'Mountain View',
   'Garden View', 'Kitchen', 'Jacuzzi', 'Bathtub', 'Shower',
@@ -27,6 +30,7 @@ const schema = z.object({
   max_children:    z.coerce.number().min(0).max(20),
   status:          z.enum(['available', 'booked', 'maintenance', 'cleaning']),
   amenities:       z.array(z.string()).default([]),
+  images:          z.array(z.string()).default([]),
   notes:           z.string().optional(),
 })
 type FormData = z.infer<typeof schema>
@@ -34,19 +38,25 @@ type FormData = z.infer<typeof schema>
 export default function NewRoomPage() {
   const router = useRouter()
   const [roomTypes, setRoomTypes] = useState<{ id: string; name: string; max_adults: number; max_children: number }[]>([])
-  const [tenantId, setTenantId] = useState<string | null>(null)
+  const [tenantId, setTenantId]   = useState<string | null>(null)
+  const [customInput, setCustomInput] = useState('')
 
   const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { status: 'available', floor: 1, max_adults: 2, max_children: 0, amenities: [] },
+    defaultValues: {
+      status: 'available', floor: 1, max_adults: 2, max_children: 0,
+      amenities: [], images: [],
+    },
   })
 
+  const amenities      = watch('amenities') ?? []
+  const images         = watch('images')    ?? []
   const maxAdults      = Number(watch('max_adults')   ?? 2)
   const maxChildren    = Number(watch('max_children') ?? 0)
   const capacity       = maxAdults + maxChildren
   const selectedTypeId = watch('room_type_id')
+  const customAmenities = amenities.filter(a => !PREDEFINED.includes(a))
 
-  // Pre-fill occupancy from room type when type is selected
   useEffect(() => {
     const rt = roomTypes.find(t => t.id === selectedTypeId)
     if (rt) {
@@ -71,14 +81,60 @@ export default function NewRoomPage() {
     })
   }, [])
 
+  // ── Amenity helpers ───────────────────────────────────────────────
+  const toggleAmenity = (a: string) => {
+    const next = amenities.includes(a)
+      ? amenities.filter(x => x !== a)
+      : [...amenities, a]
+    setValue('amenities', next, { shouldDirty: true })
+  }
+
+  const addCustom = () => {
+    const val = customInput.trim()
+    if (!val) return
+    if (amenities.map(a => a.toLowerCase()).includes(val.toLowerCase())) {
+      toast.error('Amenity already added')
+      return
+    }
+    setValue('amenities', [...amenities, val], { shouldDirty: true })
+    setCustomInput('')
+  }
+
+  const removeAmenity = (a: string) => {
+    setValue('amenities', amenities.filter(x => x !== a), { shouldDirty: true })
+  }
+
+  // ── Image helpers ─────────────────────────────────────────────────
+  const handleImages = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    if (!files.length) return
+    if (images.length + files.length > 12) {
+      toast.error('Maximum 12 photos allowed')
+      e.target.value = ''
+      return
+    }
+    files.forEach(file => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        setValue('images', [...(watch('images') ?? []), reader.result as string], { shouldDirty: true })
+      }
+      reader.readAsDataURL(file)
+    })
+    e.target.value = ''
+  }
+
+  const removeImage = (idx: number) => {
+    setValue('images', images.filter((_, i) => i !== idx), { shouldDirty: true })
+  }
+
+  // ── Submit ────────────────────────────────────────────────────────
   const onSubmit = async (data: FormData) => {
     if (!tenantId) return
     const supabase = createClient()
     const { error } = await supabase.from('rooms').insert({
       ...data,
       hotel_id: tenantId,
-      name:  data.name  || null,
-      notes: data.notes || null,
+      notes:    data.notes || null,
     })
     if (error) { toast.error(error.message); return }
     toast.success('Room added successfully')
@@ -86,111 +142,251 @@ export default function NewRoomPage() {
   }
 
   return (
-    <div className="max-w-xl mx-auto space-y-6">
-      <div className="flex items-center gap-4">
+    <div className="max-w-lg mx-auto space-y-4">
+
+      {/* Header */}
+      <div className="flex items-center gap-3">
         <Link href="/hotel-admin/rooms" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <h2 className="text-2xl font-bold text-gray-900">Add New Room</h2>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Add New Room</h2>
+          <p className="text-sm text-gray-500 mt-0.5">Fill in the details below to create a room</p>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="card p-6 space-y-5">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
-        {/* ── Identity ── */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="label">Room Number <span className="text-red-500">*</span></label>
-            <input {...register('room_number')} className="input" placeholder="101" />
-            {errors.room_number && <p className="text-red-500 text-xs mt-1">{errors.room_number.message}</p>}
-          </div>
-          <div>
-            <label className="label">Floor</label>
-            <input {...register('floor')} type="number" min={0} className="input" />
-            {errors.floor && <p className="text-red-500 text-xs mt-1">{errors.floor.message}</p>}
-          </div>
-        </div>
+        {/* ── Card 1: Identity & Pricing ─────────────────────────────── */}
+        <div className="card divide-y divide-gray-100 overflow-hidden">
 
-        <div>
-          <label className="label">Display Name <span className="text-red-500">*</span></label>
-          <input {...register('name')} className="input" placeholder="e.g. Ocean View Suite, Corner Deluxe" />
-          {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
-        </div>
-
-        {/* ── Type & Price ── */}
-        <div>
-          <label className="label">Room Type <span className="text-red-500">*</span></label>
-          <select {...register('room_type_id')} className="input">
-            <option value="">Select type…</option>
-            {roomTypes.map(t => <option key={t.id} value={t.id} >{t.name}</option>)}
-          </select>
-          {errors.room_type_id && <p className="text-red-500 text-xs mt-1">{errors.room_type_id.message}</p>}
-        </div>
-
-        <div>
-          <label className="label">Price per Night <span className="text-red-500">*</span></label>
-          <input {...register('price_per_night')} type="number" min={1} step="0.01" className="input" placeholder="150" />
-          {errors.price_per_night && <p className="text-red-500 text-xs mt-1">{errors.price_per_night.message}</p>}
-        </div>
-
-        {/* ── Occupancy ── */}
-        <div>
-          <label className="label flex items-center gap-1.5">
-            <Users className="h-4 w-4 text-gray-400" /> Occupancy
-          </label>
-          <div className="grid grid-cols-3 gap-3 mt-1">
-            <div>
-              <p className="text-xs text-gray-500 mb-1">Max Adults</p>
-              <input {...register('max_adults')} type="number" min={1} max={20} className="input" />
-              {errors.max_adults && <p className="text-red-500 text-xs mt-1">{errors.max_adults.message}</p>}
+          {/* Room Identity */}
+          <div className="p-5">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                <Hash className="h-3.5 w-3.5 text-blue-600" />
+              </div>
+              <h3 className="text-sm font-semibold text-gray-800">Room Identity</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="label">Room Number <span className="text-red-500">*</span></label>
+                <input {...register('room_number')} className="input" placeholder="101" />
+                {errors.room_number && <p className="text-red-500 text-xs mt-1">{errors.room_number.message}</p>}
+              </div>
+              <div>
+                <label className="label">Floor</label>
+                <input {...register('floor')} type="number" min={0} className="input" />
+                {errors.floor && <p className="text-red-500 text-xs mt-1">{errors.floor.message}</p>}
+              </div>
             </div>
             <div>
-              <p className="text-xs text-gray-500 mb-1">Max Children</p>
-              <input {...register('max_children')} type="number" min={0} max={20} className="input" />
+              <label className="label">Display Name <span className="text-red-500">*</span></label>
+              <input {...register('name')} className="input" placeholder="e.g. Ocean View Suite, Corner Deluxe" />
+              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
             </div>
-            <div>
-              <p className="text-xs text-gray-500 mb-1">Total Capacity</p>
-              <div className="input bg-gray-50 text-gray-500 flex items-center justify-center font-semibold select-none">
-                {capacity} guest{capacity !== 1 ? 's' : ''}
+          </div>
+
+          {/* Type & Pricing */}
+          <div className="p-5">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center flex-shrink-0">
+                <Tag className="h-3.5 w-3.5 text-violet-600" />
+              </div>
+              <h3 className="text-sm font-semibold text-gray-800">Type & Pricing</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">Room Type <span className="text-red-500">*</span></label>
+                <select {...register('room_type_id')} className="input">
+                  <option value="">Select type…</option>
+                  {roomTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+                {errors.room_type_id && <p className="text-red-500 text-xs mt-1">{errors.room_type_id.message}</p>}
+              </div>
+              <div>
+                <label className="label">Price / Night <span className="text-red-500">*</span></label>
+                <input {...register('price_per_night')} type="number" min={1} step="0.01" className="input" placeholder="0.00" />
+                {errors.price_per_night && <p className="text-red-500 text-xs mt-1">{errors.price_per_night.message}</p>}
               </div>
             </div>
           </div>
-          <p className="text-xs text-gray-400 mt-1.5">Pre-filled from room type — override per room if this room differs.</p>
-        </div>
 
-        {/* ── Amenities ── */}
-        <div>
-          <label className="label">Amenities</label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2 p-3 bg-gray-50 rounded-xl border border-gray-100">
-            {AMENITIES.map(a => (
-              <label key={a} className="flex items-center gap-2 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  value={a}
-                  {...register('amenities')}
-                  className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span className="text-sm text-gray-700 group-hover:text-gray-900 select-none">{a}</span>
-              </label>
-            ))}
+          {/* Occupancy */}
+          <div className="p-5">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                <Users className="h-3.5 w-3.5 text-emerald-600" />
+              </div>
+              <h3 className="text-sm font-semibold text-gray-800">Occupancy</h3>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <p className="text-xs text-gray-500 mb-1.5 font-medium">Max Adults</p>
+                <input {...register('max_adults')} type="number" min={1} max={20} className="input" />
+                {errors.max_adults && <p className="text-red-500 text-xs mt-1">{errors.max_adults.message}</p>}
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 mb-1.5 font-medium">Max Children</p>
+                <input {...register('max_children')} type="number" min={0} max={20} className="input" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 mb-1.5 font-medium">Total Capacity</p>
+                <div className="input bg-gray-50 text-gray-600 flex items-center justify-center font-semibold select-none">
+                  {capacity} guest{capacity !== 1 ? 's' : ''}
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 mt-2">Pre-filled from room type — override if this room differs.</p>
           </div>
         </div>
 
-        {/* ── Status & Notes ── */}
-        <div>
-          <label className="label">Initial Status</label>
-          <select {...register('status')} className="input">
-            <option value="available">Available</option>
-            <option value="maintenance">Maintenance</option>
-            <option value="cleaning">Cleaning</option>
-          </select>
+        {/* ── Card 2: Amenities ──────────────────────────────────────── */}
+        <div className="card p-5">
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
+              <Sparkles className="h-3.5 w-3.5 text-amber-600" />
+            </div>
+            <h3 className="text-sm font-semibold text-gray-800">Amenities</h3>
+            {amenities.length > 0 && (
+              <span className="ml-auto text-xs font-medium bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                {amenities.length} selected
+              </span>
+            )}
+          </div>
+
+          {/* Predefined pills */}
+          <div className="flex flex-wrap gap-2">
+            {PREDEFINED.map(a => (
+              <button
+                key={a}
+                type="button"
+                onClick={() => toggleAmenity(a)}
+                className={`px-3 py-1.5 rounded-full border text-sm font-medium transition-all select-none ${
+                  amenities.includes(a)
+                    ? 'bg-blue-50 border-blue-400 text-blue-700'
+                    : 'border-gray-200 bg-white text-gray-500 hover:border-blue-200 hover:text-blue-600'
+                }`}
+              >
+                {a}
+              </button>
+            ))}
+          </div>
+
+          {/* Custom amenities */}
+          {customAmenities.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
+              <p className="w-full text-xs text-gray-400 font-medium mb-1">Custom</p>
+              {customAmenities.map(a => (
+                <span
+                  key={a}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-violet-300 bg-violet-50 text-violet-700 text-sm font-medium"
+                >
+                  {a}
+                  <button
+                    type="button"
+                    onClick={() => removeAmenity(a)}
+                    className="text-violet-400 hover:text-violet-700 transition-colors"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Add custom input */}
+          <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+            <input
+              value={customInput}
+              onChange={e => setCustomInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom() } }}
+              placeholder="Add custom amenity…"
+              className="input flex-1 text-sm"
+            />
+            <button
+              type="button"
+              onClick={addCustom}
+              disabled={!customInput.trim()}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add
+            </button>
+          </div>
         </div>
 
-        <div>
-          <label className="label">Notes <span className="text-gray-400 font-normal">(optional)</span></label>
-          <textarea {...register('notes')} className="input resize-none h-20" placeholder="Any notes about this room…" />
+        {/* ── Card 3: Room Photos ────────────────────────────────────── */}
+        <div className="card p-5">
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="w-7 h-7 rounded-lg bg-pink-50 flex items-center justify-center flex-shrink-0">
+              <Camera className="h-3.5 w-3.5 text-pink-600" />
+            </div>
+            <h3 className="text-sm font-semibold text-gray-800">Room Photos</h3>
+            <span className="ml-auto text-xs text-gray-400">{images.length} / 12</span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            {images.map((img, i) => (
+              <div key={i} className="relative group aspect-video rounded-xl overflow-hidden bg-gray-100">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={img} alt={`Room photo ${i + 1}`} className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => removeImage(i)}
+                  className="absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center bg-black/60 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+                {i === 0 && (
+                  <span className="absolute bottom-1.5 left-1.5 text-[10px] font-semibold bg-black/60 text-white px-1.5 py-0.5 rounded-full">
+                    Cover
+                  </span>
+                )}
+              </div>
+            ))}
+
+            {images.length < 12 && (
+              <label className="aspect-video flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-blue-300 hover:bg-blue-50/50 transition-colors group">
+                <ImagePlus className="h-5 w-5 text-gray-300 group-hover:text-blue-400 transition-colors" />
+                <span className="text-xs text-gray-400 group-hover:text-blue-500 mt-1.5 font-medium transition-colors">
+                  {images.length === 0 ? 'Add photos' : 'Add more'}
+                </span>
+                <input type="file" accept="image/*" multiple className="hidden" onChange={handleImages} />
+              </label>
+            )}
+          </div>
+
+          {images.length === 0 && (
+            <p className="text-xs text-gray-400 text-center mt-3">
+              First photo will be used as the cover image.
+            </p>
+          )}
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+        {/* ── Card 4: Status & Notes ─────────────────────────────────── */}
+        <div className="card p-5 space-y-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+              <Settings2 className="h-3.5 w-3.5 text-gray-600" />
+            </div>
+            <h3 className="text-sm font-semibold text-gray-800">Status & Notes</h3>
+          </div>
+          <div>
+            <label className="label">Initial Status</label>
+            <select {...register('status')} className="input">
+              <option value="available">Available</option>
+              <option value="maintenance">Maintenance</option>
+              <option value="cleaning">Cleaning</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">Notes <span className="text-gray-400 font-normal">(optional)</span></label>
+            <textarea {...register('notes')} rows={3} className="input resize-none" placeholder="Any internal notes about this room…" />
+          </div>
+        </div>
+
+        {/* ── Action bar ─────────────────────────────────────────────── */}
+        <div className="flex justify-end gap-3 pb-6">
           <Link href="/hotel-admin/rooms" className="btn-secondary">Cancel</Link>
           <button type="submit" disabled={isSubmitting} className="btn-primary flex items-center gap-2">
             {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}

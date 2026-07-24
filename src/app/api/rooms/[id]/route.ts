@@ -24,7 +24,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
 
   const body = await request.json()
   const { room_number, name, floor, price_per_night, room_type_id,
-          max_adults, max_children, amenities, notes, status } = body
+          max_adults, max_children, amenities, images, notes, status } = body
 
   // Duplicate room-number guard
   if (room_number && room_number !== room.room_number) {
@@ -51,6 +51,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
   if (max_adults      !== undefined) updates.max_adults      = max_adults
   if (max_children    !== undefined) updates.max_children    = max_children
   if (amenities       !== undefined) updates.amenities       = amenities   // capacity is generated — never set it
+  if (images          !== undefined) updates.images          = images
   if (notes           !== undefined) updates.notes           = notes
   if (status          !== undefined) updates.status          = status
 

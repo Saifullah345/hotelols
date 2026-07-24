@@ -27,7 +27,7 @@ export default async function EditRoomPage({
   // Load room — include all editable fields
   const { data: room } = await supabase
     .from('rooms')
-    .select('id, room_number, name, floor, price_per_night, room_type_id, max_adults, max_children, amenities, status, notes, hotel_id')
+    .select('id, room_number, name, floor, price_per_night, room_type_id, max_adults, max_children, amenities, images, status, notes, hotel_id')
     .eq('id', id)
     .single()
 
