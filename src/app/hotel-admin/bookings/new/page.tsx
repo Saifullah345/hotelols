@@ -13,6 +13,7 @@ import {
   Banknote, CreditCard, Building2, FileText, HelpCircle, CheckCircle,
 } from 'lucide-react'
 import Link from 'next/link'
+import PhoneInput from '@/components/ui/PhoneInput'
 import type { BookingSource } from '@/types'
 import { formatCurrency } from '@/lib/currency'
 import { phoneSchema } from '@/lib/validation'
@@ -560,17 +561,9 @@ export default function NewBookingPage() {
               </div>
               <div className="md:col-span-2">
                 <label className="label">Phone Number</label>
-                <input
-                  {...offlineForm.register('guest_phone', {
-                    onChange: (e) => {
-                      e.target.value = e.target.value.replace(/[^0-9+\-\s().]/g, '')
-                    },
-                  })}
-                  type="tel"
-                  inputMode="tel"
-                  maxLength={20}
-                  className="input"
-                  placeholder="+1 555 000 0000"
+                <PhoneInput
+                  value={offlineForm.watch('guest_phone') ?? ''}
+                  onChange={v => offlineForm.setValue('guest_phone', v, { shouldValidate: true })}
                 />
                 {offlineForm.formState.errors.guest_phone && (
                   <p className="text-red-500 text-xs mt-1">{offlineForm.formState.errors.guest_phone.message}</p>
