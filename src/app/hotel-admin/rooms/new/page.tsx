@@ -19,7 +19,7 @@ const AMENITIES = [
 
 const schema = z.object({
   room_number:     z.string().min(1, 'Room number is required'),
-  name:            z.string().optional(),
+  name:            z.string().min(1, 'Display name is required'),
   floor:           z.coerce.number().min(0, 'Floor must be 0 or above'),
   price_per_night: z.coerce.number().min(1, 'Price must be at least 1'),
   room_type_id:    z.string().uuid('Select a room type'),
@@ -111,9 +111,9 @@ export default function NewRoomPage() {
         </div>
 
         <div>
-          <label className="label">Display Name <span className="text-gray-400 font-normal">(optional)</span></label>
+          <label className="label">Display Name <span className="text-red-500">*</span></label>
           <input {...register('name')} className="input" placeholder="e.g. Ocean View Suite, Corner Deluxe" />
-          <p className="text-xs text-gray-400 mt-1">A friendly label for staff — separate from the room number.</p>
+          {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
         </div>
 
         {/* ── Type & Price ── */}

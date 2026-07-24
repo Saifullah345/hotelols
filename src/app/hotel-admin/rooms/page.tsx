@@ -125,10 +125,8 @@ export default async function RoomsPage({
                   <div className="flex items-center gap-2">
                     <BedDouble className="h-4 w-4 text-gray-400 flex-shrink-0" />
                     <div>
-                      <p className="font-medium text-gray-900">Room {room.room_number}</p>
-                      {room.name && (
-                        <p className="text-xs text-gray-400 mt-0.5">{room.name}</p>
-                      )}
+                      <p className="font-medium text-gray-900">{room.name ?? `Room ${room.room_number}`}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">Room {room.room_number}</p>
                     </div>
                   </div>
                 </td>
@@ -148,7 +146,7 @@ export default async function RoomsPage({
                     >
                       <Pencil className="h-3.5 w-3.5" /> Edit
                     </Link>
-                    <DeleteRoomButton roomId={room.id} />
+                    <DeleteRoomButton roomId={room.id} roomNumber={room.room_number} />
                   </div>
                 </td>
               </tr>
