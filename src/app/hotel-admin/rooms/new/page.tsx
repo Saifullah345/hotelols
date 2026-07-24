@@ -12,6 +12,7 @@ import {
   Settings2, Camera, ImagePlus, Plus, X,
 } from 'lucide-react'
 import Link from 'next/link'
+import RoomTypeModal, { type CreatedRoomType } from '../RoomTypeModal'
 
 const PREDEFINED = [
   'WiFi', 'Air Conditioning', 'TV', 'Mini Bar', 'Safe',
@@ -40,6 +41,7 @@ export default function NewRoomPage() {
   const [roomTypes, setRoomTypes] = useState<{ id: string; name: string; max_adults: number; max_children: number }[]>([])
   const [tenantId, setTenantId]   = useState<string | null>(null)
   const [customInput, setCustomInput] = useState('')
+  const [typeModalOpen, setTypeModalOpen] = useState(false)
 
   const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -80,6 +82,13 @@ export default function NewRoomPage() {
       }
     })
   }, [])
+
+  // ── Room type helpers ─────────────────────────────────────────────
+  const handleTypeCreated = (t: CreatedRoomType) => {
+    setRoomTypes(prev => [...prev, t].sort((a, b) => a.name.localeCompare(b.name)))
+    setValue('room_type_id', t.id, { shouldValidate: true, shouldDirty: true })
+    setTypeModalOpen(false)
+  }
 
   // ── Amenity helpers ───────────────────────────────────────────────
   const toggleAmenity = (a: string) => {
@@ -142,7 +151,7 @@ export default function NewRoomPage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto space-y-4">
+    <div className="max-w-4xl mx-auto space-y-4">
 
       {/* Header */}
       <div className="flex items-center gap-3">
@@ -197,12 +206,25 @@ export default function NewRoomPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="label">Room Type <span className="text-red-500">*</span></label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="label mb-0">Room Type <span className="text-red-500">*</span></label>
+                  <button
+                    type="button"
+                    onClick={() => setTypeModalOpen(true)}
+                    disabled={!tenantId}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700 disabled:opacity-40 transition-colors"
+                  >
+                    <Plus className="h-3 w-3" /> New type
+                  </button>
+                </div>
                 <select {...register('room_type_id')} className="input">
                   <option value="">Select type…</option>
                   {roomTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
                 {errors.room_type_id && <p className="text-red-500 text-xs mt-1">{errors.room_type_id.message}</p>}
+                {tenantId && roomTypes.length === 0 && (
+                  <p className="text-xs text-gray-400 mt-1">No types yet — create one with “New type”.</p>
+                )}
               </div>
               <div>
                 <label className="label">Price / Night <span className="text-red-500">*</span></label>
@@ -325,7 +347,7 @@ export default function NewRoomPage() {
             <span className="ml-auto text-xs text-gray-400">{images.length} / 12</span>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
             {images.map((img, i) => (
               <div key={i} className="relative group aspect-video rounded-xl overflow-hidden bg-gray-100">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -394,6 +416,15 @@ export default function NewRoomPage() {
           </button>
         </div>
       </form>
+
+      {tenantId && (
+        <RoomTypeModal
+          hotelId={tenantId}
+          open={typeModalOpen}
+          onClose={() => setTypeModalOpen(false)}
+          onCreated={handleTypeCreated}
+        />
+      )}
     </div>
   )
 }
