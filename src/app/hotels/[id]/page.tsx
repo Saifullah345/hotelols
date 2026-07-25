@@ -1,0 +1,316 @@
+import { createAdminClient, createClient } from '@/lib/supabase/server'
+import { notFound } from 'next/navigation'
+import Link from 'next/link'
+import Image from 'next/image'
+import {
+  MapPin, Star, Clock, Phone, Mail, BedDouble, ShieldCheck, ArrowLeft,
+  Wifi, Waves, Car, Coffee, Dumbbell, Sparkles, Tv, Wind, PawPrint, CheckCircle2, Users,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import PublicNavbar from '@/components/layout/PublicNavbar'
+import PublicFooter from '@/components/layout/PublicFooter'
+import PublicBookRoomButton from './PublicBookRoomButton'
+
+function getAmenityIcon(name: string): LucideIcon {
+  const key = name.toLowerCase()
+  if (key.includes('wifi')) return Wifi
+  if (key.includes('pool')) return Waves
+  if (key.includes('park')) return Car
+  if (key.includes('breakfast') || key.includes('coffee')) return Coffee
+  if (key.includes('gym') || key.includes('fitness')) return Dumbbell
+  if (key.includes('spa')) return Sparkles
+  if (key.includes('air') || key.includes('ac')) return Wind
+  if (key.includes('tv')) return Tv
+  if (key.includes('pet')) return PawPrint
+  return CheckCircle2
+}
+
+export default async function PublicHotelDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+
+  // Check if user is logged in (no redirect — public page)
+  const authSupabase = await createClient()
+  const { data: { user } } = await authSupabase.auth.getUser()
+
+  const supabase = await createAdminClient()
+
+  const { data: hotel } = await supabase
+    .from('hotels')
+    .select('*')
+    .eq('id', id)
+    .eq('status', 'active')
+    .single()
+
+  if (!hotel) notFound()
+
+  const [{ data: rooms }, { data: reviews }] = await Promise.all([
+    supabase
+      .from('rooms')
+      .select('*, room_type:room_types(name, description)')
+      .eq('hotel_id', id)
+      .eq('status', 'available')
+      .order('price_per_night'),
+    supabase
+      .from('reviews')
+      .select('*, user:profiles(full_name)')
+      .eq('hotel_id', id)
+      .eq('is_published', true)
+      .order('created_at', { ascending: false })
+      .limit(6),
+  ])
+
+  const gallery: string[] = ((hotel.images as string[] | null) ?? []).filter(Boolean)
+  const allImages = [hotel.cover_image, ...gallery].filter((s): s is string => Boolean(s))
+  const uniqueImages = Array.from(new Set(allImages))
+  const coverImage = uniqueImages[0] ?? null
+  const fromPrice = rooms?.length ? Math.min(...rooms.map(r => r.price_per_night)) : null
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <PublicNavbar />
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        <Link href="/" className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+          <ArrowLeft className="h-4 w-4" /> Back to hotels
+        </Link>
+
+        {/* Hero image + info */}
+        <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+          {/* Cover image */}
+          <div className="relative h-72 sm:h-96 bg-gradient-to-br from-primary-500 to-primary-800">
+            {coverImage ? (
+              <Image src={coverImage} alt={hotel.name} fill className="object-cover" unoptimized />
+            ) : (
+              <div className="flex h-full items-center justify-center text-8xl">🏨</div>
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+
+            {hotel.rating && (
+              <div className="absolute right-4 top-4 flex items-center gap-1 rounded-full bg-white/95 px-3 py-1.5 text-sm font-semibold text-gray-900 shadow-sm backdrop-blur">
+                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                {Number(hotel.rating).toFixed(1)}
+                {hotel.review_count > 0 && (
+                  <span className="font-normal text-gray-500">({hotel.review_count})</span>
+                )}
+              </div>
+            )}
+
+            <div className="absolute inset-x-0 bottom-0 p-6">
+              <h1 className="text-3xl sm:text-4xl font-bold text-white drop-shadow-sm">{hotel.name}</h1>
+              <p className="mt-2 flex items-center gap-1.5 text-sm text-white/90">
+                <MapPin className="h-4 w-4 flex-shrink-0" />
+                {[hotel.address, hotel.city, hotel.country].filter(Boolean).join(', ')}
+              </p>
+            </div>
+          </div>
+
+          {/* Thumbnail gallery */}
+          {uniqueImages.length > 1 && (
+            <div className="flex gap-2 p-4 overflow-x-auto">
+              {uniqueImages.slice(1, 6).map((src, i) => (
+                <div key={i} className="relative h-16 w-24 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
+                  <Image src={src} alt={`${hotel.name} photo ${i + 2}`} fill className="object-cover" unoptimized />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Info strip */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 border-t border-gray-100 p-5">
+            <div className="flex items-start gap-2">
+              <Clock className="mt-0.5 h-4 w-4 shrink-0 text-primary-600" />
+              <div>
+                <p className="text-xs text-gray-500">Check-in / out</p>
+                <p className="text-sm font-medium text-gray-900">
+                  {hotel.check_in_time?.slice(0, 5) ?? '—'} – {hotel.check_out_time?.slice(0, 5) ?? '—'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Phone className="mt-0.5 h-4 w-4 shrink-0 text-primary-600" />
+              <div>
+                <p className="text-xs text-gray-500">Phone</p>
+                <p className="text-sm font-medium text-gray-900 truncate">{hotel.phone || '—'}</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Mail className="mt-0.5 h-4 w-4 shrink-0 text-primary-600" />
+              <div>
+                <p className="text-xs text-gray-500">Email</p>
+                <p className="text-sm font-medium text-gray-900 truncate">{hotel.email || '—'}</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary-600" />
+              <div>
+                <p className="text-xs text-gray-500">Status</p>
+                <p className="text-sm font-medium text-gray-900">Verified property</p>
+              </div>
+            </div>
+          </div>
+
+          {hotel.description && (
+            <div className="border-t border-gray-100 px-5 py-4">
+              <p className="text-sm leading-6 text-gray-600">{hotel.description}</p>
+            </div>
+          )}
+
+          {(hotel.amenities as string[] | null)?.length ? (
+            <div className="border-t border-gray-100 p-5">
+              <p className="mb-3 text-sm font-semibold text-gray-900">Amenities</p>
+              <div className="flex flex-wrap gap-2">
+                {(hotel.amenities as string[]).map(a => {
+                  const Icon = getAmenityIcon(a)
+                  return (
+                    <span key={a} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700">
+                      <Icon className="h-3.5 w-3.5 text-primary-600" /> {a}
+                    </span>
+                  )
+                })}
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
+          {/* Main column */}
+          <div className="order-2 space-y-6 lg:order-1 lg:col-span-2">
+            {/* Rooms */}
+            <div id="rooms">
+              <div className="mb-4 flex items-baseline justify-between">
+                <h2 className="text-xl font-bold text-gray-900">Available Rooms</h2>
+                <span className="text-sm text-gray-500">{rooms?.length ?? 0} room{rooms?.length === 1 ? '' : 's'}</span>
+              </div>
+              <div className="space-y-4">
+                {rooms?.map(room => {
+                  const roomImages = (room.images as string[] | null) ?? []
+                  const thumb = roomImages[0]
+                  const type = room.room_type as { name?: string; description?: string } | null
+                  return (
+                    <div key={room.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5 hover:shadow-md transition-shadow">
+                      <div className="flex items-center gap-4">
+                        {thumb ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={thumb} alt={type?.name ?? 'Room'} className="h-14 w-14 shrink-0 rounded-xl object-cover" />
+                        ) : (
+                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-primary-50">
+                            <BedDouble className="h-7 w-7 text-primary-600" />
+                          </div>
+                        )}
+                        <div>
+                          <h3 className="font-semibold text-gray-900">
+                            Room {room.room_number}{room.name ? ` — ${room.name}` : ''}
+                            {type?.name ? <span className="ml-1 text-gray-500 font-normal">({type.name})</span> : null}
+                          </h3>
+                          <div className="flex items-center gap-2 mt-0.5 text-sm text-gray-500">
+                            <span>Floor {room.floor}</span>
+                            {room.max_adults && (
+                              <>
+                                <span>·</span>
+                                <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {room.max_adults} adults{room.max_children ? `, ${room.max_children} children` : ''}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between gap-4 border-t border-gray-100 pt-4 sm:flex-col sm:items-end sm:border-0 sm:pt-0 sm:text-right">
+                        <div>
+                          <p className="text-2xl font-bold text-gray-900">Rs {room.price_per_night.toLocaleString()}</p>
+                          <p className="text-sm text-gray-500">per night</p>
+                        </div>
+                        <PublicBookRoomButton
+                          roomId={room.id}
+                          hotelId={id}
+                          hotelSlug={id}
+                          pricePerNight={room.price_per_night}
+                          isLoggedIn={!!user}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+                {!rooms?.length && (
+                  <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-gray-500">
+                    No rooms available at this time — check back soon.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Reviews */}
+            <div>
+              <div className="mb-4 flex items-baseline justify-between">
+                <h2 className="text-xl font-bold text-gray-900">Guest Reviews</h2>
+                {(hotel.review_count ?? 0) > 0 && (
+                  <span className="inline-flex items-center gap-1 text-sm text-gray-500">
+                    <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                    {Number(hotel.rating).toFixed(1)} · {hotel.review_count} review{hotel.review_count === 1 ? '' : 's'}
+                  </span>
+                )}
+              </div>
+              {reviews && reviews.length > 0 ? (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {reviews.map(review => (
+                    <div key={review.id} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="font-medium text-gray-900">{(review.user as { full_name?: string })?.full_name || 'Guest'}</span>
+                        <div className="flex">
+                          {Array.from({ length: 5 }, (_, i) => (
+                            <Star key={i} className={`h-4 w-4 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'}`} />
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-sm leading-6 text-gray-600">{review.comment}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-gray-500">
+                  No reviews yet — be the first to stay and share your experience.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Sticky sidebar */}
+          <div className="order-1 lg:order-2 lg:col-span-1">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4 lg:sticky lg:top-6">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-500">Starting from</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">
+                  {fromPrice !== null ? (
+                    <>Rs {fromPrice.toLocaleString()}<span className="text-base font-normal text-gray-500"> / night</span></>
+                  ) : '—'}
+                </p>
+              </div>
+              <a href="#rooms" className="btn-primary w-full justify-center block text-center">View Rooms</a>
+              {!user && (
+                <a
+                  href={`/login?next=/hotels/${id}`}
+                  className="w-full block text-center btn-secondary text-sm"
+                >
+                  Sign in to book
+                </a>
+              )}
+              <div className="space-y-2 border-t border-gray-100 pt-4 text-sm text-gray-600">
+                {hotel.rating && (
+                  <p className="flex items-center gap-2">
+                    <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                    {Number(hotel.rating).toFixed(1)} rating · {hotel.review_count ?? 0} reviews
+                  </p>
+                )}
+                {hotel.phone && <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-gray-400 flex-shrink-0" /> {hotel.phone}</p>}
+                {hotel.email && <p className="flex items-center gap-2 truncate"><Mail className="h-4 w-4 text-gray-400 flex-shrink-0" /> {hotel.email}</p>}
+              </div>
+              <div className="flex items-center gap-1.5 rounded-xl bg-green-50 px-3 py-2.5 text-xs font-medium text-green-700">
+                <ShieldCheck className="h-3.5 w-3.5 flex-shrink-0" /> Secure booking &amp; payments
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <PublicFooter />
+    </div>
+  )
+}

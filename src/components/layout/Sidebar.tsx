@@ -45,7 +45,7 @@ const staffNav: NavItem[] = [
 ]
 
 const customerNav: NavItem[] = [
-  { label: 'Search Hotels', href: '/customer/hotels', icon: Search },
+  { label: 'Find Hotels', href: '/', icon: Search },
   { label: 'My Bookings', href: '/customer/bookings', icon: CalendarCheck },
   { label: 'Profile', href: '/customer/profile', icon: Users },
 ]

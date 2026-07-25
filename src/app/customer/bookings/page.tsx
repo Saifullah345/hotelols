@@ -228,7 +228,7 @@ export default function CustomerBookingsPage() {
             <div key={String(booking.id)} className="card p-5 transition duration-200 hover:shadow-md">
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <Link href={`/customer/hotels/${String(booking.hotel_id)}`} className="font-semibold text-gray-900 hover:text-primary-700 hover:underline">
+                  <Link href={`/hotels/${String(booking.hotel_id)}`} className="font-semibold text-gray-900 hover:text-primary-700 hover:underline">
                     {(booking.hotel as { name?: string })?.name}
                   </Link>
                   <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">

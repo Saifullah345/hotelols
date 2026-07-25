@@ -20,7 +20,7 @@ const roleRedirects: Record<string, string> = {
   super_admin: '/super-admin/dashboard',
   hotel_admin: '/hotel-admin/dashboard',
   staff: '/staff/dashboard',
-  customer: '/customer/hotels',
+  customer: '/',
 }
 
 export default function LoginPage() {

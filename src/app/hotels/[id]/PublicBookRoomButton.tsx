@@ -3,19 +3,21 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
+import { Loader2, LogIn } from 'lucide-react'
 
 interface Props {
   roomId: string
   hotelId: string
+  hotelSlug: string
   pricePerNight: number
+  isLoggedIn: boolean
 }
 
-export default function BookRoomButton({ roomId, hotelId, pricePerNight }: Props) {
-  const [open, setOpen] = useState(false)
+export default function PublicBookRoomButton({ roomId, hotelId, hotelSlug, pricePerNight, isLoggedIn }: Props) {
+  const [open, setOpen]       = useState(false)
   const [checkIn, setCheckIn] = useState('')
   const [checkOut, setCheckOut] = useState('')
-  const [guests, setGuests] = useState(1)
+  const [guests, setGuests]   = useState(1)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
@@ -24,13 +26,20 @@ export default function BookRoomButton({ roomId, hotelId, pricePerNight }: Props
     : 0
   const total = nights * pricePerNight
 
+  if (!isLoggedIn) {
+    return (
+      <a
+        href={`/login?next=/hotels/${hotelSlug}`}
+        className="btn-primary text-sm py-1.5 px-4 inline-flex items-center gap-1.5"
+      >
+        <LogIn className="h-3.5 w-3.5" /> Sign in to book
+      </a>
+    )
+  }
+
   const handleBook = async () => {
     if (!checkIn || !checkOut) { toast.error('Select dates'); return }
     setLoading(true)
-
-    // Go through the server route so the booking + payment are created and the
-    // hotel's admins get a notification (a client can't write notifications to
-    // another user under RLS).
     try {
       const res = await fetch('/api/bookings', {
         method: 'POST',
@@ -79,12 +88,12 @@ export default function BookRoomButton({ roomId, hotelId, pricePerNight }: Props
             </div>
             <div>
               <label className="text-xs text-gray-500">Guests</label>
-              <input type="number" min={1} max={10} value={guests} onChange={e => setGuests(Number(e.target.value))} className="input text-sm py-1" />
+              <input type="number" min={1} max={20} value={guests} onChange={e => setGuests(Number(e.target.value))} className="input text-sm py-1" />
             </div>
           </div>
           {nights > 0 && (
             <p className="text-sm font-semibold text-gray-900 mb-2">
-              {nights} night{nights > 1 ? 's' : ''} = <span className="text-primary-600">${total}</span>
+              {nights} night{nights > 1 ? 's' : ''} = <span className="text-primary-600">Rs {total.toLocaleString()}</span>
             </p>
           )}
           <div className="flex gap-2">

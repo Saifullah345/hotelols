@@ -1,78 +1,55 @@
 'use client'
 
 import Link from 'next/link'
-import { Building2, Lock } from 'lucide-react'
-
-const columns = [
-  {
-    title: 'Product',
-    links: [
-      { href: '#features', label: 'Features' },
-      { href: '#how-it-works', label: 'How it works' },
-      { href: '#reviews', label: 'Reviews' },
-      { href: '#pricing', label: 'Pricing' },
-    ],
-  },
-  {
-    title: 'Company',
-    links: [
-      { href: '/about', label: 'About' },
-      { href: '/careers', label: 'Careers' },
-      { href: '/contact', label: 'Contact' },
-    ],
-  },
-  {
-    title: 'Legal',
-    links: [
-      { href: '/privacy', label: 'Privacy policy' },
-      { href: '/terms', label: 'Terms of service' },
-      { href: '/security', label: 'Security' },
-    ],
-  },
-]
+import { Building2 } from 'lucide-react'
 
 export default function PublicFooter() {
   return (
     <footer className="border-t border-gray-200 bg-white">
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-5">
-          <div className="lg:col-span-2">
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="grid gap-8 sm:grid-cols-3">
+          {/* Brand */}
+          <div>
             <Link href="/" className="inline-flex items-center gap-2.5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary-600 text-white shadow-sm">
-                <Building2 className="h-5 w-5" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-600 text-white shadow-sm">
+                <Building2 className="h-4.5 w-4.5" />
               </div>
-              <span className="text-lg font-semibold tracking-tight text-gray-900">HotelOS</span>
+              <span className="text-lg font-semibold tracking-tight text-gray-900">Hotelos</span>
             </Link>
-            <p className="mt-4 max-w-xs text-sm leading-6 text-gray-500">
-              Modern hospitality operations platform. Run bookings, rooms, teams, and payments from one elegant control center.
+            <p className="mt-3 text-sm text-gray-500">
+              Find and book the perfect hotel for every occasion.
             </p>
-            <div className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">
-              <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-              All systems operational
-            </div>
           </div>
 
-          {columns.map(column => (
-            <div key={column.title}>
-              <h3 className="text-sm font-semibold text-gray-900">{column.title}</h3>
-              <ul className="mt-4 space-y-2.5">
-                {column.links.map(link => (
-                  <li key={link.href}>
-                    <Link href={link.href} className="text-sm text-gray-500 transition hover:text-gray-900">
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          {/* Guest links */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">For Guests</h3>
+            <ul className="space-y-2 text-sm text-gray-500">
+              <li><Link href="/" className="hover:text-gray-900 transition-colors">Find Hotels</Link></li>
+              <li><Link href="/register" className="hover:text-gray-900 transition-colors">Create Account</Link></li>
+              <li><Link href="/login" className="hover:text-gray-900 transition-colors">Sign In</Link></li>
+              <li><Link href="/customer/bookings" className="hover:text-gray-900 transition-colors">My Bookings</Link></li>
+            </ul>
+          </div>
+
+          {/* Hotel owners */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">For Hotel Owners</h3>
+            <ul className="space-y-2 text-sm text-gray-500">
+              <li><Link href="/hotel-management" className="hover:text-gray-900 transition-colors">Hotel Management</Link></li>
+            <li><Link href="/register-hotel" className="hover:text-gray-900 transition-colors">Register Your Hotel</Link></li>
+              <li><Link href="/login" className="hover:text-gray-900 transition-colors">Manage Your Hotel</Link></li>
+              <li><Link href="/about" className="hover:text-gray-900 transition-colors">About Hotelos</Link></li>
+              <li><Link href="/contact" className="hover:text-gray-900 transition-colors">Contact Us</Link></li>
+            </ul>
+          </div>
         </div>
 
-        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-gray-100 pt-8 sm:flex-row">
-          <p className="text-xs text-gray-400">&copy; {new Date().getFullYear()} HotelOS. All rights reserved.</p>
-          <div className="flex items-center gap-1.5 text-xs text-gray-400">
-            <Lock className="h-3 w-3" />
-            SSL Secured
+        <div className="mt-8 border-t border-gray-100 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p className="text-xs text-gray-400">&copy; {new Date().getFullYear()} Hotelos. All rights reserved.</p>
+          <div className="flex gap-4 text-xs text-gray-400">
+            <Link href="/privacy" className="hover:text-gray-600 transition-colors">Privacy</Link>
+            <Link href="/terms" className="hover:text-gray-600 transition-colors">Terms</Link>
           </div>
         </div>
       </div>
