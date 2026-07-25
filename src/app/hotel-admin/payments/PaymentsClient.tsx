@@ -4,9 +4,10 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
   Search, CreditCard, CheckCircle, Clock, Receipt,
-  BedDouble, User, Phone, Calendar,
+  BedDouble, User, Phone, Calendar, Trash2, AlertTriangle, Loader2,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/currency'
+import { toast } from 'sonner'
 
 export type PaymentRow = {
   id: string
@@ -85,15 +86,33 @@ function guestSub(p: PaymentRow) {
 }
 
 export default function PaymentsClient({
-  payments,
+  payments: initial,
   currency,
 }: {
   payments: PaymentRow[]
   currency: string
 }) {
-  const [q,      setQ]      = useState('')
-  const [status, setStatus] = useState('')
-  const [method, setMethod] = useState('')
+  const [payments, setPayments] = useState(initial)
+  const [q,        setQ]        = useState('')
+  const [status,   setStatus]   = useState('')
+  const [method,   setMethod]   = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<PaymentRow | null>(null)
+  const [deleting,     setDeleting]     = useState(false)
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    const res = await fetch(`/api/admin/payments/${deleteTarget.id}`, { method: 'DELETE' })
+    setDeleting(false)
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}))
+      toast.error(json.error ?? 'Failed to delete payment')
+      return
+    }
+    setPayments(prev => prev.filter(x => x.id !== deleteTarget.id))
+    toast.success('Payment deleted')
+    setDeleteTarget(null)
+  }
 
   const labels = useMemo(() => computeLabels(payments), [payments])
 
@@ -269,7 +288,7 @@ export default function PaymentsClient({
                 </div>
 
                 {/* Actions */}
-                <div className="flex-shrink-0">
+                <div className="flex items-center gap-1.5 flex-shrink-0">
                   {p.status === 'completed' ? (
                     <Link
                       href={`/hotel-admin/payments/${p.id}/receipt`}
@@ -285,12 +304,62 @@ export default function PaymentsClient({
                       Collect
                     </Link>
                   ) : null}
+                  <button
+                    type="button"
+                    onClick={() => setDeleteTarget(p)}
+                    className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete payment"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               </div>
             )
           })
         )}
       </div>
+
+      {/* Delete confirmation modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !deleting && setDeleteTarget(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-start gap-4">
+              <div className="w-11 h-11 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="h-5 w-5 text-red-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-gray-900 text-base">Delete Payment?</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  You are about to delete the{' '}
+                  <span className="font-semibold text-gray-700">{formatCurrency(deleteTarget.amount, currency)}</span>{' '}
+                  payment for <span className="font-semibold text-gray-700">{guestName(deleteTarget)}</span>.
+                </p>
+                <p className="text-xs text-red-500 mt-2 font-medium">This cannot be undone and will remove the receipt.</p>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="btn-secondary flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-sm transition-colors disabled:opacity-50"
+              >
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                {deleting ? 'Deleting…' : 'Yes, delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
