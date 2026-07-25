@@ -189,7 +189,7 @@ export default async function PublicHotelDetailPage({ params }: { params: Promis
                         )}
                         <div>
                           <h3 className="font-semibold text-gray-900">
-                            Room {room.room_number}{room.name ? ` — ${room.name}` : ''}
+                            {room.name ?? `Room ${room.room_number}`}
                             {type?.name ? <span className="ml-1 text-gray-500 font-normal">({type.name})</span> : null}
                           </h3>
                           <div className="flex items-center gap-2 mt-0.5 text-sm text-gray-500">
@@ -290,7 +290,7 @@ export default async function PublicHotelDetailPage({ params }: { params: Promis
                 </a>
               )}
               <div className="space-y-2 border-t border-gray-100 pt-4 text-sm text-gray-600">
-                {hotel.rating && (
+                {!!hotel.rating && (
                   <p className="flex items-center gap-2">
                     <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                     {Number(hotel.rating).toFixed(1)} rating · {hotel.review_count ?? 0} reviews
