@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { Loader2, Eye, EyeOff, MailCheck } from 'lucide-react'
+import { Loader2, Eye, EyeOff, MailCheck, ArrowRight, Check } from 'lucide-react'
 
 const schema = z.object({
   full_name: z.string().min(2, 'Name is required'),
@@ -19,9 +19,42 @@ const schema = z.object({
 })
 type FormData = z.infer<typeof schema>
 
+const inputCls = 'w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 focus:bg-white transition-all'
+
+function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <label className="block text-sm font-medium text-gray-700">{label}</label>
+      {children}
+      {error && <p className="text-xs text-red-500">{error}</p>}
+    </div>
+  )
+}
+
+function PasswordStrength({ value }: { value: string }) {
+  const checks = [
+    { label: '8+ characters', ok: value.length >= 8 },
+    { label: 'Uppercase', ok: /[A-Z]/.test(value) },
+    { label: 'Number', ok: /\d/.test(value) },
+  ]
+  if (!value) return null
+  return (
+    <div className="flex items-center gap-3 mt-2">
+      {checks.map(c => (
+        <span key={c.label} className={`flex items-center gap-1 text-xs transition-colors ${c.ok ? 'text-emerald-600' : 'text-gray-400'}`}>
+          <Check className={`h-3 w-3 ${c.ok ? 'text-emerald-500' : 'text-gray-300'}`} />
+          {c.label}
+        </span>
+      ))}
+    </div>
+  )
+}
+
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
+  const [passwordValue, setPasswordValue] = useState('')
+
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
@@ -31,95 +64,87 @@ export default function RegisterPage() {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          full_name: data.full_name,
-          email: data.email,
-          password: data.password,
-        }),
+        body: JSON.stringify({ full_name: data.full_name, email: data.email, password: data.password }),
       })
-
       const json = await res.json()
-      if (!res.ok) {
-        toast.error(json.error ?? 'Failed to create account')
-        return
-      }
-
+      if (!res.ok) { toast.error(json.error ?? 'Failed to create account'); return }
       setConfirmed(true)
-    } catch (error) {
+    } catch {
       toast.error('An error occurred. Please try again.')
     }
   }
 
-  const handleFormSubmit = handleSubmit(onSubmit)
-
-  if (confirmed) {
-    return (
-      <div className="text-center py-4">
-        <MailCheck className="h-12 w-12 text-primary-600 mx-auto mb-4" />
-        <h2 className="text-xl font-bold text-gray-900 mb-2">Check your email</h2>
-        <p className="text-gray-500 text-sm">
-          We sent a confirmation link to your inbox. Click it to activate your account.
-        </p>
-        <Link href="/login" className="mt-6 inline-block text-sm text-primary-600 hover:text-primary-700 font-medium">
-          Back to sign in
-        </Link>
+  if (confirmed) return (
+    <div className="text-center">
+      <div className="mx-auto mb-5 w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center">
+        <MailCheck className="h-7 w-7 text-indigo-600" />
       </div>
-    )
-  }
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">Check your email</h2>
+      <p className="text-sm text-gray-500 leading-relaxed">
+        We sent a confirmation link to your inbox.<br />Click it to activate your account.
+      </p>
+      <div className="mt-6 rounded-xl bg-indigo-50 border border-indigo-100 px-4 py-4 text-sm text-left">
+        <p className="font-semibold text-indigo-800 mb-2">What happens next?</p>
+        <ol className="list-decimal list-inside space-y-1 text-indigo-600 text-xs">
+          <li>Verify your email address</li>
+          <li>Sign in and complete your hotel setup</li>
+          <li>Add rooms, staff, and start accepting bookings</li>
+        </ol>
+      </div>
+      <Link href="/login" className="mt-6 inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-700 font-semibold transition-colors">
+        Back to sign in
+      </Link>
+    </div>
+  )
+
+  const pwdRegister = register('password')
 
   return (
-    <>
-      <div className="mb-6">
+    <div>
+      <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Create your account</h1>
-        <p className="mt-1 text-sm text-gray-500">Start your free trial and bring your hotel operations online.</p>
+        <p className="mt-1.5 text-sm text-gray-500">Free to start — no credit card required.</p>
       </div>
 
-      <form onSubmit={handleFormSubmit} className="space-y-4">
-        <div>
-          <label className="label">Full Name</label>
-          <input {...register('full_name')} className="input" placeholder="John Doe" />
-          {errors.full_name && <p className="text-red-500 text-xs mt-1">{errors.full_name.message}</p>}
-        </div>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <Field label="Full name" error={errors.full_name?.message}>
+          <input {...register('full_name')} className={inputCls} placeholder="Ahmad Khan" autoFocus />
+        </Field>
 
-        <div>
-          <label className="label">Email address</label>
-          <input {...register('email')} type="email" className="input" placeholder="you@example.com" />
-          {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
-        </div>
+        <Field label="Email address" error={errors.email?.message}>
+          <input {...register('email')} type="email" className={inputCls} placeholder="you@example.com" />
+        </Field>
 
-        <div>
-          <label className="label">Password</label>
+        <Field label="Password" error={errors.password?.message}>
           <div className="relative">
             <input
-              {...register('password')}
+              {...pwdRegister}
+              onChange={e => { pwdRegister.onChange(e); setPasswordValue(e.target.value) }}
               type={showPassword ? 'text' : 'password'}
-              className="input pr-10"
+              className={`${inputCls} pr-11`}
               placeholder="••••••••"
             />
-            <button type="button" onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
-          {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>}
-        </div>
+          <PasswordStrength value={passwordValue} />
+        </Field>
 
-        <div>
-          <label className="label">Confirm Password</label>
-          <input {...register('confirm_password')} type="password" className="input" placeholder="••••••••" />
-          {errors.confirm_password && <p className="text-red-500 text-xs mt-1">{errors.confirm_password.message}</p>}
-        </div>
+        <Field label="Confirm password" error={errors.confirm_password?.message}>
+          <input {...register('confirm_password')} type="password" className={inputCls} placeholder="••••••••" />
+        </Field>
 
-        <button type="submit" disabled={isSubmitting} className="btn-primary w-full flex items-center justify-center gap-2">
-          {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+        <button type="submit" disabled={isSubmitting} className="w-full btn-gradient flex items-center justify-center gap-2 mt-2">
+          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
           {isSubmitting ? 'Creating account...' : 'Create Account'}
         </button>
       </form>
 
       <p className="text-center text-sm text-gray-500 mt-6">
         Already have an account?{' '}
-        <Link href="/login" className="text-primary-600 hover:text-primary-700 font-medium">Sign in</Link>
+        <Link href="/login" className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors">Sign in</Link>
       </p>
-    </>
+    </div>
   )
 }

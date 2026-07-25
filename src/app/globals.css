@@ -43,6 +43,10 @@
     @apply inline-flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-xl shadow-sm transition-all active:scale-[0.98];
   }
 
+  .btn-gradient {
+    @apply inline-flex items-center justify-center bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold px-4 py-3 rounded-xl shadow-sm shadow-indigo-500/25 transition-all active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+
   .btn-lg {
     @apply px-7 py-3 text-base rounded-xl;
   }
@@ -116,8 +120,8 @@
   100% { transform: translateX(-50%); }
 }
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(37,99,235,0.4); }
-  50%       { box-shadow: 0 0 0 14px rgba(37,99,235,0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.4); }
+  50%       { box-shadow: 0 0 0 14px rgba(99,102,241,0); }
 }
 
 .animate-float      { animation: float     3.5s ease-in-out infinite; }

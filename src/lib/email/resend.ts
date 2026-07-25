@@ -21,7 +21,7 @@ export async function sendEmail({ to, subject, html, attachments }: SendEmailPar
   }
   // Falls back to our verified Resend domain. onboarding@resend.dev is NOT used
   // because that test sender can only deliver to your own Resend account email.
-  const from = process.env.RESEND_FROM || 'StayQayam <noreply@stayqayam.com>'
+  const from = process.env.RESEND_FROM || 'BookQayam <noreply@bookqayam.com>'
 
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',

@@ -34,7 +34,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Uint8Array>
 
   // Header band
   page.drawRectangle({ x: 0, y: height - 110, width, height: 110, color: PRIMARY })
-  page.drawText('StayQayam', { x: margin, y: height - 60, size: 24, font: bold, color: rgb(1, 1, 1) })
+  page.drawText('BookQayam', { x: margin, y: height - 60, size: 24, font: bold, color: rgb(1, 1, 1) })
   page.drawText('Hotel Management Platform', { x: margin, y: height - 80, size: 10, font, color: rgb(1, 1, 1) })
   page.drawText('INVOICE', { x: width - margin - 110, y: height - 62, size: 26, font: bold, color: rgb(1, 1, 1) })
 
@@ -84,7 +84,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Uint8Array>
 
   // Footer
   page.drawText('Thank you for your booking.', { x: margin, y: 70, size: 10, font, color: MUTED })
-  page.drawText('This is a computer-generated invoice from StayQayam.', { x: margin, y: 55, size: 8, font, color: MUTED })
+  page.drawText('This is a computer-generated invoice from BookQayam.', { x: margin, y: 55, size: 8, font, color: MUTED })
 
   return pdf.save()
 }

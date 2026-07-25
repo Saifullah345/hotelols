@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { X } from 'lucide-react'
 
 const WA_NUMBER  = '923255258421'
-const WA_MESSAGE = encodeURIComponent('Hi! I have a question about StayQayam.')
+const WA_MESSAGE = encodeURIComponent('Hi! I have a question about BookQayam.')
 const WA_LINK    = `https://wa.me/${WA_NUMBER}?text=${WA_MESSAGE}`
 
 export default function WhatsAppButton() {
@@ -26,7 +26,7 @@ export default function WhatsAppButton() {
                 </svg>
               </div>
               <div>
-                <p className="text-white font-bold text-sm">StayQayam Support</p>
+                <p className="text-white font-bold text-sm">BookQayam Support</p>
                 <p className="text-green-100 text-xs">Typically replies in minutes</p>
               </div>
             </div>
@@ -43,7 +43,7 @@ export default function WhatsAppButton() {
           <div className="bg-[#ece5dd] px-4 py-5">
             <div className="bg-white rounded-xl rounded-tl-none px-4 py-3 shadow-sm max-w-[220px]">
               <p className="text-gray-800 text-sm leading-relaxed">
-                👋 Hi there! How can we help you with StayQayam today?
+                👋 Hi there! How can we help you with BookQayam today?
               </p>
               <p className="text-gray-400 text-[10px] mt-1 text-right">N6 Solution</p>
             </div>

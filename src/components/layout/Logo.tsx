@@ -16,16 +16,16 @@ function LogoMark({ svgSize }: { svgSize: number }) {
   return (
     <svg width={svgSize} height={svgSize} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <linearGradient id="sq-logo" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+        <linearGradient id="bq-logo" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
           <stop stopColor="#6366F1" />
           <stop offset="1" stopColor="#A855F7" />
         </linearGradient>
       </defs>
-      <path
-        d="M 9 15 C 9 6 31 6 31 15 C 31 20 9 20 9 25 C 9 34 31 34 31 25"
-        stroke="url(#sq-logo)" strokeWidth="4.5" strokeLinecap="round" fill="none"
-      />
-      <line x1="27" y1="32" x2="36" y2="39" stroke="url(#sq-logo)" strokeWidth="4.5" strokeLinecap="round"/>
+      {/* B: vertical stroke + two bumps as one continuous path */}
+      <line x1="10" y1="6" x2="10" y2="34" stroke="url(#bq-logo)" strokeWidth="4" strokeLinecap="round"/>
+      <path d="M 10 6 C 28 6 28 20 10 20 C 30 20 30 34 10 34" stroke="url(#bq-logo)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+      {/* Q tail */}
+      <line x1="26" y1="31" x2="33" y2="37" stroke="url(#bq-logo)" strokeWidth="3.5" strokeLinecap="round"/>
     </svg>
   )
 }
@@ -33,11 +33,9 @@ function LogoMark({ svgSize }: { svgSize: number }) {
 function LogoMarkOnDark({ svgSize }: { svgSize: number }) {
   return (
     <svg width={svgSize} height={svgSize} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path
-        d="M 9 15 C 9 6 31 6 31 15 C 31 20 9 20 9 25 C 9 34 31 34 31 25"
-        stroke="white" strokeWidth="4.5" strokeLinecap="round" fill="none"
-      />
-      <line x1="27" y1="32" x2="36" y2="39" stroke="white" strokeWidth="4.5" strokeLinecap="round"/>
+      <line x1="10" y1="6" x2="10" y2="34" stroke="white" strokeWidth="4" strokeLinecap="round"/>
+      <path d="M 10 6 C 28 6 28 20 10 20 C 30 20 30 34 10 34" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+      <line x1="26" y1="31" x2="33" y2="37" stroke="white" strokeWidth="3.5" strokeLinecap="round"/>
     </svg>
   )
 }
@@ -46,10 +44,10 @@ export default function Logo({ size = 'md', href = '/', className = '' }: LogoPr
   const { svg, text } = sizes[size]
 
   const inner = (
-    <span className={`flex items-center gap-2.5 flex-shrink-0 ${className}`}>
+    <span className={`flex items-center gap-1 flex-shrink-0 ${className}`}>
       <LogoMark svgSize={svg} />
       <span className={`${text} font-black tracking-tight text-gray-900`}>
-        Stay<span className="text-indigo-600">Qayam</span>
+        Book<span className="text-indigo-600">Qayam</span>
       </span>
     </span>
   )

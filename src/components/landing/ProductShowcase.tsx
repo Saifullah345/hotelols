@@ -8,8 +8,8 @@ const screens = [
     label: 'Dashboard',
     file: '/screenshots/dashboard.png',
     desc: 'Real-time overview — revenue, occupancy, pending bookings and recent activity at a glance.',
-    color: 'from-blue-50 to-indigo-50',
-    accent: 'bg-blue-600',
+    color: 'from-indigo-50 to-violet-50',
+    accent: 'bg-indigo-600',
   },
   {
     id: 'bookings',
@@ -312,7 +312,7 @@ export function ProductShowcase() {
             <img
               key={active}
               src={screen.file}
-              alt={`StayQayam — ${screen.label}`}
+              alt={`BookQayam — ${screen.label}`}
               className="w-full block"
               onError={() => setImgError(prev => ({ ...prev, [active]: true }))}
             />
@@ -329,7 +329,7 @@ export function ProductShowcase() {
               </div>
               <div className="flex-1 flex justify-center">
                 <div className="bg-white rounded-md px-4 py-1.5 text-xs text-gray-400 w-72 text-center">
-                  app.stayqayam.com/hotel-admin/{active}
+                  app.bookqayam.com/hotel-admin/{active}
                 </div>
               </div>
             </div>

@@ -91,9 +91,9 @@ export default function RegisterHotelPage() {
         <p className="text-gray-500 text-sm leading-relaxed max-w-xs mx-auto">
           We sent a confirmation link to your inbox. Click it to activate your account and access your hotel dashboard.
         </p>
-        <div className="mt-6 rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 text-sm text-blue-700 text-left">
+        <div className="mt-6 rounded-xl bg-indigo-50 border border-indigo-100 px-4 py-3 text-sm text-indigo-700 text-left">
           <p className="font-semibold mb-1">What happens next?</p>
-          <ol className="list-decimal list-inside space-y-1 text-blue-600">
+          <ol className="list-decimal list-inside space-y-1 text-indigo-600">
             <li>Verify your email address</li>
             <li>Sign in and complete your hotel setup</li>
             <li>Add rooms, staff, and start accepting bookings</li>
@@ -111,7 +111,7 @@ export default function RegisterHotelPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Register your hotel</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Get the full StayQayam management platform for your property — free for 14 days.
+          Get the full BookQayam management platform for your property — free for 14 days.
         </p>
       </div>
 
@@ -124,7 +124,7 @@ export default function RegisterHotelPage() {
           <div key={n} className="flex items-center gap-2 flex-1">
             <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors ${
               step === n
-                ? 'bg-blue-600 text-white'
+                ? 'bg-indigo-600 text-white'
                 : step > n
                   ? 'bg-emerald-500 text-white'
                   : 'bg-gray-100 text-gray-400'

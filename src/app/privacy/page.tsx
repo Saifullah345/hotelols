@@ -17,7 +17,7 @@ export default function PrivacyPage() {
 
         <div className="flex items-center gap-2.5 mb-2">
           <LogoMark svgSize={32} />
-          <span className="text-sm font-bold text-indigo-600 uppercase tracking-widest">StayQayam</span>
+          <span className="text-sm font-bold text-indigo-600 uppercase tracking-widest">BookQayam</span>
         </div>
 
         <h1 className="text-4xl font-extrabold text-gray-900 mt-4 mb-2">Privacy Policy</h1>
@@ -28,9 +28,9 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-xl font-bold text-gray-900 mb-3">1. Who We Are</h2>
             <p>
-              StayQayam operates a cloud-based hotel management platform (&ldquo;the Platform&rdquo;).
+              BookQayam operates a cloud-based hotel management platform (&ldquo;the Platform&rdquo;).
               This Privacy Policy explains how we collect, use, and protect information when you use our services.
-              By using StayQayam you agree to the practices described in this policy.
+              By using BookQayam you agree to the practices described in this policy.
             </p>
           </section>
 
@@ -104,7 +104,7 @@ export default function PrivacyPage() {
           <section id="cookies">
             <h2 className="text-xl font-bold text-gray-900 mb-3">7. Cookies</h2>
             <p>
-              StayQayam uses strictly necessary cookies for authentication (session management) and security purposes.
+              BookQayam uses strictly necessary cookies for authentication (session management) and security purposes.
               We do not use third-party advertising or tracking cookies.
               You can control cookies through your browser settings, but disabling session cookies will prevent you from logging in.
             </p>
@@ -123,7 +123,7 @@ export default function PrivacyPage() {
             </ul>
             <p className="mt-3 text-sm">
               To exercise any of these rights, email us at{' '}
-              <a href="mailto:privacy@stayqayam.com" className="text-blue-600 hover:underline">privacy@stayqayam.com</a>.
+              <a href="mailto:privacy@bookqayam.com" className="text-blue-600 hover:underline">privacy@bookqayam.com</a>.
               We will respond within 30 days.
             </p>
           </section>
@@ -131,7 +131,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-xl font-bold text-gray-900 mb-3">9. Children&apos;s Privacy</h2>
             <p>
-              StayQayam is not directed at children under 16. We do not knowingly collect personal data from children.
+              BookQayam is not directed at children under 16. We do not knowingly collect personal data from children.
               If you believe a child has provided us with personal data, please contact us and we will delete it promptly.
             </p>
           </section>
@@ -148,11 +148,11 @@ export default function PrivacyPage() {
             <h2 className="text-xl font-bold text-gray-900 mb-3">11. Contact Us</h2>
             <p>For any privacy-related questions or to exercise your data rights, contact us at:</p>
             <div className="mt-3 rounded-xl bg-gray-50 border border-gray-200 px-5 py-4 text-sm">
-              <p className="font-semibold text-gray-900">StayQayam Privacy Team</p>
+              <p className="font-semibold text-gray-900">BookQayam Privacy Team</p>
               <p className="text-gray-500 mt-1">
                 Email:{' '}
-                <a href="mailto:privacy@stayqayam.com" className="text-blue-600 hover:underline">
-                  privacy@stayqayam.com
+                <a href="mailto:privacy@bookqayam.com" className="text-blue-600 hover:underline">
+                  privacy@bookqayam.com
                 </a>
               </p>
             </div>
@@ -163,7 +163,7 @@ export default function PrivacyPage() {
 
       <footer className="border-t border-gray-100 py-8 px-6 mt-12">
         <div className="max-w-3xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3 text-sm text-gray-400">
-          <p>© {new Date().getFullYear()} StayQayam. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} BookQayam. All rights reserved.</p>
           <div className="flex gap-5">
             <Link href="/privacy" className="hover:text-gray-700 transition-colors">Privacy Policy</Link>
             <Link href="/terms"   className="hover:text-gray-700 transition-colors">Terms</Link>

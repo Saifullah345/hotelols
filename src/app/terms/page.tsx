@@ -17,7 +17,7 @@ export default function TermsPage() {
 
         <div className="flex items-center gap-2.5 mb-2">
           <LogoMark svgSize={32} />
-          <span className="text-sm font-bold text-indigo-600 uppercase tracking-widest">StayQayam</span>
+          <span className="text-sm font-bold text-indigo-600 uppercase tracking-widest">BookQayam</span>
         </div>
 
         <h1 className="text-4xl font-extrabold text-gray-900 mt-4 mb-2">Terms &amp; Conditions</h1>
@@ -28,7 +28,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-xl font-bold text-gray-900 mb-3">1. Acceptance of Terms</h2>
             <p>
-              By accessing or using StayQayam (&ldquo;the Platform&rdquo;), you agree to be bound by these Terms &amp; Conditions.
+              By accessing or using BookQayam (&ldquo;the Platform&rdquo;), you agree to be bound by these Terms &amp; Conditions.
               If you are registering on behalf of a hotel or business, you confirm that you have the authority to bind that
               entity to these terms. If you do not agree, please do not use the Platform.
             </p>
@@ -37,7 +37,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-xl font-bold text-gray-900 mb-3">2. Description of Service</h2>
             <p>
-              StayQayam is a cloud-based hotel management platform that provides hotel owners and their staff with tools to manage
+              BookQayam is a cloud-based hotel management platform that provides hotel owners and their staff with tools to manage
               rooms, bookings, payments, staff roles, and analytics. The Platform is provided on a subscription basis and may
               include a mobile application.
             </p>
@@ -49,14 +49,14 @@ export default function TermsPage() {
             <ul className="list-disc pl-5 mt-2 space-y-1 text-sm">
               <li>Provide accurate and complete information during registration.</li>
               <li>Keep your login credentials confidential and not share them with others.</li>
-              <li>Notify us immediately at <a href="mailto:support@stayqayam.com" className="text-blue-600 hover:underline">support@stayqayam.com</a> if you suspect unauthorised access to your account.</li>
+              <li>Notify us immediately at <a href="mailto:support@bookqayam.com" className="text-blue-600 hover:underline">support@bookqayam.com</a> if you suspect unauthorised access to your account.</li>
               <li>Be responsible for all activity that occurs under your account.</li>
             </ul>
           </section>
 
           <section>
             <h2 className="text-xl font-bold text-gray-900 mb-3">4. Hotel Owner Responsibilities</h2>
-            <p>Hotel owners who register their property on StayQayam are solely responsible for:</p>
+            <p>Hotel owners who register their property on BookQayam are solely responsible for:</p>
             <ul className="list-disc pl-5 mt-2 space-y-1 text-sm">
               <li>The accuracy of hotel information, room listings, pricing, and availability.</li>
               <li>Compliance with all local laws, licensing requirements, and tax obligations applicable to their property.</li>
@@ -113,7 +113,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-xl font-bold text-gray-900 mb-3">9. Intellectual Property</h2>
             <p>
-              The Platform, including its design, code, trademarks, and content, is owned by StayQayam and protected by
+              The Platform, including its design, code, trademarks, and content, is owned by BookQayam and protected by
               intellectual property laws. These terms do not grant you any ownership rights in the Platform.
               You may not copy, modify, or distribute the Platform without our prior written consent.
             </p>
@@ -140,7 +140,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-xl font-bold text-gray-900 mb-3">12. Limitation of Liability</h2>
             <p>
-              To the fullest extent permitted by law, StayQayam shall not be liable for any indirect, incidental, special,
+              To the fullest extent permitted by law, BookQayam shall not be liable for any indirect, incidental, special,
               or consequential damages arising from your use of or inability to use the Platform.
               Our total liability for any claim shall not exceed the amount you paid us in the three months preceding the claim.
             </p>
@@ -166,11 +166,11 @@ export default function TermsPage() {
             <h2 className="text-xl font-bold text-gray-900 mb-3">15. Contact Us</h2>
             <p>If you have any questions about these Terms, please contact us:</p>
             <div className="mt-3 rounded-xl bg-gray-50 border border-gray-200 px-5 py-4 text-sm">
-              <p className="font-semibold text-gray-900">StayQayam Support</p>
+              <p className="font-semibold text-gray-900">BookQayam Support</p>
               <p className="text-gray-500 mt-1">
                 Email:{' '}
-                <a href="mailto:support@stayqayam.com" className="text-blue-600 hover:underline">
-                  support@stayqayam.com
+                <a href="mailto:support@bookqayam.com" className="text-blue-600 hover:underline">
+                  support@bookqayam.com
                 </a>
               </p>
             </div>
@@ -181,7 +181,7 @@ export default function TermsPage() {
 
       <footer className="border-t border-gray-100 py-8 px-6 mt-12">
         <div className="max-w-3xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3 text-sm text-gray-400">
-          <p>© {new Date().getFullYear()} StayQayam. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} BookQayam. All rights reserved.</p>
           <div className="flex gap-5">
             <Link href="/privacy" className="hover:text-gray-700 transition-colors">Privacy Policy</Link>
             <Link href="/terms"   className="hover:text-gray-700 transition-colors">Terms</Link>

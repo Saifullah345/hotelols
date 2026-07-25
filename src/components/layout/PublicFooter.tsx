@@ -34,14 +34,14 @@ export default function PublicFooter() {
               <li><Link href="/hotel-management" className="hover:text-gray-900 transition-colors">Hotel Management</Link></li>
               <li><Link href="/register-hotel" className="hover:text-gray-900 transition-colors">Register Your Hotel</Link></li>
               <li><Link href="/login" className="hover:text-gray-900 transition-colors">Manage Your Hotel</Link></li>
-              <li><Link href="/about" className="hover:text-gray-900 transition-colors">About StayQayam</Link></li>
+              <li><Link href="/about" className="hover:text-gray-900 transition-colors">About BookQayam</Link></li>
               <li><Link href="/contact" className="hover:text-gray-900 transition-colors">Contact Us</Link></li>
             </ul>
           </div>
         </div>
 
         <div className="mt-8 border-t border-gray-100 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-gray-400">&copy; {new Date().getFullYear()} StayQayam. All rights reserved.</p>
+          <p className="text-xs text-gray-400">&copy; {new Date().getFullYear()} BookQayam. All rights reserved.</p>
           <div className="flex gap-4 text-xs text-gray-400">
             <Link href="/privacy" className="hover:text-gray-600 transition-colors">Privacy</Link>
             <Link href="/terms" className="hover:text-gray-600 transition-colors">Terms</Link>

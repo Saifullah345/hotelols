@@ -80,7 +80,7 @@ export default async function SuperAdminSettingsPage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between py-2 border-b border-gray-100">
             <span className="text-sm text-gray-500">Platform</span>
-            <span className="text-sm font-medium text-gray-900">StayQayam SaaS</span>
+            <span className="text-sm font-medium text-gray-900">BookQayam SaaS</span>
           </div>
           <div className="flex items-center justify-between py-2 border-b border-gray-100">
             <span className="text-sm text-gray-500">Database</span>

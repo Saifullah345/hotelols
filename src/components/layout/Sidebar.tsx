@@ -110,11 +110,11 @@ export function Sidebar({ role, hotelName, isOpen = false, onClose }: SidebarPro
         >
           <X className="h-5 w-5" />
         </button>
-        <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex items-center gap-1 min-w-0">
           <LogoMark svgSize={32} />
           <div className="min-w-0">
             <p className="font-black text-gray-900 text-sm truncate">
-              Stay<span className="text-indigo-600">Qayam</span>
+              Book<span className="text-indigo-600">Qayam</span>
               {(hotelName || titleMap[role]) && (
                 <span className="font-normal text-gray-400 ml-1">· {hotelName || titleMap[role]}</span>
               )}
