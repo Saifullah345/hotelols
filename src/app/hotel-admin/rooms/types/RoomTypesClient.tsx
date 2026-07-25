@@ -1,0 +1,414 @@
+'use client'
+
+import { useState } from 'react'
+import { toast } from 'sonner'
+import {
+  Plus, Pencil, Trash2, Loader2, X, Tag,
+  Users, Baby, AlertTriangle, BedDouble,
+} from 'lucide-react'
+
+export type RoomType = {
+  id: string
+  name: string
+  description: string | null
+  max_adults: number
+  max_children: number
+  amenities: string[]
+}
+
+const PRESET_AMENITIES = [
+  'WiFi', 'Air Conditioning', 'TV', 'Mini Bar', 'Safe',
+  'Hair Dryer', 'Balcony', 'Sea View', 'Kitchen',
+  'Jacuzzi', 'Bathtub', 'Coffee Maker', 'Workspace', 'Sofa',
+]
+
+// ── Amenity picker (top-level so it keeps focus) ───────────────────
+function AmenityPicker({
+  value,
+  onChange,
+}: {
+  value: string[]
+  onChange: (v: string[]) => void
+}) {
+  const [custom, setCustom] = useState('')
+
+  const toggle = (a: string) =>
+    onChange(value.includes(a) ? value.filter(x => x !== a) : [...value, a])
+
+  const addCustom = () => {
+    const trimmed = custom.trim()
+    if (!trimmed) return
+    if (!value.map(x => x.toLowerCase()).includes(trimmed.toLowerCase())) {
+      onChange([...value, trimmed])
+    }
+    setCustom('')
+  }
+
+  const customSelected = value.filter(a => !PRESET_AMENITIES.includes(a))
+
+  return (
+    <div className="space-y-3">
+      {/* Preset chips */}
+      <div className="flex flex-wrap gap-1.5">
+        {PRESET_AMENITIES.map(a => {
+          const on = value.includes(a)
+          return (
+            <button
+              key={a}
+              type="button"
+              onClick={() => toggle(a)}
+              className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${
+                on
+                  ? 'bg-primary-50 border-primary-400 text-primary-700'
+                  : 'border-gray-200 bg-white text-gray-500 hover:border-primary-200 hover:text-primary-600'
+              }`}
+            >
+              {a}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Custom amenities already added */}
+      {customSelected.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 pt-2 border-t border-gray-100">
+          {customSelected.map(a => (
+            <span key={a} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-violet-50 text-violet-700 border border-violet-200">
+              {a}
+              <button type="button" onClick={() => toggle(a)} className="text-violet-400 hover:text-violet-700">
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Add custom input */}
+      <div className="flex gap-2">
+        <input
+          value={custom}
+          onChange={e => setCustom(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom() } }}
+          placeholder="Add custom amenity…"
+          className="input flex-1 text-sm"
+        />
+        <button
+          type="button"
+          onClick={addCustom}
+          disabled={!custom.trim()}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+        >
+          <Plus className="h-3.5 w-3.5" /> Add
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Type Form Modal ─────────────────────────────────────────────────
+function TypeModal({
+  initial,
+  onClose,
+  onSaved,
+}: {
+  initial: RoomType | null
+  onClose: () => void
+  onSaved: (t: RoomType) => void
+}) {
+  const isEdit = !!initial
+
+  const [name,        setName]        = useState(initial?.name        ?? '')
+  const [description, setDescription] = useState(initial?.description ?? '')
+  const [maxAdults,   setMaxAdults]   = useState(initial?.max_adults  ?? 2)
+  const [maxChildren, setMaxChildren] = useState(initial?.max_children ?? 1)
+  const [amenities,   setAmenities]   = useState<string[]>(initial?.amenities ?? [])
+  const [saving,      setSaving]      = useState(false)
+
+  const save = async () => {
+    if (!name.trim()) { toast.error('Name is required'); return }
+    setSaving(true)
+
+    const url    = isEdit ? `/api/room-types/${initial!.id}` : '/api/room-types'
+    const method = isEdit ? 'PATCH' : 'POST'
+
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description: description || null, max_adults: maxAdults, max_children: maxChildren, amenities }),
+    })
+    const json = await res.json()
+    setSaving(false)
+
+    if (!res.ok) { toast.error(json.error ?? 'Failed to save'); return }
+    toast.success(isEdit ? 'Room type updated' : 'Room type created')
+    onSaved(json as RoomType)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+          <h3 className="text-base font-bold text-gray-900">{isEdit ? 'Edit Room Type' : 'New Room Type'}</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Name */}
+          <div>
+            <label className="label">Type Name <span className="text-red-400">*</span></label>
+            <input value={name} onChange={e => setName(e.target.value)}
+              className="input" placeholder="e.g. Deluxe Suite" autoFocus />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="label">Description <span className="text-gray-400 font-normal">(optional)</span></label>
+            <textarea value={description} onChange={e => setDescription(e.target.value)}
+              rows={2} className="input resize-none" placeholder="Brief description of this room type…" />
+          </div>
+
+          {/* Capacity */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">
+                <Users className="h-3.5 w-3.5 inline mr-1 text-gray-400" />
+                Max Adults
+              </label>
+              <input type="number" value={maxAdults} min={1} max={20}
+                onChange={e => setMaxAdults(Number(e.target.value))} className="input" />
+            </div>
+            <div>
+              <label className="label">
+                <Baby className="h-3.5 w-3.5 inline mr-1 text-gray-400" />
+                Max Children
+              </label>
+              <input type="number" value={maxChildren} min={0} max={20}
+                onChange={e => setMaxChildren(Number(e.target.value))} className="input" />
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 -mt-2">
+            Total capacity: <strong className="text-gray-600">{maxAdults + maxChildren} guests</strong>
+          </p>
+
+          {/* Amenities */}
+          <div>
+            <label className="label">Amenities</label>
+            <AmenityPicker value={amenities} onChange={setAmenities} />
+          </div>
+        </div>
+
+        <div className="flex gap-3 p-5 border-t border-gray-100">
+          <button onClick={onClose} disabled={saving}
+            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
+            Cancel
+          </button>
+          <button onClick={save} disabled={saving}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold transition-colors disabled:opacity-60">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Type'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Delete Confirmation Modal ────────────────────────────────────────
+function DeleteModal({
+  type,
+  onClose,
+  onDeleted,
+}: {
+  type: RoomType
+  onClose: () => void
+  onDeleted: () => void
+}) {
+  const [deleting, setDeleting] = useState(false)
+
+  const del = async () => {
+    setDeleting(true)
+    const res  = await fetch(`/api/room-types/${type.id}`, { method: 'DELETE' })
+    const json = await res.json()
+    setDeleting(false)
+    if (!res.ok) { toast.error(json.error ?? 'Failed to delete'); return }
+    toast.success('Room type deleted')
+    onDeleted()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
+            <AlertTriangle className="h-5 w-5 text-red-500" />
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900 text-base">Delete Room Type</h3>
+            <p className="text-sm text-gray-500 mt-0.5">
+              <strong className="text-gray-700">{type.name}</strong>
+            </p>
+          </div>
+        </div>
+        <p className="text-sm text-gray-600">
+          This cannot be undone. If rooms are using this type, you must reassign them first.
+        </p>
+        <div className="flex gap-3">
+          <button onClick={onClose} disabled={deleting}
+            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
+            Cancel
+          </button>
+          <button onClick={del} disabled={deleting}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors disabled:opacity-60">
+            {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            {deleting ? 'Deleting…' : 'Delete'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Type Card ───────────────────────────────────────────────────────
+function TypeCard({
+  type,
+  onEdit,
+  onDelete,
+}: {
+  type: RoomType
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  return (
+    <div className="card p-4 flex items-start gap-4 group hover:shadow-sm transition-shadow">
+      <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+        <BedDouble className="h-4 w-4 text-gray-500" />
+      </div>
+
+      <div className="flex-1 min-w-0 space-y-2">
+        <div>
+          <h3 className="font-semibold text-gray-900 text-sm">{type.name}</h3>
+          {type.description && (
+            <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{type.description}</p>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3 text-xs text-gray-500">
+          <span className="flex items-center gap-1"><Users className="h-3 w-3" />{type.max_adults}A</span>
+          <span className="flex items-center gap-1"><Baby className="h-3 w-3" />{type.max_children}C</span>
+          <span className="text-gray-300">·</span>
+          <span>{type.max_adults + type.max_children} guests total</span>
+        </div>
+
+        {type.amenities && type.amenities.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {type.amenities.slice(0, 5).map(a => (
+              <span key={a} className="px-2 py-0.5 rounded-full text-[11px] bg-gray-100 text-gray-500">{a}</span>
+            ))}
+            {type.amenities.length > 5 && (
+              <span className="px-2 py-0.5 rounded-full text-[11px] bg-gray-100 text-gray-400">+{type.amenities.length - 5}</span>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+        <button onClick={onEdit}
+          className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+        <button onClick={onDelete}
+          className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Main Component ──────────────────────────────────────────────────
+export default function RoomTypesClient({ initial }: { initial: RoomType[] }) {
+  const [types,        setTypes]        = useState<RoomType[]>(initial)
+  const [showCreate,   setShowCreate]   = useState(false)
+  const [editingType,  setEditingType]  = useState<RoomType | null>(null)
+  const [deletingType, setDeletingType] = useState<RoomType | null>(null)
+
+  const onSaved = (saved: RoomType) => {
+    setTypes(prev => {
+      const idx = prev.findIndex(t => t.id === saved.id)
+      return idx >= 0 ? prev.map(t => t.id === saved.id ? saved : t) : [saved, ...prev]
+    })
+    setShowCreate(false)
+    setEditingType(null)
+  }
+
+  const onDeleted = () => {
+    if (deletingType) setTypes(prev => prev.filter(t => t.id !== deletingType.id))
+    setDeletingType(null)
+  }
+
+  return (
+    <>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Room Types</h2>
+          <p className="text-sm text-gray-500 mt-1">{types.length} type{types.length !== 1 ? 's' : ''} defined</p>
+        </div>
+        <button
+          onClick={() => setShowCreate(true)}
+          className="btn-primary flex items-center gap-2 text-sm"
+        >
+          <Plus className="h-4 w-4" />
+          New Type
+        </button>
+      </div>
+
+      {/* Grid */}
+      {types.length === 0 ? (
+        <div className="card p-16 flex flex-col items-center text-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center">
+            <Tag className="h-7 w-7 text-gray-400" />
+          </div>
+          <div>
+            <p className="font-semibold text-gray-700">No room types yet</p>
+            <p className="text-sm text-gray-400 mt-1">Create your first room type to categorise rooms</p>
+          </div>
+          <button onClick={() => setShowCreate(true)} className="btn-primary text-sm flex items-center gap-2">
+            <Plus className="h-4 w-4" /> New Room Type
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {types.map(t => (
+            <TypeCard
+              key={t.id}
+              type={t}
+              onEdit={() => setEditingType(t)}
+              onDelete={() => setDeletingType(t)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Modals */}
+      {(showCreate || editingType) && (
+        <TypeModal
+          initial={editingType}
+          onClose={() => { setShowCreate(false); setEditingType(null) }}
+          onSaved={onSaved}
+        />
+      )}
+
+      {deletingType && (
+        <DeleteModal
+          type={deletingType}
+          onClose={() => setDeletingType(null)}
+          onDeleted={onDeleted}
+        />
+      )}
+    </>
+  )
+}

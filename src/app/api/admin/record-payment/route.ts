@@ -50,45 +50,60 @@ export async function POST(request: Request) {
     .single()
   const currency = (hotel as { currency?: string } | null)?.currency ?? 'USD'
 
-  const finalStatus = payment_status ?? 'completed'
-  const isCompleted = finalStatus === 'completed'
   const now = new Date().toISOString()
+  const totalAmount = (booking as { total_amount: number }).total_amount
 
-  // Check if a payment already exists for this booking
-  const { data: existing } = await admin
+  // Get ALL existing payments for this booking
+  const { data: existingPayments } = await admin
     .from('payments')
-    .select('id')
+    .select('id, status, amount')
     .eq('booking_id', booking_id)
-    .maybeSingle()
 
-  let paymentId = existing?.id
+  const completedTotal = (existingPayments ?? [])
+    .filter((p: { status: string; amount: number }) => p.status === 'completed')
+    .reduce((sum: number, p: { amount: number }) => sum + p.amount, 0)
 
-  if (existing) {
+  const pendingPayment = (existingPayments ?? []).find(
+    (p: { status: string }) => p.status === 'pending'
+  )
+
+  // Balance remaining after all completed payments
+  const balanceAmount = totalAmount - completedTotal
+
+  if (balanceAmount <= 0) {
+    return NextResponse.json({ error: 'This booking is already fully paid' }, { status: 400 })
+  }
+
+  let paymentId: string | undefined
+
+  if (pendingPayment) {
+    // Update the pending record to completed for the remaining balance
     const { error } = await admin
       .from('payments')
       .update({
-        // Settle to the full total — the existing row may only cover an
-        // advance/partial amount taken at booking time.
-        amount: (booking as { total_amount: number }).total_amount,
-        status: finalStatus,
+        amount: balanceAmount,
+        status: 'completed',
         payment_method,
         payment_notes: payment_notes ?? null,
-        paid_at: isCompleted ? now : null,
+        paid_at: now,
       })
-      .eq('id', existing.id)
+      .eq('id', (pendingPayment as { id: string }).id)
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    paymentId = (pendingPayment as { id: string }).id
   } else {
+    // Insert a new payment row — either the first full payment or a balance
+    // instalment after an advance was already collected.
     const { data: created, error } = await admin.from('payments').insert({
       booking_id,
       hotel_id: hotelId,
       user_id: (booking as { user_id?: string | null }).user_id ?? null,
-      amount: (booking as { total_amount: number }).total_amount,
+      amount: balanceAmount,
       currency,
-      status: finalStatus,
+      status: 'completed',
       payment_method,
       payment_notes: payment_notes ?? null,
-      paid_at: isCompleted ? now : null,
+      paid_at: now,
     }).select('id').single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })

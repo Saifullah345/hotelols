@@ -51,10 +51,14 @@ function guestContact(b: Booking) {
   return b.user?.email ?? b.guest_phone ?? ''
 }
 
+function totalCollected(b: Booking) {
+  return (b.payments ?? [])
+    .filter(p => p.status === 'completed')
+    .reduce((sum, p) => sum + p.amount, 0)
+}
+
 function dueAmount(b: Booking) {
-  const payment = (b.payments ?? [])[0]
-  const collected = payment?.status === 'completed' ? payment.amount : 0
-  return b.total_amount - collected
+  return b.total_amount - totalCollected(b)
 }
 
 export default function CollectPaymentPage() {
@@ -110,12 +114,7 @@ export default function CollectPaymentPage() {
       const data = raw as unknown as Booking[]
       // Keep bookings with no payment yet, a pending payment, or a completed
       // payment that only covered an advance (amount short of total_amount).
-      const unpaid = data.filter(b => {
-        const payment = (b.payments ?? [])[0]
-        if (!payment) return true
-        if (payment.status !== 'completed') return true
-        return payment.amount < b.total_amount
-      })
+      const unpaid = data.filter(b => totalCollected(b) < b.total_amount)
       setBookings(unpaid)
 
       // Pre-select if booking_id param provided
@@ -161,9 +160,9 @@ export default function CollectPaymentPage() {
     router.push(json.paymentId ? `/hotel-admin/payments/${json.paymentId}/receipt` : '/hotel-admin/payments')
   }
 
-  const existingPayment = selected?.payments?.[0]
-  const alreadyCollected = existingPayment?.status === 'completed' ? existingPayment.amount : 0
+  const alreadyCollected = selected ? totalCollected(selected) : 0
   const amountDue = selected ? selected.total_amount - alreadyCollected : 0
+  const hasPendingPayment = (selected?.payments ?? []).some(p => p.status === 'pending')
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -300,11 +299,14 @@ export default function CollectPaymentPage() {
                   <span className="text-gray-500 text-sm">Amount due</span>
                   <span className="text-xl font-bold text-gray-900">{formatCurrency(amountDue, currency)}</span>
                 </div>
-                {existingPayment && (
+                {alreadyCollected > 0 && (
+                  <div className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
+                    {`Advance of ${formatCurrency(alreadyCollected, currency)} already collected — this will generate a separate receipt for the remaining ${formatCurrency(amountDue, currency)}.`}
+                  </div>
+                )}
+                {hasPendingPayment && alreadyCollected === 0 && (
                   <div className="px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-800">
-                    {existingPayment.status === 'completed'
-                      ? `An advance of ${formatCurrency(alreadyCollected, currency)} has already been collected — this will settle the remaining balance.`
-                      : `A ${existingPayment.status} payment record exists — collecting now will update it to completed.`}
+                    A pending payment record exists — collecting now will mark it as completed.
                   </div>
                 )}
               </div>

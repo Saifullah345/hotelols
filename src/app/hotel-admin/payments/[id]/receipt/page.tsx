@@ -3,7 +3,7 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, Building2, CheckCircle2, Clock, User, BedDouble,
-  Calendar, CreditCard, Hash,
+  Calendar, CreditCard, Hash, Banknote,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/currency'
 import PrintButton from './PrintButton'
@@ -25,8 +25,8 @@ type BookingInfo = {
 } | null
 
 const METHOD_LABELS: Record<string, string> = {
-  online: 'Online', offline: 'Offline', cash: 'Cash', card_pos: 'Card (POS)',
-  bank_transfer: 'Bank Transfer', cheque: 'Cheque', other: 'Other',
+  cash: 'Cash', card_pos: 'Card (POS)', bank_transfer: 'Bank Transfer',
+  cheque: 'Cheque', online: 'Online', other: 'Other',
 }
 
 export default async function ReceiptPage({ params }: { params: Promise<{ id: string }> }) {
@@ -42,7 +42,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
   const { data: payment } = await supabase
     .from('payments')
     .select(`
-      id, hotel_id, amount, currency, status, payment_method, payment_notes, invoice_number, paid_at, created_at,
+      id, booking_id, hotel_id, amount, currency, status, payment_method, payment_notes, invoice_number, paid_at, created_at,
       booking:bookings(
         check_in, check_out, adults, children, guests, guest_name, guest_phone, total_amount, special_requests,
         room:rooms(room_number, name, room_type:room_types(name)),
@@ -53,6 +53,19 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
     .single()
 
   if (!payment || payment.hotel_id !== tenantId) notFound()
+
+  // Sum all completed payments for this booking to know the true balance
+  const { data: siblingPayments } = await supabase
+    .from('payments')
+    .select('id, amount, status')
+    .eq('booking_id', payment.booking_id)
+
+  const totalPaid = (siblingPayments ?? [])
+    .filter((p: { status: string }) => p.status === 'completed')
+    .reduce((sum: number, p: { amount: number }) => sum + p.amount, 0)
+
+  // Payments completed BEFORE this one (advance collected earlier)
+  const advancePaid = totalPaid - (payment.status === 'completed' ? payment.amount : 0)
 
   const { data: hotel } = await supabase
     .from('hotels')
@@ -72,7 +85,12 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
     ? Math.max(1, Math.round((new Date(booking.check_out).getTime() - new Date(booking.check_in).getTime()) / 86400000))
     : null
   const nightlyRate = booking && nights ? booking.total_amount / nights : null
-  const balanceDue = booking ? Math.max(booking.total_amount - payment.amount, 0) : 0
+  // Balance still outstanding after ALL completed payments (including this one)
+  const balanceDue = booking ? Math.max(booking.total_amount - totalPaid, 0) : 0
+  // Is this an advance/partial receipt (balance still owed)?
+  const isAdvanceReceipt = isPaid && balanceDue > 0
+  // Is this a balance receipt settling a prior advance?
+  const isBalanceReceipt = isPaid && advancePaid > 0 && balanceDue === 0
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -109,13 +127,17 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
 
         <div
           className={`mx-8 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium ${
-            isPaid ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+            isPaid && !isAdvanceReceipt ? 'bg-green-50 text-green-700 border border-green-200' : isAdvanceReceipt ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
           }`}
         >
-          {isPaid ? <CheckCircle2 className="h-4 w-4 flex-shrink-0" /> : <Clock className="h-4 w-4 flex-shrink-0" />}
-          {isPaid
-            ? (balanceDue > 0 ? 'Partial payment received' : 'Payment received in full')
-            : `Payment ${payment.status}`}
+          {isPaid && !isAdvanceReceipt ? <CheckCircle2 className="h-4 w-4 flex-shrink-0" /> : <Clock className="h-4 w-4 flex-shrink-0" />}
+          {isAdvanceReceipt
+            ? `Advance / partial payment received — ${formatCurrency(balanceDue, currency)} balance due`
+            : isBalanceReceipt
+              ? 'Balance payment received — booking fully settled'
+              : isPaid
+                ? 'Payment received in full'
+                : `Payment ${payment.status}`}
         </div>
 
         {/* Guest + Room */}
@@ -173,10 +195,16 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
               <span className="font-medium text-gray-900">{formatCurrency(booking.total_amount, currency)}</span>
             </div>
           )}
-          {balanceDue > 0 && (
+          {isAdvanceReceipt && (
             <div className="flex items-center justify-between text-sm pb-3 text-amber-600">
               <span>Balance due later</span>
               <span className="font-medium">−{formatCurrency(balanceDue, currency)}</span>
+            </div>
+          )}
+          {isBalanceReceipt && advancePaid > 0 && (
+            <div className="flex items-center justify-between text-sm pb-3 text-gray-500">
+              <span>Advance already paid</span>
+              <span className="font-medium">−{formatCurrency(advancePaid, currency)}</span>
             </div>
           )}
         </div>
@@ -204,6 +232,23 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
           <p className="text-xs text-gray-400 mt-1">This is a computer-generated receipt.</p>
         </div>
       </div>
+
+      {/* Collect remaining balance CTA — only for advance receipts, hidden on print */}
+      {isAdvanceReceipt && payment.booking_id && (
+        <div className="print:hidden card p-5 flex items-center justify-between gap-4 border-l-4 border-l-amber-400">
+          <div>
+            <p className="font-semibold text-gray-900">Balance outstanding: {formatCurrency(balanceDue, currency)}</p>
+            <p className="text-sm text-gray-500 mt-0.5">Collect the remaining amount when the guest is ready to settle.</p>
+          </div>
+          <Link
+            href={`/hotel-admin/payments/collect?booking_id=${payment.booking_id}`}
+            className="btn-primary flex items-center gap-2 whitespace-nowrap flex-shrink-0"
+          >
+            <Banknote className="h-4 w-4" />
+            Collect {formatCurrency(balanceDue, currency)}
+          </Link>
+        </div>
+      )}
     </div>
   )
 }

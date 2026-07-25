@@ -37,7 +37,7 @@ export default async function EditRoomPage({
   // Load room types for this hotel
   const { data: roomTypes } = await supabase
     .from('room_types')
-    .select('id, name, capacity')
+    .select('id, name, max_adults, max_children')
     .eq('hotel_id', room.hotel_id)
     .order('name')
 

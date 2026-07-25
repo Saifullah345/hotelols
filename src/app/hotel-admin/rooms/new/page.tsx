@@ -8,17 +8,10 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import {
-  Loader2, ArrowLeft, Users, Hash, Tag, Sparkles,
-  Settings2, Camera, ImagePlus, Plus, X,
+  Loader2, ArrowLeft, Hash, Tag,
+  Settings2, Camera, ImagePlus, X,
 } from 'lucide-react'
 import Link from 'next/link'
-
-const PREDEFINED = [
-  'WiFi', 'Air Conditioning', 'TV', 'Mini Bar', 'Safe',
-  'Hair Dryer', 'Balcony', 'Sea View', 'Mountain View',
-  'Garden View', 'Kitchen', 'Jacuzzi', 'Bathtub', 'Shower',
-  'Iron & Board', 'Coffee Maker', 'Sofa', 'Workspace',
-]
 
 const schema = z.object({
   room_number:     z.string().min(1, 'Room number is required'),
@@ -26,36 +19,28 @@ const schema = z.object({
   floor:           z.coerce.number().min(0, 'Floor must be 0 or above'),
   price_per_night: z.coerce.number().min(1, 'Price must be at least 1'),
   room_type_id:    z.string().uuid('Select a room type'),
-  max_adults:      z.coerce.number().min(1, 'At least 1 adult').max(20),
+  max_adults:      z.coerce.number().min(1).max(20),
   max_children:    z.coerce.number().min(0).max(20),
   status:          z.enum(['available', 'booked', 'maintenance', 'cleaning']),
-  amenities:       z.array(z.string()).default([]),
   images:          z.array(z.string()).default([]),
   notes:           z.string().optional(),
 })
-type FormData = z.infer<typeof schema>
+type RoomForm = z.infer<typeof schema>
 
 export default function NewRoomPage() {
   const router = useRouter()
   const [roomTypes, setRoomTypes] = useState<{ id: string; name: string; max_adults: number; max_children: number }[]>([])
   const [tenantId, setTenantId]   = useState<string | null>(null)
-  const [customInput, setCustomInput] = useState('')
 
-  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<RoomForm>({
     resolver: zodResolver(schema),
     defaultValues: {
-      status: 'available', floor: 1, max_adults: 2, max_children: 0,
-      amenities: [], images: [],
+      status: 'available', floor: 1, max_adults: 2, max_children: 0, images: [],
     },
   })
 
-  const amenities      = watch('amenities') ?? []
-  const images         = watch('images')    ?? []
-  const maxAdults      = Number(watch('max_adults')   ?? 2)
-  const maxChildren    = Number(watch('max_children') ?? 0)
-  const capacity       = maxAdults + maxChildren
+  const images         = watch('images') ?? []
   const selectedTypeId = watch('room_type_id')
-  const customAmenities = amenities.filter(a => !PREDEFINED.includes(a))
 
   useEffect(() => {
     const rt = roomTypes.find(t => t.id === selectedTypeId)
@@ -81,29 +66,6 @@ export default function NewRoomPage() {
     })
   }, [])
 
-  // ── Amenity helpers ───────────────────────────────────────────────
-  const toggleAmenity = (a: string) => {
-    const next = amenities.includes(a)
-      ? amenities.filter(x => x !== a)
-      : [...amenities, a]
-    setValue('amenities', next, { shouldDirty: true })
-  }
-
-  const addCustom = () => {
-    const val = customInput.trim()
-    if (!val) return
-    if (amenities.map(a => a.toLowerCase()).includes(val.toLowerCase())) {
-      toast.error('Amenity already added')
-      return
-    }
-    setValue('amenities', [...amenities, val], { shouldDirty: true })
-    setCustomInput('')
-  }
-
-  const removeAmenity = (a: string) => {
-    setValue('amenities', amenities.filter(x => x !== a), { shouldDirty: true })
-  }
-
   // ── Image helpers ─────────────────────────────────────────────────
   const handleImages = (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? [])
@@ -128,7 +90,7 @@ export default function NewRoomPage() {
   }
 
   // ── Submit ────────────────────────────────────────────────────────
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = async (data: RoomForm) => {
     if (!tenantId) return
     const supabase = createClient()
     const { error } = await supabase.from('rooms').insert({
@@ -212,110 +174,9 @@ export default function NewRoomPage() {
             </div>
           </div>
 
-          {/* Occupancy */}
-          <div className="p-5">
-            <div className="flex items-center gap-2.5 mb-4">
-              <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
-                <Users className="h-3.5 w-3.5 text-emerald-600" />
-              </div>
-              <h3 className="text-sm font-semibold text-gray-800">Occupancy</h3>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <p className="text-xs text-gray-500 mb-1.5 font-medium">Max Adults</p>
-                <input {...register('max_adults')} type="number" min={1} max={20} className="input" />
-                {errors.max_adults && <p className="text-red-500 text-xs mt-1">{errors.max_adults.message}</p>}
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 mb-1.5 font-medium">Max Children</p>
-                <input {...register('max_children')} type="number" min={0} max={20} className="input" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 mb-1.5 font-medium">Total Capacity</p>
-                <div className="input bg-gray-50 text-gray-600 flex items-center justify-center font-semibold select-none">
-                  {capacity} guest{capacity !== 1 ? 's' : ''}
-                </div>
-              </div>
-            </div>
-            <p className="text-xs text-gray-400 mt-2">Pre-filled from room type — override if this room differs.</p>
-          </div>
         </div>
 
-        {/* ── Card 2: Amenities ──────────────────────────────────────── */}
-        <div className="card p-5">
-          <div className="flex items-center gap-2.5 mb-4">
-            <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
-              <Sparkles className="h-3.5 w-3.5 text-amber-600" />
-            </div>
-            <h3 className="text-sm font-semibold text-gray-800">Amenities</h3>
-            {amenities.length > 0 && (
-              <span className="ml-auto text-xs font-medium bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                {amenities.length} selected
-              </span>
-            )}
-          </div>
-
-          {/* Predefined pills */}
-          <div className="flex flex-wrap gap-2">
-            {PREDEFINED.map(a => (
-              <button
-                key={a}
-                type="button"
-                onClick={() => toggleAmenity(a)}
-                className={`px-3 py-1.5 rounded-full border text-sm font-medium transition-all select-none ${
-                  amenities.includes(a)
-                    ? 'bg-blue-50 border-blue-400 text-blue-700'
-                    : 'border-gray-200 bg-white text-gray-500 hover:border-blue-200 hover:text-blue-600'
-                }`}
-              >
-                {a}
-              </button>
-            ))}
-          </div>
-
-          {/* Custom amenities */}
-          {customAmenities.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
-              <p className="w-full text-xs text-gray-400 font-medium mb-1">Custom</p>
-              {customAmenities.map(a => (
-                <span
-                  key={a}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-violet-300 bg-violet-50 text-violet-700 text-sm font-medium"
-                >
-                  {a}
-                  <button
-                    type="button"
-                    onClick={() => removeAmenity(a)}
-                    className="text-violet-400 hover:text-violet-700 transition-colors"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Add custom input */}
-          <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
-            <input
-              value={customInput}
-              onChange={e => setCustomInput(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom() } }}
-              placeholder="Add custom amenity…"
-              className="input flex-1 text-sm"
-            />
-            <button
-              type="button"
-              onClick={addCustom}
-              disabled={!customInput.trim()}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
-            >
-              <Plus className="h-3.5 w-3.5" /> Add
-            </button>
-          </div>
-        </div>
-
-        {/* ── Card 3: Room Photos ────────────────────────────────────── */}
+        {/* ── Card 2: Room Photos ───────────────────────────────────── */}
         <div className="card p-5">
           <div className="flex items-center gap-2.5 mb-4">
             <div className="w-7 h-7 rounded-lg bg-pink-50 flex items-center justify-center flex-shrink-0">
@@ -363,7 +224,7 @@ export default function NewRoomPage() {
           )}
         </div>
 
-        {/* ── Card 4: Status & Notes ─────────────────────────────────── */}
+        {/* ── Card 3: Status & Notes ─────────────────────────────────── */}
         <div className="card p-5 space-y-4">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
