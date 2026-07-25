@@ -111,7 +111,7 @@ export default function RegisterHotelPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Register your hotel</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Get the full HotelOS management platform for your property — free for 14 days.
+          Get the full StayQayam management platform for your property — free for 14 days.
         </p>
       </div>
 

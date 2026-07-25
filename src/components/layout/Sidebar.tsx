@@ -6,10 +6,11 @@ import { cn } from '@/utils/cn'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import {
-  Building2, LayoutDashboard, BedDouble, CalendarCheck, Users, BarChart3,
+  LayoutDashboard, BedDouble, CalendarCheck, Users, BarChart3,
   CreditCard, Star, LogOut, Settings, Hotel, ClipboardList, UserCheck, Search,
   MessageCircle, X,
 } from 'lucide-react'
+import { LogoMark } from '@/components/layout/Logo'
 
 interface NavItem {
   label: string
@@ -109,13 +110,11 @@ export function Sidebar({ role, hotelName, isOpen = false, onClose }: SidebarPro
         >
           <X className="h-5 w-5" />
         </button>
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 flex-shrink-0 bg-primary-600 rounded-xl flex items-center justify-center">
-            <Building2 className="h-5 w-5 text-white" />
-          </div>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <LogoMark svgSize={32} />
           <div className="min-w-0">
-            <p className="font-bold text-gray-900 text-sm truncate" title={hotelName || titleMap[role]}>
-              HotelOS
+            <p className="font-black text-gray-900 text-sm truncate">
+              Stay<span className="text-indigo-600">Qayam</span>
               {(hotelName || titleMap[role]) && (
                 <span className="font-normal text-gray-400 ml-1">· {hotelName || titleMap[role]}</span>
               )}

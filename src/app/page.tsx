@@ -218,7 +218,7 @@ export default async function LandingPage({
           <div>
             <p className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-2">For hotel owners</p>
             <h3 className="text-2xl font-extrabold text-gray-900">Got a property to list?</h3>
-            <p className="text-gray-500 mt-2 max-w-sm">Set up your hotel on Hotelos and start receiving bookings from day one. Free, fast and simple.</p>
+            <p className="text-gray-500 mt-2 max-w-sm">Set up your hotel on StayQayam and start receiving bookings from day one. Free, fast and simple.</p>
           </div>
           <Link
             href="/hotel-management"

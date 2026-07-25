@@ -13,7 +13,7 @@ export default function AboutPage() {
         <section className="card overflow-hidden p-8 lg:p-12">
           <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-primary-600">About HotelOS</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-primary-600">About StayQayam</p>
               <h1 className="mt-3 text-4xl font-bold text-gray-900 sm:text-5xl">Built for boutique hotels and growing hospitality teams.</h1>
               <p className="mt-5 text-lg leading-8 text-gray-600">We help properties simplify reservations, automate admin tasks, and deliver a polished experience for guests from booking to checkout.</p>
               <div className="mt-8 flex flex-wrap gap-3">

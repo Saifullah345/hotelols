@@ -4,7 +4,7 @@ import { getSiteUrl } from '@/lib/supabase/env'
 // Brand tokens (kept in sync with tailwind.config.ts)
 // ----------------------------------------------------------------------------
 const BRAND = {
-  name: 'HotelOS',
+  name: 'StayQayam',
   tagline: 'Hotel Management Platform',
   primary: '#0284c7',
   primaryDark: '#0c4a6e',
@@ -42,7 +42,7 @@ function logoBlock() {
 }
 
 /**
- * Wraps content in the shared, mobile-friendly HotelOS email shell:
+ * Wraps content in the shared, mobile-friendly StayQayam email shell:
  * branded header, white card, and footer. All styles inline so it renders
  * consistently across email clients.
  */
@@ -116,9 +116,9 @@ export function confirmEmailTemplate(fullName: string, verifyUrl: string): { sub
     <p style="margin:0;font-size:13px;word-break:break-all;"><a href="${verifyUrl}" style="color:${BRAND.primary};">${verifyUrl}</a></p>`
 
   return {
-    subject: 'Confirm your HotelOS account',
+    subject: 'Confirm your StayQayam account',
     html: renderBrandedEmail({
-      preview: 'Confirm your email to activate your HotelOS account',
+      preview: 'Confirm your email to activate your StayQayam account',
       heading: `Welcome, ${name}!`,
       intro: 'Confirm your email address to activate your account and start booking.',
       bodyHtml,
@@ -174,7 +174,7 @@ export function staffWelcomeTemplate(opts: {
     html: renderBrandedEmail({
       preview: `Your ${BRAND.name} account has been created`,
       heading: `Welcome aboard, ${name}!`,
-      intro: 'An account has been created for you on HotelOS. Use the credentials below to sign in and get started.',
+      intro: 'An account has been created for you on StayQayam. Use the credentials below to sign in and get started.',
       bodyHtml,
       footnote: 'For your security, please change your password right after your first sign-in, and never share these credentials with anyone.',
     }),
@@ -285,7 +285,7 @@ export function otpEmailTemplate(code: string): { subject: string; html: string 
       heading: 'Verify your sign-in',
       intro: 'Use the one-time code below to securely sign in to your account.',
       bodyHtml,
-      footnote: 'For your security, never share this code with anyone. HotelOS staff will never ask for it.',
+      footnote: 'For your security, never share this code with anyone. StayQayam staff will never ask for it.',
     }),
   }
 }

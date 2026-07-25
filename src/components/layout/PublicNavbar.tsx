@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { Building2, Menu, X } from 'lucide-react'
+import { Menu, X } from 'lucide-react'
+import Logo from '@/components/layout/Logo'
 
 export default function PublicNavbar() {
   const [open, setOpen] = useState(false)
@@ -12,12 +13,7 @@ export default function PublicNavbar() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
 
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 flex-shrink-0">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
-            <Building2 className="h-4.5 w-4.5 text-white" />
-          </div>
-          <span className="text-lg font-bold text-gray-900 tracking-tight">Hotelos</span>
-        </Link>
+        <Logo size="md" />
 
         {/* Center links — desktop */}
         <nav className="hidden md:flex items-center gap-1">

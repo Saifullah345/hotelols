@@ -55,7 +55,7 @@ const STEPS = [
 ]
 
 const TESTIMONIALS = [
-  { name: 'Asad Malik', hotel: 'Pearl Continental, Lahore', rating: 5, text: 'Switched from paper registers to Hotelos in one day. Booking management is now ten times faster and guests love the receipts.' },
+  { name: 'Asad Malik', hotel: 'Pearl Continental, Lahore', rating: 5, text: 'Switched from paper registers to StayQayam in one day. Booking management is now ten times faster and guests love the receipts.' },
   { name: 'Sara Khan', hotel: 'City Suites, Karachi', rating: 5, text: 'The payment tracking is exactly what we needed. Advance and balance receipts are generated automatically — our accountant is happy.' },
   { name: 'Bilal Ahmed', hotel: 'Mountain View Inn, Murree', rating: 5, text: 'Staff accounts saved us a headache. Receptionists can do check-ins without seeing our revenue reports. Perfect access control.' },
 ]
@@ -84,7 +84,7 @@ export default function HotelManagementPage() {
           </h1>
 
           <p className="text-lg sm:text-xl text-gray-300 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Hotelos gives independent hotels and guest houses a complete management system — bookings, rooms, payments, staff, and reports — all in one place.
+            StayQayam gives independent hotels and guest houses a complete management system — bookings, rooms, payments, staff, and reports — all in one place.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -235,7 +235,7 @@ export default function HotelManagementPage() {
         <div className="mx-auto max-w-5xl">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-extrabold text-gray-900 mb-3">Loved by hotel owners</h2>
-            <p className="text-gray-500">Real feedback from properties using Hotelos every day.</p>
+            <p className="text-gray-500">Real feedback from properties using StayQayam every day.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {TESTIMONIALS.map(t => (
@@ -262,7 +262,7 @@ export default function HotelManagementPage() {
           <Building2 className="h-12 w-12 text-primary-600 mx-auto mb-5" />
           <h2 className="text-3xl font-extrabold text-gray-900 mb-4">Ready to modernise your hotel?</h2>
           <p className="text-gray-500 mb-8 text-lg">
-            Join hundreds of hotel owners who have ditched paperwork for Hotelos. Takes under 10 minutes to set up.
+            Join hundreds of hotel owners who have ditched paperwork for StayQayam. Takes under 10 minutes to set up.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link

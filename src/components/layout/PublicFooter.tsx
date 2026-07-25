@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Building2 } from 'lucide-react'
+import Logo from '@/components/layout/Logo'
 
 export default function PublicFooter() {
   return (
@@ -10,12 +10,7 @@ export default function PublicFooter() {
         <div className="grid gap-8 sm:grid-cols-3">
           {/* Brand */}
           <div>
-            <Link href="/" className="inline-flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-600 text-white shadow-sm">
-                <Building2 className="h-4.5 w-4.5" />
-              </div>
-              <span className="text-lg font-semibold tracking-tight text-gray-900">Hotelos</span>
-            </Link>
+            <Logo size="sm" />
             <p className="mt-3 text-sm text-gray-500">
               Find and book the perfect hotel for every occasion.
             </p>
@@ -37,16 +32,16 @@ export default function PublicFooter() {
             <h3 className="text-sm font-semibold text-gray-900 mb-3">For Hotel Owners</h3>
             <ul className="space-y-2 text-sm text-gray-500">
               <li><Link href="/hotel-management" className="hover:text-gray-900 transition-colors">Hotel Management</Link></li>
-            <li><Link href="/register-hotel" className="hover:text-gray-900 transition-colors">Register Your Hotel</Link></li>
+              <li><Link href="/register-hotel" className="hover:text-gray-900 transition-colors">Register Your Hotel</Link></li>
               <li><Link href="/login" className="hover:text-gray-900 transition-colors">Manage Your Hotel</Link></li>
-              <li><Link href="/about" className="hover:text-gray-900 transition-colors">About Hotelos</Link></li>
+              <li><Link href="/about" className="hover:text-gray-900 transition-colors">About StayQayam</Link></li>
               <li><Link href="/contact" className="hover:text-gray-900 transition-colors">Contact Us</Link></li>
             </ul>
           </div>
         </div>
 
         <div className="mt-8 border-t border-gray-100 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-gray-400">&copy; {new Date().getFullYear()} Hotelos. All rights reserved.</p>
+          <p className="text-xs text-gray-400">&copy; {new Date().getFullYear()} StayQayam. All rights reserved.</p>
           <div className="flex gap-4 text-xs text-gray-400">
             <Link href="/privacy" className="hover:text-gray-600 transition-colors">Privacy</Link>
             <Link href="/terms" className="hover:text-gray-600 transition-colors">Terms</Link>

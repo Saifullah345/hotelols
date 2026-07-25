@@ -23,7 +23,7 @@ export default function ContactPage() {
           <p className="text-sm font-bold text-blue-400 uppercase tracking-widest mb-3">Get in touch</p>
           <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4">We&apos;d love to hear from you</h1>
           <p className="text-slate-300 text-lg">
-            Have a question about HotelOS? Reach out — we typically respond within a few hours.
+            Have a question about StayQayam? Reach out — we typically respond within a few hours.
           </p>
         </div>
         <svg viewBox="0 0 1440 56" className="w-full fill-white block absolute bottom-0 left-0" xmlns="http://www.w3.org/2000/svg">
@@ -107,7 +107,7 @@ export default function ContactPage() {
 
       <footer className="border-t border-gray-100 py-8 px-6">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3 text-sm text-gray-400">
-          <p>© {new Date().getFullYear()} HotelOS. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} StayQayam. All rights reserved.</p>
           <div className="flex gap-5">
             <Link href="/privacy" className="hover:text-gray-700 transition-colors">Privacy Policy</Link>
             <Link href="/terms"   className="hover:text-gray-700 transition-colors">Terms</Link>

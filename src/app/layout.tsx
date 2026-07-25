@@ -5,7 +5,7 @@ import NextTopLoader from 'nextjs-toploader'
 import SmoothScroll from '@/components/SmoothScroll'
 
 export const metadata: Metadata = {
-  title: { default: 'HotelOS — Hotel Management Platform', template: '%s | HotelOS' },
+  title: { default: 'StayQayam — Hotel Management Platform', template: '%s | StayQayam' },
   description: 'Multi-tenant hotel management SaaS platform',
 }
 

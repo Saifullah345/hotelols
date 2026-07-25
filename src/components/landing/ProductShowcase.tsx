@@ -312,7 +312,7 @@ export function ProductShowcase() {
             <img
               key={active}
               src={screen.file}
-              alt={`HotelOS — ${screen.label}`}
+              alt={`StayQayam — ${screen.label}`}
               className="w-full block"
               onError={() => setImgError(prev => ({ ...prev, [active]: true }))}
             />
@@ -329,7 +329,7 @@ export function ProductShowcase() {
               </div>
               <div className="flex-1 flex justify-center">
                 <div className="bg-white rounded-md px-4 py-1.5 text-xs text-gray-400 w-72 text-center">
-                  app.hotelos.pk/hotel-admin/{active}
+                  app.stayqayam.com/hotel-admin/{active}
                 </div>
               </div>
             </div>
