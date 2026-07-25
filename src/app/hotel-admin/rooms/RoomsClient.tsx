@@ -25,7 +25,7 @@ type Room = {
   status: string
   room_type_id: string
   images: string[] | null
-  room_type: { id?: string; name?: string } | null
+  room_type: { id?: string; name?: string; capacity?: number } | null
 }
 
 type RoomType = { id: string; name: string }
@@ -198,7 +198,7 @@ export default function RoomsClient({
                   <td className="table-cell">
                     <span className="flex items-center gap-1.5 text-sm text-gray-600">
                       <Users className="h-3.5 w-3.5 text-gray-400" />
-                      {room.capacity}
+                      {room.room_type?.capacity ?? room.capacity}
                     </span>
                   </td>
 

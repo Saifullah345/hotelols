@@ -16,7 +16,7 @@ export default async function RoomsPage() {
   const [{ data: rooms }, { data: roomTypes }, { data: hotelInfo }] = await Promise.all([
     supabase
       .from('rooms')
-      .select('*, room_type:room_types(id, name), images')
+      .select('*, room_type:room_types(id, name, capacity), images')
       .eq('hotel_id', tenantId)
       .order('room_number'),
     supabase

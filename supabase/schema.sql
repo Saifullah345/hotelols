@@ -128,7 +128,7 @@ CREATE TABLE room_types (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   hotel_id UUID NOT NULL REFERENCES hotels(id) ON DELETE CASCADE,
   name TEXT NOT NULL,   -- e.g. 'Standard', 'Deluxe', 'Suite', 'Presidential'
-  description TEXT NOT NULL DEFAULT '',
+  description TEXT,
   max_adults INTEGER NOT NULL DEFAULT 2,
   max_children INTEGER NOT NULL DEFAULT 0,
   capacity INTEGER GENERATED ALWAYS AS (max_adults + max_children) STORED,

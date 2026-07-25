@@ -10,6 +10,7 @@ import PublicNavbar from '@/components/layout/PublicNavbar'
 import PublicFooter from '@/components/layout/PublicFooter'
 import PublicBookRoomButton from './PublicBookRoomButton'
 import HotelImageGallery from './HotelImageGallery'
+import SaveHotelButton from '@/components/SaveHotelButton'
 
 function to12h(time?: string | null) {
   if (!time) return '—'
@@ -71,6 +72,18 @@ export default async function PublicHotelDetailPage({ params }: { params: Promis
   const allImages = [hotel.cover_image, ...gallery].filter((s): s is string => Boolean(s))
   const uniqueImages = Array.from(new Set(allImages))
   const fromPrice = rooms?.length ? Math.min(...rooms.map(r => r.price_per_night)) : null
+
+  // Check if user has saved this hotel
+  let isSaved = false
+  if (user) {
+    const { data: savedRow } = await authSupabase
+      .from('saved_hotels')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('hotel_id', id)
+      .single()
+    isSaved = !!savedRow
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -251,13 +264,21 @@ export default async function PublicHotelDetailPage({ params }: { params: Promis
           {/* Sticky sidebar */}
           <div className="order-1 lg:order-2 lg:col-span-1">
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4 lg:sticky lg:top-6">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500">Starting from</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">
-                  {fromPrice !== null ? (
-                    <>Rs {fromPrice.toLocaleString()}<span className="text-base font-normal text-gray-500"> / night</span></>
-                  ) : '—'}
-                </p>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-gray-500">Starting from</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-1">
+                    {fromPrice !== null ? (
+                      <>Rs {fromPrice.toLocaleString()}<span className="text-base font-normal text-gray-500"> / night</span></>
+                    ) : '—'}
+                  </p>
+                </div>
+                <SaveHotelButton
+                  hotelId={id}
+                  initialSaved={isSaved}
+                  isLoggedIn={!!user}
+                  variant="detail"
+                />
               </div>
 {!user && (
                 <a
