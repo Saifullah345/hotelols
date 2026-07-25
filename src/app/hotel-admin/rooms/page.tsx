@@ -18,6 +18,7 @@ export default async function RoomsPage() {
       .from('rooms')
       .select('*, room_type:room_types(id, name, capacity), images')
       .eq('hotel_id', tenantId)
+      .order('sort_order', { ascending: true })
       .order('room_number'),
     supabase
       .from('room_types')

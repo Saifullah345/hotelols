@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import Link from 'next/link'
-import { Plus, BedDouble, Search, Pencil, Users, X } from 'lucide-react'
+import { Plus, BedDouble, Search, Pencil, Users, X, GripVertical } from 'lucide-react'
 import RoomStatusToggle from './RoomStatusToggle'
 import DeleteRoomButton from './DeleteRoomButton'
 import { RoomRow, ActionsCell } from './RoomRow'
@@ -20,6 +20,7 @@ type Room = {
   room_number: string
   name: string | null
   floor: number
+  sort_order: number
   capacity: number
   price_per_night: number
   status: string
@@ -31,7 +32,7 @@ type Room = {
 type RoomType = { id: string; name: string }
 
 export default function RoomsClient({
-  rooms,
+  rooms: initialRooms,
   roomTypes,
   currency,
 }: {
@@ -39,9 +40,16 @@ export default function RoomsClient({
   roomTypes: RoomType[]
   currency: string
 }) {
-  const [q, setQ]           = useState('')
-  const [status, setStatus] = useState('')
-  const [typeId, setTypeId] = useState('')
+  const [rooms, setRooms]       = useState<Room[]>(initialRooms)
+  const [saving, setSaving]     = useState(false)
+  const [dragId, setDragId]     = useState<string | null>(null)
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
+  const [q, setQ]               = useState('')
+  const [status, setStatus]     = useState('')
+  const [typeId, setTypeId]     = useState('')
+  const saveTimer               = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const hasFilter = !!(q || status || typeId)
 
   const filtered = useMemo(() => {
     const lq = q.toLowerCase()
@@ -57,8 +65,53 @@ export default function RoomsClient({
   const booked      = rooms.filter(r => r.status === 'booked').length
   const maintenance = rooms.filter(r => r.status === 'maintenance').length
 
-  const hasFilter = q || status || typeId
-  const clearAll  = () => { setQ(''); setStatus(''); setTypeId('') }
+  const clearAll = () => { setQ(''); setStatus(''); setTypeId('') }
+
+  // ── Drag handlers ──────────────────────────────────────────────
+  const handleDragStart = (id: string) => (e: React.DragEvent) => {
+    e.dataTransfer.effectAllowed = 'move'
+    setDragId(id)
+  }
+
+  const handleDragOver = (id: string) => (e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (id !== dragOverId) setDragOverId(id)
+  }
+
+  const handleDrop = (targetId: string) => (e: React.DragEvent) => {
+    e.preventDefault()
+    if (!dragId || dragId === targetId) { setDragOverId(null); return }
+
+    const next = [...rooms]
+    const fromIdx = next.findIndex(r => r.id === dragId)
+    const toIdx   = next.findIndex(r => r.id === targetId)
+    const [moved] = next.splice(fromIdx, 1)
+    next.splice(toIdx, 0, moved)
+
+    setRooms(next)
+    setDragId(null)
+    setDragOverId(null)
+
+    // Debounce save so rapid drags don't flood the API
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    setSaving(true)
+    saveTimer.current = setTimeout(async () => {
+      await fetch('/api/rooms/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          updates: next.map((r, i) => ({ id: r.id, sort_order: i })),
+        }),
+      })
+      setSaving(false)
+    }, 400)
+  }
+
+  const handleDragEnd = () => {
+    setDragId(null)
+    setDragOverId(null)
+  }
 
   return (
     <div className="space-y-6">
@@ -68,6 +121,7 @@ export default function RoomsClient({
           <p className="text-gray-500 text-sm mt-1">
             {rooms.length} total
             {filtered.length !== rooms.length && ` · ${filtered.length} shown`}
+            {saving && <span className="ml-2 text-indigo-500">Saving…</span>}
           </p>
         </div>
         <Link href="/hotel-admin/rooms/new" className="btn-primary flex items-center gap-2 text-sm">
@@ -89,7 +143,7 @@ export default function RoomsClient({
         ))}
       </div>
 
-      {/* Filter bar — all instant, no page reload */}
+      {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3">
         <div className="relative flex-1 min-w-[160px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
@@ -100,38 +154,34 @@ export default function RoomsClient({
             className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
-
         <select
           value={typeId}
           onChange={e => setTypeId(e.target.value)}
           className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
         >
           <option value="">All Types</option>
-          {roomTypes.map(t => (
-            <option key={t.id} value={t.id}>{t.name}</option>
-          ))}
+          {roomTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
-
         <select
           value={status}
           onChange={e => setStatus(e.target.value)}
           className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
         >
           <option value="">All Statuses</option>
-          {STATUSES.map(s => (
-            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-          ))}
+          {STATUSES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
         </select>
-
         {hasFilter && (
-          <button
-            onClick={clearAll}
-            className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-700 transition-colors"
-          >
+          <button onClick={clearAll} className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-700 transition-colors">
             <X className="h-3.5 w-3.5" /> Clear
           </button>
         )}
       </div>
+
+      {!hasFilter && rooms.length > 1 && (
+        <p className="text-xs text-gray-400 flex items-center gap-1.5">
+          <GripVertical className="h-3.5 w-3.5" /> Drag rows to reorder — order is shown to customers.
+        </p>
+      )}
 
       {/* Table */}
       <div className="card overflow-hidden">
@@ -139,6 +189,7 @@ export default function RoomsClient({
           <table className="w-full min-w-[640px]">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
+                {!hasFilter && <th className="table-header w-8" />}
                 <th className="table-header">Room</th>
                 <th className="table-header">Type</th>
                 <th className="table-header">Floor</th>
@@ -150,7 +201,22 @@ export default function RoomsClient({
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filtered.map(room => (
-                <RoomRow key={room.id} href={`/hotel-admin/rooms/${room.id}`}>
+                <RoomRow
+                  key={room.id}
+                  href={`/hotel-admin/rooms/${room.id}`}
+                  draggable={!hasFilter}
+                  isDragOver={dragOverId === room.id}
+                  onDragStart={handleDragStart(room.id)}
+                  onDragOver={handleDragOver(room.id)}
+                  onDrop={handleDrop(room.id)}
+                  onDragEnd={handleDragEnd}
+                >
+                  {/* Grip handle */}
+                  {!hasFilter && (
+                    <td className="table-cell w-8" onClick={e => e.stopPropagation()}>
+                      <GripVertical className="h-4 w-4 text-gray-300 cursor-grab active:cursor-grabbing" />
+                    </td>
+                  )}
 
                   {/* Room */}
                   <td className="table-cell">
@@ -231,7 +297,7 @@ export default function RoomsClient({
 
               {!filtered.length && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-14 text-center">
+                  <td colSpan={hasFilter ? 7 : 8} className="px-4 py-14 text-center">
                     <BedDouble className="h-9 w-9 text-gray-200 mx-auto mb-3" />
                     <p className="text-gray-400 text-sm">
                       {hasFilter ? 'No rooms match your filters.' : 'No rooms yet.'}

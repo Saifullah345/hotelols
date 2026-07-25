@@ -58,6 +58,7 @@ export default async function PublicHotelDetailPage({ params }: { params: Promis
       .select('*, room_type:room_types(name, description)')
       .eq('hotel_id', id)
       .eq('status', 'available')
+      .order('sort_order', { ascending: true })
       .order('price_per_night'),
     supabase
       .from('reviews')
