@@ -73,11 +73,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Room not found' }, { status: 404 })
   }
 
-  // Check conflicts for all rooms at once
+  // Check conflicts for all rooms at once — overlaps() matches any room on an
+  // existing booking, not just its primary one
   const { data: conflicts } = await supabase
     .from('bookings')
-    .select('id, room_id')
-    .in('room_id', roomIds)
+    .select('id, room_ids')
+    .overlaps('room_ids', roomIds)
     .in('status', ['confirmed', 'checked_in'])
     .lt('check_in', check_out)
     .gt('check_out', check_in)

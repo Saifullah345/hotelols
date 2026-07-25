@@ -16,7 +16,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
   }
 
   const { data: booking } = await supabase
-    .from('bookings').select('id, hotel_id, room_id').eq('id', id).single()
+    .from('bookings').select('id, hotel_id, room_id, room_ids').eq('id', id).single()
   if (!booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
   if (profile.role !== 'super_admin' && booking.hotel_id !== profile.tenant_id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -27,12 +27,13 @@ export async function PATCH(request: Request, { params }: Ctx) {
 
   const updates: Record<string, unknown> = {}
 
-  const effectiveRoomId = booking.room_id
+  // Every room on the booking, not just the primary one
+  const effectiveRoomIds: string[] = booking.room_ids?.length ? booking.room_ids : [booking.room_id]
 
   if (check_in && check_out) {
     const { data: conflict } = await supabase
       .from('bookings').select('id')
-      .eq('room_id', effectiveRoomId)
+      .overlaps('room_ids', effectiveRoomIds)
       .neq('id', id)
       .in('status', ['confirmed', 'checked_in', 'pending'])
       .lt('check_in', check_out)
@@ -40,17 +41,19 @@ export async function PATCH(request: Request, { params }: Ctx) {
       .maybeSingle()
 
     if (conflict) {
-      return NextResponse.json({ error: 'Room is already booked for those dates.' }, { status: 409 })
+      return NextResponse.json({ error: 'One or more rooms are already booked for those dates.' }, { status: 409 })
     }
 
-    const { data: room } = await supabase
-      .from('rooms').select('price_per_night').eq('id', effectiveRoomId).single()
+    const { data: rooms } = await supabase
+      .from('rooms').select('price_per_night').in('id', effectiveRoomIds)
 
-    if (room) {
+    if (rooms?.length) {
       const nights = Math.max(1, Math.ceil(
         (new Date(check_out).getTime() - new Date(check_in).getTime()) / 86_400_000
       ))
-      updates.total_amount = nights * room.price_per_night
+      updates.total_amount = nights * rooms.reduce(
+        (sum: number, r: { price_per_night: number }) => sum + (r.price_per_night ?? 0), 0
+      )
     }
 
     updates.check_in  = check_in

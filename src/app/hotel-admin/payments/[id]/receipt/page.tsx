@@ -35,23 +35,24 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
+  const [{ data: profile }, { data: payment }] = await Promise.all([
+    supabase.from('profiles').select('tenant_id').eq('id', user.id).single(),
+    supabase
+      .from('payments')
+      .select(`
+        id, booking_id, hotel_id, amount, currency, status, payment_method, payment_notes, invoice_number, paid_at, created_at,
+        booking:bookings(
+          check_in, check_out, adults, children, guests, guest_name, guest_phone, total_amount, special_requests,
+          room:rooms(room_number, name, room_type:room_types(name)),
+          user:profiles(full_name, email)
+        )
+      `)
+      .eq('id', id)
+      .single(),
+  ])
+
   const tenantId = profile?.tenant_id
   if (!tenantId) redirect('/login')
-
-  const { data: payment } = await supabase
-    .from('payments')
-    .select(`
-      id, booking_id, hotel_id, amount, currency, status, payment_method, payment_notes, invoice_number, paid_at, created_at,
-      booking:bookings(
-        check_in, check_out, adults, children, guests, guest_name, guest_phone, total_amount, special_requests,
-        room:rooms(room_number, name, room_type:room_types(name)),
-        user:profiles(full_name, email)
-      )
-    `)
-    .eq('id', id)
-    .single()
-
   if (!payment || payment.hotel_id !== tenantId) notFound()
 
   // Sum all completed payments for this booking to know the true balance
@@ -64,7 +65,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
     .filter((p: { status: string }) => p.status === 'completed')
     .reduce((sum: number, p: { amount: number }) => sum + p.amount, 0)
 
-  // Payments completed BEFORE this one (advance collected earlier)
+  // Payments completed before this one (advance collected earlier)
   const advancePaid = totalPaid - (payment.status === 'completed' ? payment.amount : 0)
 
   const { data: hotel } = await supabase
@@ -127,10 +128,16 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
 
         <div
           className={`mx-8 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium ${
-            isPaid && !isAdvanceReceipt ? 'bg-green-50 text-green-700 border border-green-200' : isAdvanceReceipt ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+            isAdvanceReceipt
+              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+              : isPaid
+                ? 'bg-green-50 text-green-700 border border-green-200'
+                : 'bg-amber-50 text-amber-700 border border-amber-200'
           }`}
         >
-          {isPaid && !isAdvanceReceipt ? <CheckCircle2 className="h-4 w-4 flex-shrink-0" /> : <Clock className="h-4 w-4 flex-shrink-0" />}
+          {isPaid && !isAdvanceReceipt
+            ? <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+            : <Clock className="h-4 w-4 flex-shrink-0" />}
           {isAdvanceReceipt
             ? `Advance / partial payment received — ${formatCurrency(balanceDue, currency)} balance due`
             : isBalanceReceipt

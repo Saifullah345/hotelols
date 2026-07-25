@@ -316,6 +316,9 @@ export default function NewBookingPage() {
   const [nights, setNights]               = useState(0)
   const [totalAmount, setTotalAmount]     = useState(0)
   const [submitting, setSubmitting]       = useState(false)
+  // Set once the booking is saved and we're navigating away — the destination
+  // is a server component, so the push can take a moment with no other feedback.
+  const [redirectMsg, setRedirectMsg]     = useState<string | null>(null)
   const [currency, setCurrency]           = useState('USD')
   const [tenantId, setTenantId]           = useState<string | null>(null)
   const [unavailableRoomIds, setUnavailableRoomIds] = useState<Set<string>>(new Set())
@@ -394,12 +397,17 @@ export default function NewBookingPage() {
       }
       const { data } = await createClient()
         .from('bookings')
-        .select('room_id')
+        .select('room_id, room_ids')
         .eq('hotel_id', tenantId)
         .in('status', ['confirmed', 'checked_in'])
         .lt('check_in', activeCheckOut)
         .gt('check_out', activeCheckIn)
-      const ids = new Set((data ?? []).map((b: { room_id: string }) => b.room_id))
+      // Every room on a booking is taken, not just its primary one
+      const ids = new Set(
+        (data ?? []).flatMap((b: { room_id: string; room_ids: string[] | null }) =>
+          b.room_ids?.length ? b.room_ids : [b.room_id]
+        )
+      )
       setUnavailableRoomIds(ids)
       // Deselect any rooms that became unavailable
       setSelectedRoomIds(prev => prev.filter(id => !ids.has(id)))
@@ -450,13 +458,16 @@ export default function NewBookingPage() {
     })
 
     const json = await res.json()
-    setSubmitting(false)
 
     if (!res.ok) {
+      setSubmitting(false)
       toast.error(json.error ?? 'Failed to create booking')
       return false
     }
 
+    // Booking is saved. Deliberately leave `submitting` set so the button stays
+    // disabled — the navigation below is what the user is now waiting on, and
+    // re-enabling it here would invite a duplicate booking.
     const roomCount = selectedRoomIds.length
     const roomLabel = roomCount > 1 ? ` (${roomCount} rooms)` : ''
     toast.success(
@@ -466,8 +477,10 @@ export default function NewBookingPage() {
             : `Booking created & ${formatCurrency(totalAmount, currency)} collected${roomLabel}`)
         : `Booking created — payment pending${roomLabel}`
     )
+    const goToReceipt = Boolean(payNow && json.payment_id)
+    setRedirectMsg(goToReceipt ? 'Preparing receipt…' : 'Opening bookings…')
     router.push(
-      payNow && json.payment_id
+      goToReceipt
         ? `/hotel-admin/payments/${json.payment_id}/receipt`
         : '/hotel-admin/bookings'
     )
@@ -556,6 +569,16 @@ export default function NewBookingPage() {
   // ── Payment block ─────────────────────────────────────────────
   return (
     <div className="max-w-2xl mx-auto space-y-6">
+      {/* Booking is saved; hold the screen until the next page renders so the
+          form can't be resubmitted and the wait doesn't look like a hang. */}
+      {redirectMsg && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-white/80 backdrop-blur-sm">
+          <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
+          <p className="text-sm font-medium text-gray-700">{redirectMsg}</p>
+          <p className="text-xs text-gray-500">Your booking has been saved.</p>
+        </div>
+      )}
+
       <div className="flex items-center gap-4">
         <Link href="/hotel-admin/bookings" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
           <ArrowLeft className="h-5 w-5" />

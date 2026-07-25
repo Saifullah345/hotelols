@@ -183,7 +183,8 @@ CREATE INDEX idx_rooms_type ON rooms(room_type_id);
 CREATE TABLE bookings (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   hotel_id UUID NOT NULL REFERENCES hotels(id),
-  room_id UUID NOT NULL REFERENCES rooms(id),
+  room_id UUID NOT NULL REFERENCES rooms(id),   -- primary room
+  room_ids UUID[] NOT NULL DEFAULT '{}',        -- every room on the booking, primary included
   user_id UUID NOT NULL REFERENCES profiles(id),
   check_in DATE NOT NULL,
   check_out DATE NOT NULL,
@@ -207,23 +208,62 @@ CREATE TRIGGER bookings_updated_at
 CREATE INDEX idx_bookings_hotel ON bookings(hotel_id);
 CREATE INDEX idx_bookings_user ON bookings(user_id);
 CREATE INDEX idx_bookings_room ON bookings(room_id);
+CREATE INDEX idx_bookings_room_ids ON bookings USING GIN (room_ids);
 CREATE INDEX idx_bookings_status ON bookings(status);
 CREATE INDEX idx_bookings_checkin ON bookings(check_in);
 
--- Prevent double-booking
+-- Keep room_ids in sync with room_id so single-room callers
+-- (customer booking, WhatsApp bot) don't have to know about the array.
+-- Named to sort before prevent_double_booking, since BEFORE triggers
+-- fire in alphabetical order and the availability check reads room_ids.
+CREATE OR REPLACE FUNCTION sync_booking_room_ids()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.room_ids IS NULL OR array_length(NEW.room_ids, 1) IS NULL THEN
+    NEW.room_ids := ARRAY[NEW.room_id];
+  ELSIF NOT (NEW.room_id = ANY(NEW.room_ids)) THEN
+    NEW.room_ids := array_prepend(NEW.room_id, NEW.room_ids);
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER booking_room_ids_sync
+  BEFORE INSERT OR UPDATE ON bookings
+  FOR EACH ROW EXECUTE FUNCTION sync_booking_room_ids();
+
+-- Prevent double-booking across every room on the booking
 CREATE OR REPLACE FUNCTION check_room_availability()
 RETURNS TRIGGER AS $$
 BEGIN
+  -- A cancelled or checked-out booking doesn't hold a room, so it must always
+  -- be allowed through — otherwise legacy overlaps make bookings uncancellable.
+  IF NEW.status IN ('cancelled', 'checked_out') THEN
+    RETURN NEW;
+  END IF;
+
+  -- Only re-check when something that affects availability actually changed.
+  -- Editing a guest name or special request shouldn't re-validate the room.
+  IF TG_OP = 'UPDATE'
+     AND NEW.room_ids  IS NOT DISTINCT FROM OLD.room_ids
+     AND NEW.check_in  IS NOT DISTINCT FROM OLD.check_in
+     AND NEW.check_out IS NOT DISTINCT FROM OLD.check_out
+     AND NEW.status    IS NOT DISTINCT FROM OLD.status
+  THEN
+    RETURN NEW;
+  END IF;
+
   IF EXISTS (
     SELECT 1 FROM bookings
-    WHERE room_id = NEW.room_id
+    WHERE room_ids && NEW.room_ids
       AND id != NEW.id
       AND status IN ('confirmed', 'checked_in')
       AND check_in < NEW.check_out
       AND check_out > NEW.check_in
   ) THEN
-    RAISE EXCEPTION 'Room is already booked for these dates';
+    RAISE EXCEPTION 'One or more rooms are already booked for these dates';
   END IF;
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
