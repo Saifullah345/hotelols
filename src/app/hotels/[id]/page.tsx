@@ -1,15 +1,23 @@
 import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
 import {
-  MapPin, Star, Clock, Phone, Mail, BedDouble, ShieldCheck, ArrowLeft,
+  Star, Clock, Phone, Mail, BedDouble, ShieldCheck, ArrowLeft,
   Wifi, Waves, Car, Coffee, Dumbbell, Sparkles, Tv, Wind, PawPrint, CheckCircle2, Users,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import PublicNavbar from '@/components/layout/PublicNavbar'
 import PublicFooter from '@/components/layout/PublicFooter'
 import PublicBookRoomButton from './PublicBookRoomButton'
+import HotelImageGallery from './HotelImageGallery'
+
+function to12h(time?: string | null) {
+  if (!time) return '—'
+  const [h, m] = time.slice(0, 5).split(':').map(Number)
+  const period = h >= 12 ? 'PM' : 'AM'
+  const hour = h % 12 || 12
+  return `${hour}:${String(m).padStart(2, '0')} ${period}`
+}
 
 function getAmenityIcon(name: string): LucideIcon {
   const key = name.toLowerCase()
@@ -62,7 +70,6 @@ export default async function PublicHotelDetailPage({ params }: { params: Promis
   const gallery: string[] = ((hotel.images as string[] | null) ?? []).filter(Boolean)
   const allImages = [hotel.cover_image, ...gallery].filter((s): s is string => Boolean(s))
   const uniqueImages = Array.from(new Set(allImages))
-  const coverImage = uniqueImages[0] ?? null
   const fromPrice = rooms?.length ? Math.min(...rooms.map(r => r.price_per_night)) : null
 
   return (
@@ -76,44 +83,13 @@ export default async function PublicHotelDetailPage({ params }: { params: Promis
 
         {/* Hero image + info */}
         <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
-          {/* Cover image */}
-          <div className="relative h-72 sm:h-96 bg-gradient-to-br from-primary-500 to-primary-800">
-            {coverImage ? (
-              <Image src={coverImage} alt={hotel.name} fill className="object-cover" unoptimized />
-            ) : (
-              <div className="flex h-full items-center justify-center text-8xl">🏨</div>
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-
-            {hotel.rating && (
-              <div className="absolute right-4 top-4 flex items-center gap-1 rounded-full bg-white/95 px-3 py-1.5 text-sm font-semibold text-gray-900 shadow-sm backdrop-blur">
-                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                {Number(hotel.rating).toFixed(1)}
-                {hotel.review_count > 0 && (
-                  <span className="font-normal text-gray-500">({hotel.review_count})</span>
-                )}
-              </div>
-            )}
-
-            <div className="absolute inset-x-0 bottom-0 p-6">
-              <h1 className="text-3xl sm:text-4xl font-bold text-white drop-shadow-sm">{hotel.name}</h1>
-              <p className="mt-2 flex items-center gap-1.5 text-sm text-white/90">
-                <MapPin className="h-4 w-4 flex-shrink-0" />
-                {[hotel.address, hotel.city, hotel.country].filter(Boolean).join(', ')}
-              </p>
-            </div>
-          </div>
-
-          {/* Thumbnail gallery */}
-          {uniqueImages.length > 1 && (
-            <div className="flex gap-2 p-4 overflow-x-auto">
-              {uniqueImages.slice(1, 6).map((src, i) => (
-                <div key={i} className="relative h-16 w-24 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
-                  <Image src={src} alt={`${hotel.name} photo ${i + 2}`} fill className="object-cover" unoptimized />
-                </div>
-              ))}
-            </div>
-          )}
+          <HotelImageGallery
+            images={uniqueImages}
+            hotelName={hotel.name}
+            location={[hotel.address, hotel.city, hotel.country].filter(Boolean).join(', ')}
+            rating={hotel.rating}
+            reviewCount={hotel.review_count}
+          />
 
           {/* Info strip */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 border-t border-gray-100 p-5">
@@ -122,7 +98,7 @@ export default async function PublicHotelDetailPage({ params }: { params: Promis
               <div>
                 <p className="text-xs text-gray-500">Check-in / out</p>
                 <p className="text-sm font-medium text-gray-900">
-                  {hotel.check_in_time?.slice(0, 5) ?? '—'} – {hotel.check_out_time?.slice(0, 5) ?? '—'}
+                  {to12h(hotel.check_in_time)} – {to12h(hotel.check_out_time)}
                 </p>
               </div>
             </div>
@@ -283,8 +259,7 @@ export default async function PublicHotelDetailPage({ params }: { params: Promis
                   ) : '—'}
                 </p>
               </div>
-              <a href="#rooms" className="btn-primary w-full justify-center block text-center">View Rooms</a>
-              {!user && (
+{!user && (
                 <a
                   href={`/login?next=/hotels/${id}`}
                   className="w-full block text-center btn-secondary text-sm"

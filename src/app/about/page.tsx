@@ -1,60 +1,120 @@
-'use client'
-
 import Link from 'next/link'
 import PublicNavbar from '@/components/layout/PublicNavbar'
 import PublicFooter from '@/components/layout/PublicFooter'
-import { ArrowRight, Building2, Sparkles, ShieldCheck } from 'lucide-react'
+import { ArrowRight, Globe, Users, Star, Building2, ShieldCheck, Zap, HeartHandshake, BarChart3, Clock } from 'lucide-react'
+
+export const metadata = { title: 'About BookQayam' }
+
+const values = [
+  { icon: Zap,           title: 'Speed first',        desc: 'Every action — check-in, payment, booking — should take seconds, not minutes.' },
+  { icon: ShieldCheck,   title: 'Secure by default',  desc: 'Role-based access, encrypted data, and audit trails built into the core.' },
+  { icon: HeartHandshake,title: 'Guest-obsessed',     desc: 'Every feature we ship improves the experience for the person checking in.' },
+  { icon: BarChart3,     title: 'Data transparency',  desc: 'Hotel owners deserve clear, real-time visibility into their operations.' },
+  { icon: Globe,         title: 'Built to scale',     desc: 'From a single boutique to a multi-city portfolio — the platform grows with you.' },
+  { icon: Clock,         title: 'Always available',   desc: '99.9% uptime commitment with a support team that responds within the hour.' },
+]
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-primary-50">
+    <div className="min-h-screen bg-white">
       <PublicNavbar />
-      <main className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-16 sm:px-6 lg:px-8">
-        <section className="card overflow-hidden p-8 lg:p-12">
-          <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+
+      {/* ── Hero ── */}
+      <section className="border-b border-gray-100 bg-white">
+        <div className="mx-auto max-w-5xl px-6 py-20 lg:py-28 text-center">
+          <p className="text-sm font-semibold uppercase tracking-widest text-indigo-600 mb-4">About BookQayam</p>
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-gray-900 leading-tight tracking-tight">
+            Making hospitality<br className="hidden sm:block" /> simple for everyone.
+          </h1>
+          <p className="mt-6 text-lg text-gray-500 max-w-2xl mx-auto leading-relaxed">
+            BookQayam is a hotel management and booking platform that helps guests find great stays and gives hotel owners the tools to run their property with confidence.
+          </p>
+          <div className="mt-8 flex items-center justify-center gap-3 flex-wrap">
+            <Link href="/register" className="btn-gradient inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold">
+              Get started free <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link href="/contact" className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+              Contact us
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Mission ── */}
+      <section className="border-b border-gray-100 bg-white">
+        <div className="mx-auto max-w-5xl px-6 py-20">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-primary-600">About BookQayam</p>
-              <h1 className="mt-3 text-4xl font-bold text-gray-900 sm:text-5xl">Built for boutique hotels and growing hospitality teams.</h1>
-              <p className="mt-5 text-lg leading-8 text-gray-600">We help properties simplify reservations, automate admin tasks, and deliver a polished experience for guests from booking to checkout.</p>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Link href="/register" className="btn-primary inline-flex">Start your free trial <ArrowRight className="ml-2 h-4 w-4" /></Link>
-                <Link href="/contact" className="btn-secondary inline-flex">Talk to us</Link>
-              </div>
+              <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">Our Mission</p>
+              <h2 className="text-3xl font-extrabold text-gray-900 leading-snug">
+                Remove the friction between a great hotel and a happy guest.
+              </h2>
+              <p className="mt-5 text-gray-500 leading-relaxed">
+                Too many hotels still run on paper registers, WhatsApp threads, and spreadsheets. We built BookQayam to change that — giving independent hotels and growing chains the same digital tools that enterprise hospitality companies use, without the enterprise price tag.
+              </p>
+              <p className="mt-4 text-gray-500 leading-relaxed">
+                For guests, that means effortless discovery, instant booking, and a smooth stay. For Hotel Owners, it means total control from one screen.
+              </p>
             </div>
-            <div className="rounded-3xl border border-primary-100 bg-primary-600 p-8 text-white shadow-xl shadow-primary-100/60">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20">
-                <Building2 className="h-6 w-6" />
-              </div>
-              <div className="mt-8 space-y-4 text-sm text-primary-50">
-                <div className="rounded-2xl bg-white/10 p-4">
-                  <p className="font-semibold text-white">Operational clarity</p>
-                  <p className="mt-1">One dashboard for rooms, bookings, staff permissions and payments.</p>
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { icon: Building2, label: 'Hotel owners',  desc: 'Manage rooms, bookings, staff, and payments' },
+                { icon: Users,     label: 'Guests',        desc: 'Discover, compare, and book stays easily' },
+                { icon: Star,      label: 'Reviews',       desc: 'Transparent feedback for every property' },
+                { icon: Globe,     label: 'Everywhere',    desc: 'Accessible from any device, anywhere' },
+              ].map(({ icon: Icon, label, desc }) => (
+                <div key={label} className="rounded-2xl border border-gray-100 bg-gray-50 p-5">
+                  <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center mb-3">
+                    <Icon className="h-4.5 w-4.5 text-indigo-600" />
+                  </div>
+                  <p className="text-sm font-semibold text-gray-900">{label}</p>
+                  <p className="mt-1 text-xs text-gray-500 leading-relaxed">{desc}</p>
                 </div>
-                <div className="rounded-2xl bg-white/10 p-4">
-                  <p className="font-semibold text-white">Guest-ready workflows</p>
-                  <p className="mt-1">Beautiful booking journeys with instant confirmation and online payment support.</p>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        <section className="grid gap-6 md:grid-cols-3">
-          {[
-            { icon: Sparkles, title: 'Modern experience', desc: 'A calm and attractive interface designed to help hospitality teams move quickly.' },
-            { icon: ShieldCheck, title: 'Secure by design', desc: 'Role-based access keeps admins, staff, and guests in the right workflow.' },
-            { icon: Building2, title: 'Flexible growth', desc: 'Scale from a single property to a full multi-location portfolio.' },
-          ].map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="card p-6">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-50 text-primary-600">
-                <Icon className="h-6 w-6" />
+      {/* ── Values ── */}
+      <section className="border-b border-gray-100 bg-gray-50">
+        <div className="mx-auto max-w-5xl px-6 py-20">
+          <div className="text-center mb-12">
+            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">What we believe</p>
+            <h2 className="text-3xl font-extrabold text-gray-900">Our values</h2>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {values.map(({ icon: Icon, title, desc }) => (
+              <div key={title} className="bg-white rounded-2xl border border-gray-100 p-6">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center mb-4">
+                  <Icon className="h-5 w-5 text-indigo-600" />
+                </div>
+                <h3 className="text-base font-bold text-gray-900">{title}</h3>
+                <p className="mt-2 text-sm text-gray-500 leading-relaxed">{desc}</p>
               </div>
-              <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-              <p className="mt-2 text-sm leading-6 text-gray-600">{desc}</p>
-            </div>
-          ))}
-        </section>
-      </main>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA ── */}
+      <section className="bg-white">
+        <div className="mx-auto max-w-5xl px-6 py-20 text-center">
+          <h2 className="text-3xl font-extrabold text-gray-900">Ready to get started?</h2>
+          <p className="mt-4 text-gray-500 max-w-xl mx-auto">
+            Join hundreds of hotels already using BookQayam to manage their properties and delight their guests.
+          </p>
+          <div className="mt-8 flex items-center justify-center gap-3 flex-wrap">
+            <Link href="/register" className="btn-gradient inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold">
+              Start free trial <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link href="/hotel-management" className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+              Learn more
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <PublicFooter />
     </div>
   )
