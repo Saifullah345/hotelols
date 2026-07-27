@@ -5,6 +5,8 @@ import PublicNavbar from '@/components/layout/PublicNavbar'
 import PublicFooter from '@/components/layout/PublicFooter'
 import HeroSearchBar from './HeroSearchBar'
 import SaveHotelButton from '@/components/SaveHotelButton'
+import JsonLd from '@/components/seo/JsonLd'
+import { absoluteUrl } from '@/lib/seo'
 import { MapPin, Star, Wifi, Car, Coffee, Building2, ChevronRight } from 'lucide-react'
 
 type Hotel = {
@@ -38,14 +40,22 @@ export default async function LandingPage({
 
   const supabase = await createAdminClient()
 
+  // The field is labelled "City or hotel name", so match all three columns —
+  // matching only `city` is why hotel-name searches came back empty.
+  const term = (city ?? '').trim()
+  // PostgREST parses `,` `(` `)` as filter syntax inside .or(), so strip them.
+  const safeTerm = term.replace(/[(),*%\\]/g, ' ').trim()
+
   let q = supabase
     .from('hotels')
     .select('id, name, city, country, cover_image, rating, amenities, review_count')
     .eq('status', 'active')
     .order('rating', { ascending: false, nullsFirst: false })
-    .limit(9)
+    .limit(safeTerm ? 24 : 9)
 
-  if (city) q = q.ilike('city', `%${city}%`)
+  if (safeTerm) {
+    q = q.or(`name.ilike.%${safeTerm}%,city.ilike.%${safeTerm}%,country.ilike.%${safeTerm}%`)
+  }
 
   const { data: hotels } = await q
 
@@ -59,9 +69,25 @@ export default async function LandingPage({
     return acc
   }, {})
 
+  // Rank an exact city hit above a prefix hit above a mere substring, so a search
+  // for "Lahore" leads with Lahore hotels rather than whatever is rated highest.
+  const relevance = (h: { name: string; city: string; country: string }) => {
+    if (!safeTerm) return 0
+    const t = safeTerm.toLowerCase()
+    const fields = [h.city ?? '', h.name ?? '', h.country ?? ''].map(v => v.toLowerCase())
+    if (fields.some(f => f === t)) return 0
+    if (fields.some(f => f.startsWith(t))) return 1
+    return 2
+  }
+
   const hotelList: Hotel[] = (hotels ?? [])
     .map(h => ({ ...h, min_price: minPriceMap[h.id] }))
-    .sort((a, b) => (a.cover_image ? 0 : 1) - (b.cover_image ? 0 : 1))
+    .sort(
+      (a, b) =>
+        relevance(a) - relevance(b) ||
+        (a.cover_image ? 0 : 1) - (b.cover_image ? 0 : 1) ||
+        (b.rating ?? 0) - (a.rating ?? 0)
+    )
 
   // Fetch saved hotel IDs for the logged-in user
   const savedSet = new Set<string>()
@@ -76,15 +102,54 @@ export default async function LandingPage({
 
   const hasFilter = !!(city || check_in)
 
+  // Lets search engines see the featured stays as a ranked list of Hotel entities.
+  const itemListSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: hasFilter && city ? `Hotels in ${city}` : 'Top-rated stays on BookQayam',
+    numberOfItems: hotelList.length,
+    itemListElement: hotelList.map((h, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      item: {
+        '@type': 'Hotel',
+        name: h.name,
+        url: absoluteUrl(`/hotels/${h.id}`),
+        ...(h.cover_image ? { image: h.cover_image } : {}),
+        address: {
+          '@type': 'PostalAddress',
+          ...(h.city ? { addressLocality: h.city } : {}),
+          ...(h.country ? { addressCountry: h.country } : {}),
+        },
+        ...(h.review_count && h.rating
+          ? {
+              aggregateRating: {
+                '@type': 'AggregateRating',
+                ratingValue: Number(h.rating),
+                reviewCount: h.review_count,
+                bestRating: 5,
+                worstRating: 1,
+              },
+            }
+          : {}),
+      },
+    })),
+  }
+
   return (
     <div className="min-h-screen bg-white">
+      <JsonLd data={itemListSchema} />
       <PublicNavbar />
 
       {/* ── Hero ─────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-indigo-950 via-indigo-900 to-indigo-800">
-        {/* Decorative blobs */}
-        <div className="pointer-events-none absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full bg-indigo-600/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 -left-20 w-[400px] h-[400px] rounded-full bg-violet-600/20 blur-3xl" />
+      {/* No overflow-hidden here — it would clip the guests dropdown. z-10 keeps
+          that dropdown above the hotel grid section that follows. */}
+      <section className="relative z-10 bg-gradient-to-br from-indigo-950 via-indigo-900 to-indigo-800">
+        {/* Decorative blobs — clipped by their own wrapper instead of the section */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full bg-indigo-600/20 blur-3xl" />
+          <div className="absolute -bottom-20 -left-20 w-[400px] h-[400px] rounded-full bg-violet-600/20 blur-3xl" />
+        </div>
 
         <div className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 pt-16 pb-24">
           {/* Badge */}
@@ -103,11 +168,14 @@ export default async function LandingPage({
           </p>
 
           {/* Search form */}
+          {/* key: remounts the bar whenever the URL params change, so "Clear ×"
+              actually empties the fields instead of leaving stale client state. */}
           <HeroSearchBar
+            key={`${city ?? ''}|${check_in ?? ''}|${check_out ?? ''}|${adults ?? ''}|${children ?? ''}`}
             defaultCity={city}
             defaultCheckIn={check_in}
             defaultCheckOut={check_out}
-            defaultAdults={adults ? Number(adults) : 2}
+            defaultAdults={adults ? Number(adults) : 0}
             defaultChildren={children ? Number(children) : 0}
           />
         </div>
@@ -150,7 +218,13 @@ export default async function LandingPage({
                 : null
               const amenities = (hotel.amenities ?? []).slice(0, 3)
               const initial = hotel.name.trim().charAt(0).toUpperCase()
-              const href = `/hotels/${hotel.id}${check_in ? `?check_in=${check_in}&check_out=${check_out ?? ''}&adults=${adults ?? 2}&children=${children ?? 0}` : ''}`
+              // Carry only the params the guest actually chose.
+              const hp = new URLSearchParams()
+              if (check_in) hp.set('check_in', check_in)
+              if (check_out) hp.set('check_out', check_out)
+              if (adults) hp.set('adults', adults)
+              if (children) hp.set('children', children)
+              const href = `/hotels/${hotel.id}${hp.toString() ? `?${hp.toString()}` : ''}`
               return (
                 // Wrapper div — heart button is a sibling of Link so clicks never bubble into Link
                 <div key={hotel.id} className="group relative flex flex-col rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1">

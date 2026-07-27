@@ -4,8 +4,17 @@ import Link from 'next/link'
 import Image from 'next/image'
 import PublicNavbar from '@/components/layout/PublicNavbar'
 import HotelSearchBar from '@/components/landing/HotelSearchBar'
+import { pageMetadata } from '@/lib/seo'
 
-export const metadata = { title: 'Search Hotels · HotelOS' }
+// noIndex: every filter combination is a near-duplicate of the landing page.
+// follow stays on so crawlers still reach the hotel detail pages from here.
+export const metadata = pageMetadata({
+  title: 'Search Hotels — Find Verified Stays by City & Date',
+  description:
+    'Search verified hotels by city, check-in and check-out dates, and guest count. Compare live prices, ratings and amenities, then book in a few clicks.',
+  path: '/search',
+  noIndex: true,
+})
 
 type HotelRow = {
   id: string

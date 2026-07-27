@@ -2,8 +2,14 @@ import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import PublicNavbar from '@/components/layout/PublicNavbar'
 import { LogoMark } from '@/components/layout/Logo'
+import { pageMetadata } from '@/lib/seo'
 
-export const metadata = { title: 'Terms & Conditions' }
+export const metadata = pageMetadata({
+  title: 'Terms & Conditions — BookQayam Platform Agreement',
+  description:
+    'The terms that govern your use of BookQayam, covering bookings, cancellations, payments, hotel listings, acceptable use and account responsibilities.',
+  path: '/terms',
+})
 
 export default function TermsPage() {
   return (

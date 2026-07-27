@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
@@ -11,6 +12,53 @@ import PublicFooter from '@/components/layout/PublicFooter'
 import PublicBookRoomButton from './PublicBookRoomButton'
 import HotelImageGallery from './HotelImageGallery'
 import SaveHotelButton from '@/components/SaveHotelButton'
+import JsonLd from '@/components/seo/JsonLd'
+import { pageMetadata, absoluteUrl, SITE_URL, SITE_NAME } from '@/lib/seo'
+
+/** Trims DB copy to a clean meta description without cutting a word in half. */
+function truncate(text: string, max = 155) {
+  const clean = text.replace(/\s+/g, ' ').trim()
+  if (clean.length <= max) return clean
+  return `${clean.slice(0, max - 1).replace(/[\s,;:.-]+\S*$/, '')}…`
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params
+  const supabase = await createAdminClient()
+
+  const { data: hotel } = await supabase
+    .from('hotels')
+    .select('name, description, address, city, country, cover_image, rating, review_count')
+    .eq('id', id)
+    .eq('status', 'active')
+    .single()
+
+  if (!hotel) {
+    return pageMetadata({
+      title: 'Hotel Not Found — Browse Other Verified Stays',
+      description: 'This hotel is no longer listed on BookQayam. Browse other verified hotels and book your next stay in minutes.',
+      path: `/hotels/${id}`,
+      noIndex: true,
+    })
+  }
+
+  const place = [hotel.city, hotel.country].filter(Boolean).join(', ')
+  const title = truncate(place ? `${hotel.name}, ${place} — Book Rooms & Rates` : `${hotel.name} — Book Rooms & Rates`, 60)
+
+  const description = hotel.description
+    ? truncate(hotel.description)
+    : truncate(
+        `Book ${hotel.name}${place ? ` in ${place}` : ''} on BookQayam. See live room rates, photos, amenities` +
+          `${hotel.review_count ? ` and ${hotel.review_count} guest reviews` : ''}, then reserve in minutes.`
+      )
+
+  return pageMetadata({
+    title,
+    description,
+    path: `/hotels/${id}`,
+    images: hotel.cover_image ? [hotel.cover_image] : undefined,
+  })
+}
 
 function to12h(time?: string | null) {
   if (!time) return '—'
@@ -86,8 +134,79 @@ export default async function PublicHotelDetailPage({ params }: { params: Promis
     isSaved = !!savedRow
   }
 
+  // ── Structured data ─────────────────────────────────────────────
+  const hotelUrl = absoluteUrl(`/hotels/${id}`)
+  const hotelSchema: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'Hotel',
+    '@id': `${hotelUrl}#hotel`,
+    name: hotel.name,
+    url: hotelUrl,
+    ...(hotel.description ? { description: hotel.description } : {}),
+    ...(uniqueImages.length ? { image: uniqueImages } : {}),
+    ...(hotel.phone ? { telephone: hotel.phone } : {}),
+    ...(hotel.email ? { email: hotel.email } : {}),
+    address: {
+      '@type': 'PostalAddress',
+      ...(hotel.address ? { streetAddress: hotel.address } : {}),
+      ...(hotel.city ? { addressLocality: hotel.city } : {}),
+      ...(hotel.country ? { addressCountry: hotel.country } : {}),
+    },
+    ...(hotel.latitude && hotel.longitude
+      ? { geo: { '@type': 'GeoCoordinates', latitude: hotel.latitude, longitude: hotel.longitude } }
+      : {}),
+    ...((hotel.amenities as string[] | null)?.length
+      ? {
+          amenityFeature: (hotel.amenities as string[]).map(a => ({
+            '@type': 'LocationFeatureSpecification',
+            name: a,
+            value: true,
+          })),
+        }
+      : {}),
+    ...(hotel.check_in_time ? { checkinTime: hotel.check_in_time } : {}),
+    ...(hotel.check_out_time ? { checkoutTime: hotel.check_out_time } : {}),
+    // Only emit a rating when real reviews back it — an invented one is a structured-data violation.
+    ...(hotel.review_count > 0 && hotel.rating > 0
+      ? {
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: Number(hotel.rating),
+            reviewCount: hotel.review_count,
+            bestRating: 5,
+            worstRating: 1,
+          },
+        }
+      : {}),
+    ...(fromPrice
+      ? {
+          priceRange: `From PKR ${fromPrice}`,
+          makesOffer: {
+            '@type': 'Offer',
+            priceCurrency: 'PKR',
+            price: fromPrice,
+            availability: 'https://schema.org/InStock',
+            url: hotelUrl,
+          },
+        }
+      : {}),
+  }
+
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: SITE_NAME, item: SITE_URL },
+      ...(hotel.city
+        ? [{ '@type': 'ListItem', position: 2, name: `Hotels in ${hotel.city}`, item: absoluteUrl(`/search?city=${encodeURIComponent(hotel.city)}`) }]
+        : []),
+      { '@type': 'ListItem', position: hotel.city ? 3 : 2, name: hotel.name, item: hotelUrl },
+    ],
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
+      <JsonLd data={[hotelSchema, breadcrumbSchema]} />
       <PublicNavbar />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">

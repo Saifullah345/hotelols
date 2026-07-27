@@ -7,6 +7,14 @@ import {
 } from 'lucide-react'
 import PublicNavbar from '@/components/layout/PublicNavbar'
 import PublicFooter from '@/components/layout/PublicFooter'
+import { pageMetadata } from '@/lib/seo'
+
+export const metadata = pageMetadata({
+  title: 'Hotel Management Software — Bookings, Rooms & Payments',
+  description:
+    'Run your entire property from one dashboard: bookings, room inventory, payments, staff roles and live reports. List your hotel on BookQayam for free.',
+  path: '/hotel-management',
+})
 
 const FEATURES = [
   { icon: CalendarDays, title: 'Booking Management',      desc: 'Handle walk-in and online bookings in seconds. Assign rooms, set dates, and track every reservation from one screen.' },

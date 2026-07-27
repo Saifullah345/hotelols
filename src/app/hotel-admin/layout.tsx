@@ -1,6 +1,9 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { AdminShell } from '@/components/layout/AdminShell'
+import { noIndexMetadata } from '@/lib/seo'
+
+export const metadata = noIndexMetadata
 
 export default async function HotelAdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()

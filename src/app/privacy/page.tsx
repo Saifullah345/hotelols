@@ -2,8 +2,14 @@ import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import PublicNavbar from '@/components/layout/PublicNavbar'
 import { LogoMark } from '@/components/layout/Logo'
+import { pageMetadata } from '@/lib/seo'
 
-export const metadata = { title: 'Privacy Policy' }
+export const metadata = pageMetadata({
+  title: 'Privacy Policy — How BookQayam Handles Your Data',
+  description:
+    'Read how BookQayam collects, stores, uses and protects the personal data of guests and hotel partners, and the choices you have over your information.',
+  path: '/privacy',
+})
 
 export default function PrivacyPage() {
   return (

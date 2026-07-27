@@ -1,6 +1,9 @@
 import Link from 'next/link'
 import PublicNavbar from '@/components/layout/PublicNavbar'
 import { LogoMarkOnDark } from '@/components/layout/Logo'
+import { noIndexMetadata } from '@/lib/seo'
+
+export const metadata = noIndexMetadata
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (

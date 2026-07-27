@@ -8,7 +8,8 @@ export default function HeroSearchBar({
   defaultCity = '',
   defaultCheckIn = '',
   defaultCheckOut = '',
-  defaultAdults = 2,
+  // 0 = nothing chosen yet. Guests stay unselected until the user picks a count.
+  defaultAdults = 0,
   defaultChildren = 0,
 }: {
   defaultCity?: string
@@ -25,17 +26,27 @@ export default function HeroSearchBar({
   const [children,  setChildren]  = useState(defaultChildren)
   const [guestOpen, setGuestOpen] = useState(false)
 
-  const today    = new Date().toISOString().split('T')[0]
-  const guestSum = adults + children
+  const today       = new Date().toISOString().split('T')[0]
+  const guestSum    = adults + children
+  const hasGuests   = guestSum > 0
 
   const handleSearch = () => {
     const p = new URLSearchParams()
-    if (city)     p.set('city', city)
-    if (checkIn)  p.set('check_in', checkIn)
-    if (checkOut) p.set('check_out', checkOut)
-    p.set('adults',   String(adults))
-    p.set('children', String(children))
-    router.push(`/?${p.toString()}`)
+    if (city.trim()) p.set('city', city.trim())
+    if (checkIn)     p.set('check_in', checkIn)
+    if (checkOut)    p.set('check_out', checkOut)
+    // Only carried in the URL once the user actually picks a party size.
+    if (hasGuests) {
+      p.set('adults',   String(adults))
+      p.set('children', String(children))
+    }
+    const qs = p.toString()
+    router.push(qs ? `/?${qs}` : '/')
+  }
+
+  const clearGuests = () => {
+    setAdults(0)
+    setChildren(0)
   }
 
   return (
@@ -96,8 +107,8 @@ export default function HeroSearchBar({
           <Users className="h-5 w-5 text-indigo-500 flex-shrink-0" />
           <div className="text-left">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Guests</p>
-            <p className="text-sm font-semibold text-gray-900 whitespace-nowrap">
-              {guestSum} guest{guestSum !== 1 ? 's' : ''}
+            <p className={`text-sm font-semibold whitespace-nowrap ${hasGuests ? 'text-gray-900' : 'text-gray-400'}`}>
+              {hasGuests ? `${guestSum} guest${guestSum !== 1 ? 's' : ''}` : 'Add guests'}
             </p>
           </div>
         </button>
@@ -105,16 +116,34 @@ export default function HeroSearchBar({
         {guestOpen && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setGuestOpen(false)} />
-            <div className="absolute top-full left-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 p-5 w-64 z-20 space-y-5">
-              <Counter label="Adults" sub="Age 18 and above" value={adults} min={1} max={30} onChange={setAdults} />
-              <Counter label="Children" sub="Under 18" value={children} min={0} max={10} onChange={setChildren} />
-              <button
-                type="button"
-                onClick={() => setGuestOpen(false)}
-                className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors"
-              >
-                Done
-              </button>
+            <div className="absolute top-full left-0 lg:left-auto lg:right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 p-5 w-64 z-30 space-y-5">
+              <Counter label="Adults" sub="Age 18 and above" value={adults} min={0} max={30} onChange={setAdults} />
+              <Counter
+                label="Children"
+                sub="Under 18"
+                value={children}
+                min={0}
+                max={10}
+                // A child can't be the only guest — bring an adult along.
+                onChange={v => { setChildren(v); if (v > 0 && adults === 0) setAdults(1) }}
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={clearGuests}
+                  disabled={!hasGuests}
+                  className="flex-1 py-2 border border-gray-200 text-gray-600 text-sm font-semibold rounded-xl hover:bg-gray-50 disabled:opacity-40 transition-colors"
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGuestOpen(false)}
+                  className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors"
+                >
+                  Done
+                </button>
+              </div>
             </div>
           </>
         )}

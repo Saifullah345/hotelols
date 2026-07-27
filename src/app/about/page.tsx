@@ -2,8 +2,14 @@ import Link from 'next/link'
 import PublicNavbar from '@/components/layout/PublicNavbar'
 import PublicFooter from '@/components/layout/PublicFooter'
 import { ArrowRight, Globe, Users, Star, Building2, ShieldCheck, Zap, HeartHandshake, BarChart3, Clock } from 'lucide-react'
+import { pageMetadata } from '@/lib/seo'
 
-export const metadata = { title: 'About BookQayam' }
+export const metadata = pageMetadata({
+  title: 'About BookQayam — Our Mission, Values & Hotel Platform Story',
+  description:
+    'Learn how BookQayam helps guests find verified hotels and gives hotel owners a fast, secure platform to manage bookings, rooms, payments and staff.',
+  path: '/about',
+})
 
 const values = [
   { icon: Zap,           title: 'Speed first',        desc: 'Every action — check-in, payment, booking — should take seconds, not minutes.' },

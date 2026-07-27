@@ -2,8 +2,14 @@ import Link from 'next/link'
 import { Phone, Mail, MessageCircle, Clock, MapPin } from 'lucide-react'
 import PublicNavbar from '@/components/layout/PublicNavbar'
 import PublicFooter from '@/components/layout/PublicFooter'
+import { pageMetadata } from '@/lib/seo'
 
-export const metadata = { title: 'Contact Us' }
+export const metadata = pageMetadata({
+  title: 'Contact BookQayam — Sales, Support & Hotel Onboarding Help',
+  description:
+    'Talk to the BookQayam team about listing your hotel, pricing, demos or booking support. Reach us by phone, WhatsApp or email — we reply the same day.',
+  path: '/contact',
+})
 
 const PHONE   = '+92 325 5258421'
 const WA_LINK = 'https://wa.me/923255258421'

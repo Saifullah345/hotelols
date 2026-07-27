@@ -2,6 +2,9 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Header } from '@/components/layout/Header'
+import { noIndexMetadata } from '@/lib/seo'
+
+export const metadata = noIndexMetadata
 
 export default async function CustomerLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
