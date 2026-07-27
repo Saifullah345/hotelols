@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { roomNameSchema, roomNumberSchema } from '@/lib/validation'
 
 export async function GET(request: Request) {
   const supabase = await createClient()
@@ -40,6 +41,16 @@ export async function POST(request: Request) {
 
   const body = await request.json()
   const hotelId = profile.role === 'hotel_admin' ? profile.tenant_id : body.hotel_id
+
+  // Validate identity fields (reject markup / symbol-only input)
+  if (body.room_number !== undefined) {
+    const rn = roomNumberSchema.safeParse(body.room_number)
+    if (!rn.success) return NextResponse.json({ error: rn.error.issues[0].message }, { status: 400 })
+  }
+  if (body.name !== undefined && body.name !== null) {
+    const nm = roomNameSchema.safeParse(body.name)
+    if (!nm.success) return NextResponse.json({ error: nm.error.issues[0].message }, { status: 400 })
+  }
 
   const { data: hotel } = await supabase.from('hotels').select('plan:plans(max_rooms)').eq('id', hotelId).single()
   const { count: roomCount } = await supabase.from('rooms').select('*', { count: 'exact', head: true }).eq('hotel_id', hotelId)

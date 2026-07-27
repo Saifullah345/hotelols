@@ -8,6 +8,7 @@ import { ArrowLeft, Loader2, Moon, DoorOpen, Phone, MessageCircle, Globe } from 
 import { createClient } from '@/lib/supabase/client'
 import PhoneInput from '@/components/ui/PhoneInput'
 import { formatCurrency } from '@/lib/currency'
+import { nameSchema, phoneSchema } from '@/lib/validation'
 
 const SOURCES = [
   { value: 'walk_in',  label: 'Walk-in',  icon: DoorOpen,      cls: 'text-orange-600 bg-orange-50 border-orange-200' },
@@ -97,6 +98,15 @@ export default function EditBookingPage() {
   const save = async () => {
     if (!checkIn || !checkOut) { toast.error('Please set both check-in and check-out dates'); return }
     if (new Date(checkOut) <= new Date(checkIn)) { toast.error('Check-out must be after check-in'); return }
+
+    if (isOffline) {
+      const nameCheck = nameSchema.safeParse(guestName)
+      if (!nameCheck.success) { toast.error(nameCheck.error.issues[0].message); return }
+      if (guestPhone) {
+        const phoneCheck = phoneSchema.safeParse(guestPhone)
+        if (!phoneCheck.success) { toast.error(phoneCheck.error.issues[0].message); return }
+      }
+    }
 
     setSaving(true)
     const res = await fetch(`/api/bookings/${id}`, {

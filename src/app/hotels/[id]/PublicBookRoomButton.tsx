@@ -25,6 +25,9 @@ export default function PublicBookRoomButton({ roomId, hotelId, hotelSlug, price
     ? Math.max(1, Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000))
     : 0
   const total = nights * pricePerNight
+  // Deposit collected by the hotel to confirm the stay (first night), balance on arrival.
+  const advance = nights > 0 ? pricePerNight : 0
+  const balance = Math.max(total - advance, 0)
 
   if (!isLoggedIn) {
     return (

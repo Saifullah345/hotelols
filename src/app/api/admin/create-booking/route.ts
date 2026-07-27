@@ -1,5 +1,6 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { nameSchema } from '@/lib/validation'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -50,6 +51,13 @@ export async function POST(request: Request) {
   if (!guest_user_id && !guest_name) {
     return NextResponse.json({ error: 'Provide guest_user_id or guest_name' }, { status: 400 })
   }
+  // For walk-in / offline guests, require a real name (not a number or markup)
+  if (!guest_user_id) {
+    const nameCheck = nameSchema.safeParse(guest_name)
+    if (!nameCheck.success) {
+      return NextResponse.json({ error: nameCheck.error.issues[0].message }, { status: 400 })
+    }
+  }
   if (roomIds.length === 0 || !check_in || !check_out) {
     return NextResponse.json({ error: 'At least one room, check_in and check_out are required' }, { status: 400 })
   }
@@ -71,6 +79,20 @@ export async function POST(request: Request) {
   }
   if (rooms.some((r: { hotel_id: string }) => r.hotel_id !== hotelId)) {
     return NextResponse.json({ error: 'Room not found' }, { status: 404 })
+  }
+
+  // Capacity guard — the party must fit within the selected rooms' combined capacity
+  const partySize = (adults ?? 1) + (children ?? 0)
+  const totalCapacity = rooms.reduce(
+    (sum: number, r: { capacity?: number; max_adults?: number; max_children?: number }) =>
+      sum + (r.capacity ?? ((r.max_adults ?? 0) + (r.max_children ?? 0))),
+    0,
+  )
+  if (totalCapacity > 0 && partySize > totalCapacity) {
+    return NextResponse.json(
+      { error: `Selected room(s) can accommodate up to ${totalCapacity} guest(s), but ${partySize} were requested.` },
+      { status: 400 },
+    )
   }
 
   // Check conflicts for all rooms at once — overlaps() matches any room on an

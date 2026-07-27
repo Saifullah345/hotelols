@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { Plus, BedDouble, Search, Pencil, Users, X, GripVertical } from 'lucide-react'
+import { Plus, BedDouble, Search, Pencil, Users, X, ChevronLeft, ChevronRight, GripVertical } from 'lucide-react'
 import RoomStatusToggle from './RoomStatusToggle'
 import DeleteRoomButton from './DeleteRoomButton'
 import { RoomRow, ActionsCell } from './RoomRow'
@@ -14,6 +14,8 @@ const statusBadge: Record<string, string> = {
 }
 
 const STATUSES = ['available', 'booked', 'maintenance', 'cleaning']
+
+const PER_PAGE_OPTIONS = [10, 25, 50, 100]
 
 type Room = {
   id: string
@@ -60,6 +62,29 @@ export default function RoomsClient({
       return true
     })
   }, [rooms, q, status, typeId])
+
+  // ── Pagination ────────────────────────────────────────────────────
+  const [page, setPage]       = useState(1)
+  const [perPage, setPerPage] = useState(10)
+
+  // Any filter change puts you back on the first page
+  useEffect(() => { setPage(1) }, [q, status, typeId, perPage])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage))
+  // Clamp instead of storing — the list can shrink under us (delete + refresh)
+  const safePage   = Math.min(page, totalPages)
+  const start      = (safePage - 1) * perPage
+  const paged      = filtered.slice(start, start + perPage)
+
+  // Page buttons: first, last, and a window around the current page
+  const pageNumbers = useMemo(() => {
+    const out: (number | '…')[] = []
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || Math.abs(i - safePage) <= 1) out.push(i)
+      else if (out[out.length - 1] !== '…') out.push('…')
+    }
+    return out
+  }, [totalPages, safePage])
 
   const available   = rooms.filter(r => r.status === 'available').length
   const booked      = rooms.filter(r => r.status === 'booked').length
@@ -200,23 +225,8 @@ export default function RoomsClient({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtered.map(room => (
-                <RoomRow
-                  key={room.id}
-                  href={`/hotel-admin/rooms/${room.id}`}
-                  draggable={!hasFilter}
-                  isDragOver={dragOverId === room.id}
-                  onDragStart={handleDragStart(room.id)}
-                  onDragOver={handleDragOver(room.id)}
-                  onDrop={handleDrop(room.id)}
-                  onDragEnd={handleDragEnd}
-                >
-                  {/* Grip handle */}
-                  {!hasFilter && (
-                    <td className="table-cell w-8" onClick={e => e.stopPropagation()}>
-                      <GripVertical className="h-4 w-4 text-gray-300 cursor-grab active:cursor-grabbing" />
-                    </td>
-                  )}
+              {paged.map(room => (
+                <RoomRow key={room.id} href={`/hotel-admin/rooms/${room.id}`}>
 
                   {/* Room */}
                   <td className="table-cell">
@@ -286,9 +296,10 @@ export default function RoomsClient({
                     <Link
                       href={`/hotel-admin/rooms/${room.id}/edit`}
                       title="Edit room"
-                      className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                      aria-label="Edit room"
+                      className="row-action hover:text-blue-600"
                     >
-                      <Pencil className="h-3.5 w-3.5" />
+                      <Pencil className="h-4 w-4" />
                     </Link>
                     <DeleteRoomButton roomId={room.id} roomNumber={room.room_number} />
                   </ActionsCell>
@@ -308,6 +319,74 @@ export default function RoomsClient({
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {filtered.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-4 py-3">
+            <p className="text-xs text-gray-500">
+              Showing{' '}
+              <span className="font-semibold text-gray-700">
+                {start + 1}–{Math.min(start + perPage, filtered.length)}
+              </span>{' '}
+              of <span className="font-semibold text-gray-700">{filtered.length}</span> room
+              {filtered.length !== 1 ? 's' : ''}
+            </p>
+
+            <div className="flex items-center gap-3">
+              <select
+                value={perPage}
+                onChange={e => setPerPage(Number(e.target.value))}
+                aria-label="Rooms per page"
+                className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                {PER_PAGE_OPTIONS.map(n => (
+                  <option key={n} value={n}>{n} / page</option>
+                ))}
+              </select>
+
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setPage(safePage - 1)}
+                    disabled={safePage === 1}
+                    aria-label="Previous page"
+                    className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors disabled:opacity-40 disabled:hover:bg-white"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </button>
+
+                  {pageNumbers.map((p, i) =>
+                    p === '…' ? (
+                      <span key={`gap-${i}`} className="px-1 text-xs text-gray-400 select-none">…</span>
+                    ) : (
+                      <button
+                        key={p}
+                        onClick={() => setPage(p)}
+                        aria-current={p === safePage ? 'page' : undefined}
+                        className={`inline-flex items-center justify-center min-w-[1.75rem] h-7 px-2 rounded-lg text-xs font-semibold transition-colors ${
+                          p === safePage
+                            ? 'bg-primary-600 text-white'
+                            : 'border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+
+                  <button
+                    onClick={() => setPage(safePage + 1)}
+                    disabled={safePage === totalPages}
+                    aria-label="Next page"
+                    className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors disabled:opacity-40 disabled:hover:bg-white"
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

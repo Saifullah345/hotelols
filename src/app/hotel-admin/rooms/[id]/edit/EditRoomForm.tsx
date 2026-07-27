@@ -9,12 +9,15 @@ import { toast } from 'sonner'
 import {
   Loader2, AlertTriangle, Info, Trash2, CalendarClock,
   Hash, Tag, Settings2, X, ImagePlus, Camera,
+  Plus,
 } from 'lucide-react'
 import Link from 'next/link'
+import RoomTypeModal, { type CreatedRoomType } from '../../RoomTypeModal'
+import { roomNameSchema, roomNumberSchema } from '@/lib/validation'
 
 const schema = z.object({
-  room_number:     z.string().min(1, 'Room number is required'),
-  name:            z.string().min(1, 'Display name is required'),
+  room_number:     roomNumberSchema,
+  name:            roomNameSchema,
   floor:           z.coerce.number().min(0, 'Floor must be 0 or above'),
   price_per_night: z.coerce.number().min(1, 'Price must be at least 1'),
   room_type_id:    z.string().uuid('Select a room type'),
@@ -53,8 +56,11 @@ export default function EditRoomForm({
   room, roomTypes, currency, activeBookings, upcomingBookings,
 }: EditRoomFormProps) {
   const router = useRouter()
-  const [deleteOpen, setDeleteOpen] = useState(false)
-  const [deleting,   setDeleting]   = useState(false)
+  const [deleteOpen, setDeleteOpen]   = useState(false)
+  const [deleting, setDeleting]       = useState(false)
+  const [customInput, setCustomInput] = useState('')
+  const [typeModalOpen, setTypeModalOpen] = useState(false)
+  const [types, setTypes] = useState<{ id: string; name: string }[]>(roomTypes)
 
   const totalLiveBookings = activeBookings + upcomingBookings
 
@@ -133,6 +139,10 @@ export default function EditRoomForm({
     toast.success('Room deleted')
     router.push('/hotel-admin/rooms')
     router.refresh()
+  }
+
+  function handleTypeCreated(type: CreatedRoomType): void {
+    throw new Error('Function not implemented.')
   }
 
   return (
@@ -216,10 +226,19 @@ export default function EditRoomForm({
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="label">Room Type</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="label mb-0">Room Type</label>
+                  <button
+                    type="button"
+                    onClick={() => setTypeModalOpen(true)}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700 transition-colors"
+                  >
+                    <Plus className="h-3 w-3" /> New type
+                  </button>
+                </div>
                 <select {...register('room_type_id')} className="input">
                   <option value="">Select type…</option>
-                  {roomTypes.map(t => (
+                  {types.map(t => (
                     <option key={t.id} value={t.id}>{t.name}</option>
                   ))}
                 </select>
@@ -248,7 +267,7 @@ export default function EditRoomForm({
             <span className="ml-auto text-xs text-gray-400">{images.length} / 12</span>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
             {images.map((img, i) => (
               <div key={i} className="relative group aspect-video rounded-xl overflow-hidden bg-gray-100">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -332,6 +351,14 @@ export default function EditRoomForm({
           </div>
         </div>
       </form>
+
+      {/* ── New room type modal ────────────────────────────────────── */}
+      <RoomTypeModal
+        hotelId={room.hotel_id}
+        open={typeModalOpen}
+        onClose={() => setTypeModalOpen(false)}
+        onCreated={handleTypeCreated}
+      />
 
       {/* ── Delete modal ───────────────────────────────────────────── */}
       {deleteOpen && (

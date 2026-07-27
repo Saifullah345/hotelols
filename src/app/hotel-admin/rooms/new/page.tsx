@@ -13,10 +13,11 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import RoomTypeModal, { type CreatedRoomType } from '../RoomTypeModal'
+import { roomNameSchema, roomNumberSchema } from '@/lib/validation'
 
 const schema = z.object({
-  room_number:     z.string().min(1, 'Room number is required'),
-  name:            z.string().min(1, 'Display name is required'),
+  room_number:     roomNumberSchema,
+  name:            roomNameSchema,
   floor:           z.coerce.number().min(0, 'Floor must be 0 or above'),
   price_per_night: z.coerce.number().min(1, 'Price must be at least 1'),
   room_type_id:    z.string().uuid('Select a room type'),

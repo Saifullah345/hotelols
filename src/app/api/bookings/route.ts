@@ -34,7 +34,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  const { check_in, check_out, room_id, hotel_id, guests } = body
+  const { check_in, check_out, room_id, hotel_id, guests, adults, children } = body
 
   const { data: conflicting } = await supabase
     .from('bookings')
@@ -48,7 +48,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Room is not available for selected dates' }, { status: 409 })
   }
 
-  const { data: room } = await supabase.from('rooms').select('price_per_night, room_number').eq('id', room_id).single()
+  const { data: room } = await supabase
+    .from('rooms')
+    .select('price_per_night, room_number, capacity, max_adults, max_children')
+    .eq('id', room_id)
+    .single()
+
+  if (!room) return NextResponse.json({ error: 'Room not found' }, { status: 404 })
+
+  // Capacity guard — the party must fit within this room's capacity
+  const partySize = (adults ?? guests ?? 1) + (children ?? 0)
+  const roomCapacity = room.capacity ?? ((room.max_adults ?? 0) + (room.max_children ?? 0))
+  if (roomCapacity > 0 && partySize > roomCapacity) {
+    return NextResponse.json(
+      { error: `This room accommodates up to ${roomCapacity} guest(s).` },
+      { status: 400 },
+    )
+  }
+
   const nights = Math.ceil((new Date(check_out).getTime() - new Date(check_in).getTime()) / 86400000)
   const total_amount = nights * (room?.price_per_night ?? 0)
 

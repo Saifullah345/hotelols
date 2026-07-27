@@ -74,6 +74,7 @@ export async function POST(request: Request) {
       owner_id: userId,
       plan_id: plan.id,
       status: 'pending',
+      currency: 'USD',
       ...(cover_image ? { cover_image, images: [cover_image] } : {}),
     }).select('id').single()
 

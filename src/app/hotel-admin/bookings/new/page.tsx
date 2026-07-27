@@ -16,7 +16,7 @@ import Link from 'next/link'
 import PhoneInput from '@/components/ui/PhoneInput'
 import type { BookingSource } from '@/types'
 import { formatCurrency } from '@/lib/currency'
-import { phoneSchema } from '@/lib/validation'
+import { phoneSchema, nameSchema } from '@/lib/validation'
 
 // ─── Schemas (no room_id — managed outside react-hook-form) ──────
 const dateRefineMsg = { message: 'Check-out must be after check-in', path: ['check_out'] }
@@ -32,7 +32,7 @@ const onlineSchema = z.object({
 }).refine(d => new Date(d.check_out) > new Date(d.check_in), dateRefineMsg)
 
 const offlineSchema = z.object({
-  guest_name:       z.string().min(2, 'Guest name required'),
+  guest_name:       nameSchema,
   guest_phone:      phoneSchema,
   check_in:         z.string().min(1, 'Check-in date required'),
   check_out:        z.string().min(1, 'Check-out date required'),
@@ -438,6 +438,17 @@ export default function NewBookingPage() {
     special_requests?: string; status: string
   }) => {
     if (selectedRoomIds.length === 0) { toast.error('Select at least one room'); return false }
+
+    // Guard against overbooking the selected rooms' combined capacity.
+    const partySize = (payload.adults ?? 1) + (payload.children ?? 0)
+    const totalCapacity = selectedRoomIds.reduce((sum, id) => {
+      const room = rooms.find(r => r.id === id)
+      return sum + (room?.capacity ?? 0)
+    }, 0)
+    if (totalCapacity > 0 && partySize > totalCapacity) {
+      toast.error(`Selected room${selectedRoomIds.length > 1 ? 's' : ''} can hold up to ${totalCapacity} guest${totalCapacity !== 1 ? 's' : ''}. Add another room or reduce the guest count.`)
+      return false
+    }
 
     setSubmitting(true)
 

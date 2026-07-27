@@ -63,9 +63,9 @@ export default async function EditRoomPage({
     .gte('check_in', today)
 
   return (
-    <div className="max-w-lg mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/hotel-admin/rooms" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+        <Link href="/hotel-admin/rooms" className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>

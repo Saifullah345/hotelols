@@ -51,6 +51,11 @@
     @apply px-7 py-3 text-base rounded-xl;
   }
 
+  /* Icon button inside a table row's Actions toolbar (see ActionsCell). */
+  .row-action {
+    @apply inline-flex items-center justify-center w-8 h-7 rounded-lg text-gray-500 transition-all hover:bg-white hover:shadow-sm active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:shadow-none;
+  }
+
   .input {
     @apply w-full px-3 py-2 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-shadow;
   }

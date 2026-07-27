@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { roomNameSchema, roomNumberSchema } from '@/lib/validation'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -25,6 +26,16 @@ export async function PATCH(request: Request, { params }: Ctx) {
   const body = await request.json()
   const { room_number, name, floor, price_per_night, room_type_id,
           max_adults, max_children, amenities, images, notes, status } = body
+
+  // Validate identity fields (reject markup / symbol-only input)
+  if (room_number !== undefined) {
+    const rn = roomNumberSchema.safeParse(room_number)
+    if (!rn.success) return NextResponse.json({ error: rn.error.issues[0].message }, { status: 400 })
+  }
+  if (name !== undefined && name !== null) {
+    const nm = roomNameSchema.safeParse(name)
+    if (!nm.success) return NextResponse.json({ error: nm.error.issues[0].message }, { status: 400 })
+  }
 
   // Duplicate room-number guard
   if (room_number && room_number !== room.room_number) {

@@ -36,8 +36,8 @@ export default function RoomStatusToggle({ roomId, currentStatus }: { roomId: st
 
   return (
     <ActionMenu
-      button={<SlidersHorizontal className="h-3.5 w-3.5" />}
-      buttonClassName="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+      button={<SlidersHorizontal className="h-4 w-4" />}
+      buttonClassName="row-action hover:text-gray-900"
       buttonAriaLabel="Change room status"
     >
       {close => (

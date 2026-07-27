@@ -33,9 +33,14 @@ export function RoomRow({ href, children, draggable, isDragOver, onDragStart, on
 
 export function ActionsCell({ children }: { children: ReactNode }) {
   return (
-    <td className="table-cell" onClick={e => e.stopPropagation()}>
-      <div className="flex items-center justify-end gap-1 pr-1">
-        {children}
+    <td
+      className="table-cell"
+      onClick={e => e.stopPropagation()}
+    >
+      <div className="flex items-center justify-end pr-1">
+        <div className="inline-flex items-center gap-0.5 rounded-xl border border-gray-200 bg-gray-50/80 p-0.5">
+          {children}
+        </div>
       </div>
     </td>
   )
