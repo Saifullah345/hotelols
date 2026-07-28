@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Loader2, Save, User } from 'lucide-react'
 import { phoneSchema, nameSchema } from '@/lib/validation'
+import PhoneInput from '@/components/ui/PhoneInput'
 
 const schema = z.object({
   full_name: nameSchema,
@@ -21,7 +22,7 @@ type FormData = z.infer<typeof schema>
 export default function CustomerProfilePage() {
   const [profile, setProfile] = useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = useState(true)
-  const { register, handleSubmit, reset, formState: { isSubmitting, errors } } = useForm<FormData>({
+  const { register, handleSubmit, reset, watch, setValue, formState: { isSubmitting, errors, isSubmitted } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
   const fullNameField = register('full_name')
@@ -88,7 +89,10 @@ export default function CustomerProfilePage() {
           </div>
           <div>
             <label className="label">Phone Number</label>
-            <input {...register('phone')} className="input" placeholder="+1 234 567 890" />
+            <PhoneInput
+              value={watch('phone') ?? ''}
+              onChange={v => setValue('phone', v, { shouldValidate: isSubmitted })}
+            />
             {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
           </div>
           <div className="grid grid-cols-2 gap-4">
