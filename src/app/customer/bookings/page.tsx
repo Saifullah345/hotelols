@@ -472,9 +472,37 @@ export default function CustomerBookingsPage() {
     <div className="space-y-5">
 
       {/* ── Header ── */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">My Bookings</h2>
-        <p className="text-sm text-gray-500 mt-0.5">{bookings.length} total booking{bookings.length !== 1 ? 's' : ''}</p>
+      <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-indigo-950 via-indigo-900 to-indigo-800 px-6 py-5 sm:px-8">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-indigo-600/20 blur-3xl" />
+          <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full bg-violet-600/20 blur-3xl" />
+        </div>
+        <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-extrabold text-white leading-tight">My Bookings</h2>
+            <p className="text-indigo-300 text-sm mt-0.5">{bookings.length} total booking{bookings.length !== 1 ? 's' : ''}</p>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            {countByTab.upcoming > 0 && (
+              <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3.5 py-2 rounded-xl text-sm">
+                <Calendar className="h-4 w-4 text-amber-400" />
+                <div>
+                  <p className="text-white font-bold leading-none">{countByTab.upcoming}</p>
+                  <p className="text-indigo-300 text-xs leading-none mt-0.5">Upcoming</p>
+                </div>
+              </div>
+            )}
+            {countByTab.completed > 0 && (
+              <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3.5 py-2 rounded-xl text-sm">
+                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                <div>
+                  <p className="text-white font-bold leading-none">{countByTab.completed}</p>
+                  <p className="text-indigo-300 text-xs leading-none mt-0.5">Completed</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* ── Tabs ── */}

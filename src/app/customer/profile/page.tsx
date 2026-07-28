@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Loader2, Save, User, ArrowLeft } from 'lucide-react'
+import { Loader2, Save, ArrowLeft } from 'lucide-react'
 import { phoneSchema, nameSchema } from '@/lib/validation'
 import PhoneInput from '@/components/ui/PhoneInput'
 import { CountrySelect, CitySelect } from '@/components/ui/CountryCitySelect'
@@ -67,27 +67,28 @@ export default function CustomerProfilePage() {
 
   return (
     <div className="max-w-lg space-y-6">
-      <div className="flex items-center gap-3">
-        <Link href="/customer/bookings" className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-500">
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">My Profile</h2>
-          <p className="text-gray-500 text-sm mt-0.5">Manage your account details</p>
+      {/* Gradient header banner */}
+      <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-indigo-950 via-indigo-900 to-indigo-800 px-6 py-6">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-indigo-600/20 blur-3xl" />
+          <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full bg-violet-600/20 blur-3xl" />
+        </div>
+        <div className="relative flex items-center gap-4">
+          <Link href="/customer/bookings" className="p-2 hover:bg-white/10 rounded-xl transition-colors text-indigo-300 hover:text-white shrink-0">
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center text-white text-2xl font-bold shrink-0">
+            {String(profile?.full_name ?? '?')[0]?.toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-xl font-extrabold text-white leading-tight truncate">{String(profile?.full_name ?? 'My Profile')}</h2>
+            <p className="text-indigo-300 text-sm mt-0.5 truncate">{String(profile?.email ?? '')}</p>
+            <span className="inline-block mt-1.5 px-2.5 py-0.5 bg-white/20 text-white text-xs font-semibold rounded-full">Customer</span>
+          </div>
         </div>
       </div>
 
       <div className="card p-6">
-        <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-200">
-          <div className="w-16 h-16 rounded-full bg-primary-600 flex items-center justify-center text-white text-2xl font-bold">
-            {String(profile?.full_name ?? '?')[0]?.toUpperCase() ?? <User className="h-8 w-8" />}
-          </div>
-          <div>
-            <p className="font-semibold text-gray-900 text-lg">{String(profile?.full_name ?? '')}</p>
-            <p className="text-sm text-gray-500">{String(profile?.email ?? '')}</p>
-            <span className="badge-blue mt-1">Customer</span>
-          </div>
-        </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
