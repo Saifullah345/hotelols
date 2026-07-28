@@ -14,6 +14,8 @@ import HotelImageGallery from './HotelImageGallery'
 import SaveHotelButton from '@/components/SaveHotelButton'
 import JsonLd from '@/components/seo/JsonLd'
 import { pageMetadata, absoluteUrl, SITE_URL, SITE_NAME } from '@/lib/seo'
+import { formatCurrency } from '@/lib/currency'
+import { hasValidRange, nightsBetween, getBookedRoomIds } from '@/lib/search'
 
 /** Trims DB copy to a clean meta description without cutting a word in half. */
 function truncate(text: string, max = 155) {
@@ -82,8 +84,22 @@ function getAmenityIcon(name: string): LucideIcon {
   return CheckCircle2
 }
 
-export default async function PublicHotelDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PublicHotelDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ check_in?: string; check_out?: string; adults?: string; children?: string }>
+}) {
   const { id } = await params
+  // Dates and party size travel from the landing-page search so the room list
+  // shows what's actually bookable for that stay, not everything the hotel owns.
+  const { check_in, check_out, adults: adultsParam, children: childrenParam } = await searchParams
+  const datesApplied = hasValidRange(check_in, check_out)
+  const nights = datesApplied ? nightsBetween(check_in!, check_out!) : 0
+  const adults = Math.max(0, Number(adultsParam) || 0)
+  const childrenCount = Math.max(0, Number(childrenParam) || 0)
+  const guests = adults + childrenCount
 
   // Check if user is logged in (no redirect — public page)
   const authSupabase = await createClient()
@@ -100,7 +116,7 @@ export default async function PublicHotelDetailPage({ params }: { params: Promis
 
   if (!hotel) notFound()
 
-  const [{ data: rooms }, { data: reviews }] = await Promise.all([
+  const [{ data: allRooms }, { data: reviews }] = await Promise.all([
     supabase
       .from('rooms')
       .select('*, room_type:room_types(name, description)')
@@ -117,10 +133,20 @@ export default async function PublicHotelDetailPage({ params }: { params: Promis
       .limit(6),
   ])
 
+  const currency = (hotel.currency as string | null) ?? 'PKR'
+
+  // Drop rooms already taken for the requested nights — showing them would only
+  // fail later, when the booking trigger rejects the overlap.
+  const bookedRoomIds = datesApplied
+    ? await getBookedRoomIds(supabase, [id], check_in!, check_out!)
+    : new Set<string>()
+  const rooms = (allRooms ?? []).filter(r => !bookedRoomIds.has(r.id))
+  const unavailableCount = (allRooms?.length ?? 0) - rooms.length
+
   const gallery: string[] = ((hotel.images as string[] | null) ?? []).filter(Boolean)
   const allImages = [hotel.cover_image, ...gallery].filter((s): s is string => Boolean(s))
   const uniqueImages = Array.from(new Set(allImages))
-  const fromPrice = rooms?.length ? Math.min(...rooms.map(r => r.price_per_night)) : null
+  const fromPrice = rooms.length ? Math.min(...rooms.map(r => r.price_per_night)) : null
 
   // Check if user has saved this hotel
   let isSaved = false
@@ -180,10 +206,10 @@ export default async function PublicHotelDetailPage({ params }: { params: Promis
       : {}),
     ...(fromPrice
       ? {
-          priceRange: `From PKR ${fromPrice}`,
+          priceRange: `From ${currency} ${fromPrice}`,
           makesOffer: {
             '@type': 'Offer',
-            priceCurrency: 'PKR',
+            priceCurrency: currency,
             price: fromPrice,
             availability: 'https://schema.org/InStock',
             url: hotelUrl,
@@ -288,10 +314,27 @@ export default async function PublicHotelDetailPage({ params }: { params: Promis
             <div id="rooms">
               <div className="mb-4 flex items-baseline justify-between">
                 <h2 className="text-xl font-bold text-gray-900">Available Rooms</h2>
-                <span className="text-sm text-gray-500">{rooms?.length ?? 0} room{rooms?.length === 1 ? '' : 's'}</span>
+                <span className="text-sm text-gray-500">{rooms.length} room{rooms.length === 1 ? '' : 's'}</span>
               </div>
+
+              {datesApplied && (
+                <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-primary-100 bg-primary-50/60 px-4 py-2.5 text-sm text-primary-900">
+                  <Clock className="h-4 w-4 flex-shrink-0 text-primary-600" />
+                  <span className="font-medium">
+                    {new Date(check_in!).toLocaleDateString('en', { day: 'numeric', month: 'short' })} –{' '}
+                    {new Date(check_out!).toLocaleDateString('en', { day: 'numeric', month: 'short' })} · {nights} night{nights === 1 ? '' : 's'}
+                    {guests > 0 ? ` · ${guests} guest${guests === 1 ? '' : 's'}` : ''}
+                  </span>
+                  {unavailableCount > 0 && (
+                    <span className="text-primary-700/70">
+                      ({unavailableCount} room{unavailableCount === 1 ? '' : 's'} already booked for these dates)
+                    </span>
+                  )}
+                </div>
+              )}
+
               <div className="space-y-4">
-                {rooms?.map(room => {
+                {rooms.map(room => {
                   const roomImages = (room.images as string[] | null) ?? []
                   const thumb = roomImages[0]
                   const type = room.room_type as { name?: string; description?: string } | null
@@ -324,23 +367,35 @@ export default async function PublicHotelDetailPage({ params }: { params: Promis
                       </div>
                       <div className="flex items-center justify-between gap-4 border-t border-gray-100 pt-4 sm:flex-col sm:items-end sm:border-0 sm:pt-0 sm:text-right">
                         <div>
-                          <p className="text-2xl font-bold text-gray-900">Rs {room.price_per_night.toLocaleString()}</p>
+                          <p className="text-2xl font-bold text-gray-900">{formatCurrency(room.price_per_night, currency)}</p>
                           <p className="text-sm text-gray-500">per night</p>
+                          {nights > 0 && (
+                            <p className="text-xs text-gray-400">
+                              {formatCurrency(room.price_per_night * nights, currency)} for {nights} night{nights === 1 ? '' : 's'}
+                            </p>
+                          )}
                         </div>
                         <PublicBookRoomButton
                           roomId={room.id}
                           hotelId={id}
                           hotelSlug={id}
                           pricePerNight={room.price_per_night}
+                          currency={currency}
                           isLoggedIn={!!user}
+                          defaultCheckIn={datesApplied ? check_in : undefined}
+                          defaultCheckOut={datesApplied ? check_out : undefined}
+                          defaultGuests={guests || undefined}
+                          maxGuests={room.capacity ?? undefined}
                         />
                       </div>
                     </div>
                   )
                 })}
-                {!rooms?.length && (
+                {!rooms.length && (
                   <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-gray-500">
-                    No rooms available at this time — check back soon.
+                    {datesApplied
+                      ? 'No rooms free for those dates — try a different range.'
+                      : 'No rooms available at this time — check back soon.'}
                   </div>
                 )}
               </div>
@@ -389,7 +444,7 @@ export default async function PublicHotelDetailPage({ params }: { params: Promis
                   <p className="text-xs uppercase tracking-wide text-gray-500">Starting from</p>
                   <p className="text-3xl font-bold text-gray-900 mt-1">
                     {fromPrice !== null ? (
-                      <>Rs {fromPrice.toLocaleString()}<span className="text-base font-normal text-gray-500"> / night</span></>
+                      <>{formatCurrency(fromPrice, currency)}<span className="text-base font-normal text-gray-500"> / night</span></>
                     ) : '—'}
                   </p>
                 </div>

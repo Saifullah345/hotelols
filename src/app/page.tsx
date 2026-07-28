@@ -7,6 +7,8 @@ import HeroSearchBar from './HeroSearchBar'
 import SaveHotelButton from '@/components/SaveHotelButton'
 import JsonLd from '@/components/seo/JsonLd'
 import { absoluteUrl } from '@/lib/seo'
+import { formatCurrency } from '@/lib/currency'
+import { tokenize, buildOrFilter, relevance, hasValidRange, nightsBetween, getBookedRoomIds } from '@/lib/search'
 import { MapPin, Star, Wifi, Car, Coffee, Building2, ChevronRight } from 'lucide-react'
 
 type Hotel = {
@@ -14,6 +16,8 @@ type Hotel = {
   name: string
   city: string
   country: string
+  address: string | null
+  currency: string | null
   cover_image: string | null
   rating: number | null
   amenities: string[] | null
@@ -40,54 +44,76 @@ export default async function LandingPage({
 
   const supabase = await createAdminClient()
 
-  // The field is labelled "City or hotel name", so match all three columns —
-  // matching only `city` is why hotel-name searches came back empty.
-  const term = (city ?? '').trim()
-  // PostgREST parses `,` `(` `)` as filter syntax inside .or(), so strip them.
-  const safeTerm = term.replace(/[(),*%\\]/g, ' ').trim()
+  // The field is labelled "City or hotel name", so match every location column.
+  // Multi-word entries are matched token by token — "wah place" has to be able
+  // to find a hotel in "Wah", which a whole-phrase ILIKE never would.
+  const tokens = tokenize(city ?? '')
+
+  // Party size, and the date range once it's complete enough to check against.
+  const guests = Math.max(0, (Number(adults) || 0) + (Number(children) || 0))
+  const datesApplied = hasValidRange(check_in, check_out)
+  const filtersApplied = tokens.length > 0 || datesApplied || guests > 0
 
   let q = supabase
     .from('hotels')
-    .select('id, name, city, country, cover_image, rating, amenities, review_count')
+    .select('id, name, city, country, address, currency, cover_image, rating, amenities, review_count')
     .eq('status', 'active')
     .order('rating', { ascending: false, nullsFirst: false })
-    .limit(safeTerm ? 24 : 9)
+    // Room-level filters run below, so fetch a wider pool when searching and
+    // trim to the display count afterwards.
+    .limit(filtersApplied ? 60 : 9)
 
-  if (safeTerm) {
-    q = q.or(`name.ilike.%${safeTerm}%,city.ilike.%${safeTerm}%,country.ilike.%${safeTerm}%`)
-  }
+  if (tokens.length) q = q.or(buildOrFilter(tokens))
 
   const { data: hotels } = await q
 
-  const ids = (hotels ?? []).map(h => h.id)
-  const { data: prices } = ids.length
-    ? await supabase.from('rooms').select('hotel_id, price_per_night').in('hotel_id', ids).eq('status', 'available')
+  const matchedIds = (hotels ?? []).map(h => h.id)
+
+  // Rooms that could actually host this stay: bookable, big enough, and not
+  // already taken for the requested nights.
+  const { data: roomRows } = matchedIds.length
+    ? await supabase
+        .from('rooms')
+        .select('id, hotel_id, price_per_night, capacity')
+        .in('hotel_id', matchedIds)
+        .eq('status', 'available')
     : { data: [] }
 
-  const minPriceMap = (prices ?? []).reduce<Record<string, number>>((acc, r) => {
-    if (!acc[r.hotel_id] || r.price_per_night < acc[r.hotel_id]) acc[r.hotel_id] = r.price_per_night
-    return acc
-  }, {})
+  const bookedRoomIds = datesApplied
+    ? await getBookedRoomIds(supabase, matchedIds, check_in!, check_out!)
+    : new Set<string>()
 
-  // Rank an exact city hit above a prefix hit above a mere substring, so a search
-  // for "Lahore" leads with Lahore hotels rather than whatever is rated highest.
-  const relevance = (h: { name: string; city: string; country: string }) => {
-    if (!safeTerm) return 0
-    const t = safeTerm.toLowerCase()
-    const fields = [h.city ?? '', h.name ?? '', h.country ?? ''].map(v => v.toLowerCase())
-    if (fields.some(f => f === t)) return 0
-    if (fields.some(f => f.startsWith(t))) return 1
-    return 2
+  // Cheapest free room per hotel + total free capacity, so a party of 4 still
+  // sees a hotel offering two doubles rather than only 4-bed rooms.
+  const minPriceMap: Record<string, number> = {}
+  const freeCapacity: Record<string, number> = {}
+  for (const room of roomRows ?? []) {
+    if (bookedRoomIds.has(room.id)) continue
+    if (minPriceMap[room.hotel_id] === undefined || room.price_per_night < minPriceMap[room.hotel_id]) {
+      minPriceMap[room.hotel_id] = room.price_per_night
+    }
+    freeCapacity[room.hotel_id] = (freeCapacity[room.hotel_id] ?? 0) + (room.capacity ?? 0)
   }
 
   const hotelList: Hotel[] = (hotels ?? [])
+    .filter(h => {
+      // Without dates or a party size, keep listing hotels that have no rooms
+      // loaded yet — they still deserve a browse. Once the guest asks for
+      // something specific, only hotels that can honour it are shown.
+      if (datesApplied && minPriceMap[h.id] === undefined) return false
+      if (guests > 0 && (freeCapacity[h.id] ?? 0) < guests) return false
+      return true
+    })
     .map(h => ({ ...h, min_price: minPriceMap[h.id] }))
     .sort(
       (a, b) =>
-        relevance(a) - relevance(b) ||
+        relevance(a, tokens) - relevance(b, tokens) ||
         (a.cover_image ? 0 : 1) - (b.cover_image ? 0 : 1) ||
         (b.rating ?? 0) - (a.rating ?? 0)
     )
+    .slice(0, filtersApplied ? 24 : 9)
+
+  const ids = hotelList.map(h => h.id)
 
   // Fetch saved hotel IDs for the logged-in user
   const savedSet = new Set<string>()
@@ -100,7 +126,8 @@ export default async function LandingPage({
     ;(saved ?? []).forEach(s => savedSet.add(s.hotel_id))
   }
 
-  const hasFilter = !!(city || check_in)
+  const hasFilter = filtersApplied
+  const nightCount = datesApplied ? nightsBetween(check_in!, check_out!) : 0
 
   // Lets search engines see the featured stays as a ranked list of Hotel entities.
   const itemListSchema = {
@@ -182,17 +209,23 @@ export default async function LandingPage({
       </section>
 
       {/* ── Hotel grid ───────────────────────────────────────────────── */}
-      <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-12">
+      <section id="results" className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-12 scroll-mt-4">
         <div className="flex items-end justify-between mb-7">
           <div>
             <h2 className="text-2xl font-extrabold text-gray-900">
               {hasFilter
-                ? city ? `Hotels in ${city}` : 'Search results'
+                ? city?.trim() ? `Hotels in ${city.trim()}` : 'Search results'
                 : 'Top-rated stays'}
             </h2>
             <p className="text-sm text-gray-400 mt-1">
-              {check_in && check_out
-                ? `${new Date(check_in).toLocaleDateString('en', { day: 'numeric', month: 'short' })} – ${new Date(check_out).toLocaleDateString('en', { day: 'numeric', month: 'short' })}`
+              {hasFilter
+                ? [
+                    `${hotelList.length} ${hotelList.length === 1 ? 'stay' : 'stays'}`,
+                    datesApplied
+                      ? `${new Date(check_in!).toLocaleDateString('en', { day: 'numeric', month: 'short' })} – ${new Date(check_out!).toLocaleDateString('en', { day: 'numeric', month: 'short' })} · ${nightCount} night${nightCount === 1 ? '' : 's'}`
+                      : null,
+                    guests > 0 ? `${guests} guest${guests === 1 ? '' : 's'}` : null,
+                  ].filter(Boolean).join(' · ')
                 : 'Handpicked properties for you'}
             </p>
           </div>
@@ -207,15 +240,17 @@ export default async function LandingPage({
           <div className="py-24 text-center">
             <Building2 className="h-12 w-12 text-gray-200 mx-auto mb-4" />
             <p className="text-gray-500 font-semibold">No hotels found</p>
-            <p className="text-gray-400 text-sm mt-1">Try a different city or clear your search.</p>
+            <p className="text-gray-400 text-sm mt-1">
+              {datesApplied || guests > 0
+                ? 'Nothing free for those dates and guests. Try shifting your dates, fewer guests, or another destination.'
+                : 'Try a different city or clear your search.'}
+            </p>
             <Link href="/" className="mt-5 inline-block text-sm font-semibold text-indigo-600 hover:underline">Browse all hotels</Link>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {hotelList.map(hotel => {
-              const nights = check_in && check_out
-                ? Math.ceil((new Date(check_out).getTime() - new Date(check_in).getTime()) / 86400000)
-                : null
+              const nights = nightCount || null
               const amenities = (hotel.amenities ?? []).slice(0, 3)
               const initial = hotel.name.trim().charAt(0).toUpperCase()
               // Carry only the params the guest actually chose.
@@ -283,7 +318,7 @@ export default async function LandingPage({
                                 {nights ? `${nights} night${nights > 1 ? 's' : ''} from` : 'from'}
                               </p>
                               <p className="text-xl font-extrabold text-gray-900 leading-none">
-                                Rs {nights ? (hotel.min_price * nights).toLocaleString() : hotel.min_price.toLocaleString()}
+                                {formatCurrency(nights ? hotel.min_price * nights : hotel.min_price, hotel.currency ?? 'PKR')}
                                 {!nights && <span className="text-sm font-normal text-gray-400"> /night</span>}
                               </p>
                             </>

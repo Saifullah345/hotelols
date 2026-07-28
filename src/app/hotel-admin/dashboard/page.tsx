@@ -2,8 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { StatsCard } from '@/components/dashboard/StatsCard'
 import { RevenueChart } from '@/components/dashboard/RevenueChart'
-import { BedDouble, CalendarCheck, DollarSign, Clock, TrendingUp, Building2 } from 'lucide-react'
+import { BedDouble, CalendarCheck, Clock, TrendingUp, Building2 } from 'lucide-react'
 import { formatCurrency } from '@/lib/currency'
+import { currencyIcon } from '@/components/dashboard/CurrencyIcon'
 
 export const metadata = { title: 'Dashboard' }
 
@@ -71,7 +72,7 @@ export default async function HotelAdminDashboard() {
     { title: 'Total Rooms', value: totalRooms ?? 0, icon: BedDouble, iconBg: 'bg-blue-50', iconColor: 'text-blue-600', href: '/hotel-admin/rooms' },
     { title: 'Available Rooms', value: availableRooms ?? 0, icon: BedDouble, iconBg: 'bg-green-50', iconColor: 'text-green-600', href: '/hotel-admin/rooms?status=available' },
     { title: 'Total Bookings', value: totalBookings ?? 0, icon: CalendarCheck, iconBg: 'bg-purple-50', iconColor: 'text-purple-600', change: 15, href: '/hotel-admin/bookings' },
-    { title: 'Total Revenue', value: formatCurrency(totalRevenue, currency), icon: DollarSign, iconBg: 'bg-green-50', iconColor: 'text-green-600', change: 8, href: '/hotel-admin/reports' },
+    { title: 'Total Revenue', value: formatCurrency(totalRevenue, currency), icon: currencyIcon(currency), iconBg: 'bg-green-50', iconColor: 'text-green-600', change: 8, href: '/hotel-admin/reports' },
   ]
 
   const statusColors: Record<string, string> = {

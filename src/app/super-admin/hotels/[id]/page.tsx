@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Building2, MapPin, Mail, Phone, BedDouble, CalendarCheck, DollarSign, User } from 'lucide-react'
+import { formatCurrency } from '@/lib/currency'
 
 export const metadata = { title: 'Hotel Details' }
 
@@ -51,13 +52,16 @@ export default async function HotelDetailsPage({ params }: { params: Promise<{ i
     .filter(p => p.status === 'completed')
     .reduce((sum, p) => sum + Number(p.amount), 0)
 
+  // Amounts belong to the hotel, so they're shown in the hotel's own currency —
+  // platform plan pricing (USD) is a separate concern.
+  const hotelCurrency = (hotel.currency as string | null) ?? 'USD'
   const owner = hotel.owner as { full_name?: string; email?: string } | null
   const plan = hotel.plan as { name?: string; price_monthly?: number } | null
 
   const stats = [
     { label: 'Rooms', value: roomCount, sub: `${availableRooms} available`, icon: BedDouble, color: 'text-blue-600 bg-blue-50' },
     { label: 'Bookings', value: bookingCount ?? 0, sub: 'all time', icon: CalendarCheck, color: 'text-purple-600 bg-purple-50' },
-    { label: 'Revenue', value: `$${revenue.toLocaleString()}`, sub: 'completed payments', icon: DollarSign, color: 'text-green-600 bg-green-50' },
+    { label: 'Revenue', value: formatCurrency(revenue, hotelCurrency), sub: 'completed payments', icon: DollarSign, color: 'text-green-600 bg-green-50' },
   ]
 
   return (
@@ -160,7 +164,7 @@ export default async function HotelDetailsPage({ params }: { params: Promise<{ i
                 </td>
                 <td className="table-cell text-gray-500">{new Date(b.check_in).toLocaleDateString()}</td>
                 <td className="table-cell text-gray-500">{new Date(b.check_out).toLocaleDateString()}</td>
-                <td className="table-cell font-semibold">${b.total_amount}</td>
+                <td className="table-cell font-semibold">{formatCurrency(b.total_amount, hotelCurrency)}</td>
                 <td className="table-cell">
                   <span className={bookingBadge[b.status] ?? 'badge-gray'}>{b.status.replace('_', ' ')}</span>
                 </td>

@@ -8,7 +8,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
-import { Loader2, Eye, EyeOff, MailCheck, ShieldCheck, ArrowRight } from 'lucide-react'
+import { Loader2, Eye, EyeOff, MailCheck, ArrowRight } from 'lucide-react'
 
 const schema = z.object({
   email: z.string().email('Invalid email'),
@@ -42,11 +42,6 @@ export default function LoginPage() {
   const [resending, setResending] = useState(false)
   const [redirecting, setRedirecting] = useState(false)
 
-  const [creds, setCreds] = useState<FormData | null>(null)
-  const [otp, setOtp] = useState('')
-  const [verifying, setVerifying] = useState(false)
-  const [otpResending, setOtpResending] = useState(false)
-
   const [forgotStep, setForgotStep] = useState<'none' | 'request' | 'confirm'>('none')
   const [forgotEmail, setForgotEmail] = useState('')
   const [sendingReset, setSendingReset] = useState(false)
@@ -59,10 +54,15 @@ export default function LoginPage() {
     resolver: zodResolver(schema),
   })
 
-  const completeLogin = async (data: FormData) => {
+  const onSubmit = async (data: FormData) => {
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({ email: data.email, password: data.password })
-    if (error) { toast.error(error.message); return false }
+    if (error) {
+      // Supabase rejects accounts that never clicked the signup confirmation link.
+      if (/confirm/i.test(error.message)) { setUnverifiedEmail(data.email); return }
+      toast.error(error.message)
+      return
+    }
     const { data: { user } } = await supabase.auth.getUser()
     let profile: { role?: string } | null = null
     if (user) {
@@ -75,45 +75,6 @@ export default function LoginPage() {
     setRedirecting(true)
     router.push(profile?.role ? roleRedirects[profile.role] ?? '/' : '/')
     router.refresh()
-    return true
-  }
-
-  const onSubmit = async (data: FormData) => {
-    const res = await fetch('/api/auth/otp/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
-    const json = await res.json().catch(() => ({}))
-    if (!res.ok) { toast.error(json.error ?? 'Unable to sign in'); return }
-    if (json.needsEmailVerification) { setUnverifiedEmail(data.email); return }
-    if (json.otpRequired) { setCreds(data); setOtp(''); toast.success('We emailed you a 6-digit verification code'); return }
-    await completeLogin(data)
-  }
-
-  const verifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!creds || otp.length < 6) return
-    setVerifying(true)
-    const res = await fetch('/api/auth/otp/verify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: creds.email, code: otp }),
-    })
-    const json = await res.json().catch(() => ({}))
-    if (!res.ok) { toast.error(json.error ?? 'Invalid code'); setOtp(''); setVerifying(false); return }
-    const ok = await completeLogin(creds)
-    if (!ok) setVerifying(false)
-  }
-
-  const resendOtp = async () => {
-    if (!creds) return
-    setOtpResending(true)
-    const res = await fetch('/api/auth/otp/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(creds) })
-    setOtpResending(false)
-    const json = await res.json().catch(() => ({}))
-    if (!res.ok) { toast.error(json.error ?? 'Could not resend code'); return }
-    toast.success('A new code is on its way')
   }
 
   const resendVerification = async () => {
@@ -217,34 +178,6 @@ export default function LoginPage() {
       <button onClick={() => setForgotStep('none')} className="mt-2 block mx-auto text-sm text-gray-400 hover:text-gray-600 transition-colors">Back to sign in</button>
     </div>
   )
-
-  // ── OTP entry ──
-  if (creds) {
-    const otpBusy = verifying || redirecting
-    return (
-      <div className="text-center">
-        <div className="mx-auto mb-5 w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center">
-          <ShieldCheck className="h-7 w-7 text-indigo-600" />
-        </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Check your email</h2>
-        <p className="text-sm text-gray-500">We sent a 6-digit code to <strong className="text-gray-700">{creds.email}</strong>.</p>
-        <form onSubmit={verifyOtp} className="mt-6 space-y-4">
-          <input value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" autoFocus placeholder="— — — — — —" className={`${inputCls} text-center text-xl tracking-[0.4em] font-semibold`} />
-          <button type="submit" disabled={otpBusy || otp.length < 6} className="w-full btn-gradient flex items-center justify-center gap-2">
-            {otpBusy && <Loader2 className="h-4 w-4 animate-spin" />}
-            {redirecting ? 'Redirecting...' : verifying ? 'Verifying...' : 'Verify & Sign In'}
-          </button>
-        </form>
-        <div className="mt-4 text-sm text-gray-500">
-          Didn&apos;t get it?{' '}
-          <button onClick={resendOtp} disabled={otpResending} className="text-indigo-600 hover:text-indigo-700 font-medium inline-flex items-center gap-1">
-            {otpResending && <Loader2 className="h-3 w-3 animate-spin" />}Resend
-          </button>
-        </div>
-        <button onClick={() => { setCreds(null); setOtp('') }} className="mt-2 block mx-auto text-sm text-gray-400 hover:text-gray-600 transition-colors">Back to sign in</button>
-      </div>
-    )
-  }
 
   // ── Main sign in ──
   const busy = isSubmitting || redirecting

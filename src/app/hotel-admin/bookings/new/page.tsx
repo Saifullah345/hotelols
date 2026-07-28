@@ -10,7 +10,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   Loader2, ArrowLeft, Search, User, BedDouble,
   MessageCircle, Phone, DoorOpen, Globe,
-  Banknote, CreditCard, Building2, FileText, HelpCircle, CheckCircle, Users, Check,
+  Banknote, CreditCard, Building2, FileText, HelpCircle, CheckCircle, Users, Check, CalendarDays,
 } from 'lucide-react'
 import Link from 'next/link'
 import PhoneInput from '@/components/ui/PhoneInput'
@@ -186,11 +186,12 @@ function PaymentBlock({
 
 // ── Standalone Room Picker (must be outside parent to keep input focus) ──
 function RoomPicker({
-  rooms, selectedRoomIds, unavailableRoomIds, currency, nights, totalAmount, onToggle,
+  rooms, selectedRoomIds, unavailableRoomIds, datesChosen, currency, nights, totalAmount, onToggle,
 }: {
   rooms: Room[]
   selectedRoomIds: string[]
   unavailableRoomIds: Set<string>
+  datesChosen: boolean
   currency: string
   nights: number
   totalAmount: number
@@ -217,6 +218,21 @@ function RoomPicker({
           </span>
         )}
       </div>
+
+      {/* Availability is derived from the dates above, so say so plainly rather
+          than showing an unfiltered list that looks fully available. */}
+      {!datesChosen ? (
+        <p className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          <CalendarDays className="h-3.5 w-3.5 flex-shrink-0" />
+          Pick check-in and check-out above to see which rooms are free.
+        </p>
+      ) : (
+        <p className="flex items-center gap-1.5 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+          <Check className="h-3.5 w-3.5 flex-shrink-0" />
+          Showing availability for these dates
+          {unavailableRoomIds.size > 0 && ` — ${unavailableRoomIds.size} room${unavailableRoomIds.size === 1 ? '' : 's'} already booked`}.
+        </p>
+      )}
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
@@ -350,6 +366,8 @@ export default function NewBookingPage() {
 
   const activeCheckIn  = isOffline ? checkInOff  : checkIn
   const activeCheckOut = isOffline ? checkOutOff : checkOut
+  // A complete, valid range — the point at which availability can be resolved.
+  const datesChosen = Boolean(activeCheckIn && activeCheckOut && new Date(activeCheckOut) > new Date(activeCheckIn))
 
   // Load rooms + currency
   useEffect(() => {
@@ -530,25 +548,31 @@ export default function NewBookingPage() {
 
   const today = new Date().toISOString().split('T')[0]
 
-  // ── Dates + Details block ─────────────────────────────────────
-  const DatesDetailsBlock = (reg: Parameters<typeof onlineForm.register>[0] extends string ? any : any, errs: Record<string, { message?: string }>, ci: string) => (
-    <>
-      <div className="card p-5 space-y-4">
-        <p className="text-sm font-semibold text-gray-700">Dates</p>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="label">Check-in</label>
-            <input {...reg('check_in')} type="date" min={today} className="input" />
-            {errs.check_in && <p className="text-red-500 text-xs mt-1">{errs.check_in.message}</p>}
-          </div>
-          <div>
-            <label className="label">Check-out</label>
-            <input {...reg('check_out')} type="date" min={ci || today} className="input" />
-            {errs.check_out && <p className="text-red-500 text-xs mt-1">{errs.check_out.message}</p>}
-          </div>
+  // ── Dates block ───────────────────────────────────────────────
+  // Rendered above the room picker: room availability is derived from these
+  // dates, so choosing them first means the list is already filtered when the
+  // staff member picks a room.
+  const DatesBlock = (reg: Parameters<typeof onlineForm.register>[0] extends string ? any : any, errs: Record<string, { message?: string }>, ci: string) => (
+    <div className="card p-5 space-y-4">
+      <p className="text-sm font-semibold text-gray-700">Dates</p>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="label">Check-in</label>
+          <input {...reg('check_in')} type="date" min={today} className="input" />
+          {errs.check_in && <p className="text-red-500 text-xs mt-1">{errs.check_in.message}</p>}
+        </div>
+        <div>
+          <label className="label">Check-out</label>
+          <input {...reg('check_out')} type="date" min={ci || today} className="input" />
+          {errs.check_out && <p className="text-red-500 text-xs mt-1">{errs.check_out.message}</p>}
         </div>
       </div>
+    </div>
+  )
 
+  // ── Details block ─────────────────────────────────────────────
+  const DetailsBlock = (reg: Parameters<typeof onlineForm.register>[0] extends string ? any : any, errs: Record<string, { message?: string }>) => (
+    <>
       <div className="card p-5 space-y-4">
         <p className="text-sm font-semibold text-gray-700">Details</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -646,16 +670,18 @@ export default function NewBookingPage() {
             </div>
           </div>
 
+          {DatesBlock(offlineForm.register, offlineForm.formState.errors as Record<string, { message?: string }>, checkInOff)}
           <RoomPicker
             rooms={rooms}
             selectedRoomIds={selectedRoomIds}
             unavailableRoomIds={unavailableRoomIds}
+            datesChosen={datesChosen}
             currency={currency}
             nights={nights}
             totalAmount={totalAmount}
             onToggle={toggleRoom}
           />
-          {DatesDetailsBlock(offlineForm.register, offlineForm.formState.errors as Record<string, { message?: string }>, checkInOff)}
+          {DetailsBlock(offlineForm.register, offlineForm.formState.errors as Record<string, { message?: string }>)}
           <PaymentBlock
             totalAmount={totalAmount}
             currency={currency}
@@ -716,16 +742,18 @@ export default function NewBookingPage() {
             )}
           </div>
 
+          {DatesBlock(onlineForm.register, onlineForm.formState.errors as Record<string, { message?: string }>, checkIn)}
           <RoomPicker
             rooms={rooms}
             selectedRoomIds={selectedRoomIds}
             unavailableRoomIds={unavailableRoomIds}
+            datesChosen={datesChosen}
             currency={currency}
             nights={nights}
             totalAmount={totalAmount}
             onToggle={toggleRoom}
           />
-          {DatesDetailsBlock(onlineForm.register, onlineForm.formState.errors as Record<string, { message?: string }>, checkIn)}
+          {DetailsBlock(onlineForm.register, onlineForm.formState.errors as Record<string, { message?: string }>)}
 
           <div className="flex justify-end gap-3">
             <Link href="/hotel-admin/bookings" className="btn-secondary">Cancel</Link>

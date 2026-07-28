@@ -1,11 +1,11 @@
 import crypto from 'crypto'
 
-// Stateless OTP challenge: the code itself is never stored server-side. Instead
-// we issue a signed, tamper-proof token (kept in an httpOnly cookie) that holds
-// a hash of the code plus an expiry and attempt counter. This avoids needing an
-// extra database table while still being secure against tampering and replay.
+// Stateless one-time-code challenge (used by the password-reset flow): the code
+// itself is never stored server-side. Instead we issue a signed, tamper-proof
+// token (kept in an httpOnly cookie) that holds a hash of the code plus an
+// expiry and attempt counter. This avoids needing an extra database table while
+// still being secure against tampering and replay.
 
-export const OTP_COOKIE = 'otp_challenge'
 export const PASSWORD_RESET_COOKIE = 'pwreset_challenge'
 const OTP_TTL_MS = 10 * 60 * 1000 // 10 minutes
 const MAX_ATTEMPTS = 5

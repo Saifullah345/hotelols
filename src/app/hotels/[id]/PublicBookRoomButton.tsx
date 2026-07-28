@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Loader2, LogIn } from 'lucide-react'
+import { formatCurrency } from '@/lib/currency'
 
 interface Props {
   roomId: string
@@ -11,23 +12,35 @@ interface Props {
   hotelSlug: string
   pricePerNight: number
   isLoggedIn: boolean
+  currency?: string
+  /** Carried over from the search so the guest doesn't re-enter their stay. */
+  defaultCheckIn?: string
+  defaultCheckOut?: string
+  defaultGuests?: number
+  maxGuests?: number
 }
 
-export default function PublicBookRoomButton({ roomId, hotelId, hotelSlug, pricePerNight, isLoggedIn }: Props) {
+export default function PublicBookRoomButton({
+  roomId, hotelId, hotelSlug, pricePerNight, isLoggedIn,
+  currency = 'PKR',
+  defaultCheckIn = '',
+  defaultCheckOut = '',
+  defaultGuests,
+  maxGuests,
+}: Props) {
   const [open, setOpen]       = useState(false)
-  const [checkIn, setCheckIn] = useState('')
-  const [checkOut, setCheckOut] = useState('')
-  const [guests, setGuests]   = useState(1)
+  const [checkIn, setCheckIn] = useState(defaultCheckIn)
+  const [checkOut, setCheckOut] = useState(defaultCheckOut)
+  const [guests, setGuests]   = useState(Math.max(1, defaultGuests ?? 1))
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
-  const nights = checkIn && checkOut
+  const nights = checkIn && checkOut && checkOut > checkIn
     ? Math.max(1, Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000))
     : 0
   const total = nights * pricePerNight
-  // Deposit collected by the hotel to confirm the stay (first night), balance on arrival.
-  const advance = nights > 0 ? pricePerNight : 0
-  const balance = Math.max(total - advance, 0)
+  // This room can't sleep the whole party — they'll need a second room.
+  const overCapacity = maxGuests !== undefined && guests > maxGuests
 
   if (!isLoggedIn) {
     return (
@@ -42,6 +55,7 @@ export default function PublicBookRoomButton({ roomId, hotelId, hotelSlug, price
 
   const handleBook = async () => {
     if (!checkIn || !checkOut) { toast.error('Select dates'); return }
+    if (checkOut <= checkIn) { toast.error('Check-out must be after check-in'); return }
     setLoading(true)
     try {
       const res = await fetch('/api/bookings', {
@@ -94,9 +108,14 @@ export default function PublicBookRoomButton({ roomId, hotelId, hotelSlug, price
               <input type="number" min={1} max={20} value={guests} onChange={e => setGuests(Number(e.target.value))} className="input text-sm py-1" />
             </div>
           </div>
+          {overCapacity && (
+            <p className="text-xs text-amber-600 mb-2">
+              This room sleeps {maxGuests} — book an extra room for the rest of your party.
+            </p>
+          )}
           {nights > 0 && (
             <p className="text-sm font-semibold text-gray-900 mb-2">
-              {nights} night{nights > 1 ? 's' : ''} = <span className="text-primary-600">Rs {total.toLocaleString()}</span>
+              {nights} night{nights > 1 ? 's' : ''} = <span className="text-primary-600">{formatCurrency(total, currency)}</span>
             </p>
           )}
           <div className="flex gap-2">

@@ -10,6 +10,14 @@ import PrintButton from './PrintButton'
 
 export const metadata = { title: 'Receipt' }
 
+type RoomInfo = {
+  id: string
+  room_number: string
+  name: string | null
+  price_per_night: number
+  room_type: { name: string } | null
+}
+
 type BookingInfo = {
   check_in: string
   check_out: string
@@ -20,7 +28,8 @@ type BookingInfo = {
   guest_phone: string | null
   total_amount: number
   special_requests: string | null
-  room: { room_number: string; name: string | null; room_type: { name: string } | null } | null
+  room_ids: string[] | null
+  room: RoomInfo | null
   user: { full_name: string; email: string } | null
 } | null
 
@@ -42,8 +51,8 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
       .select(`
         id, booking_id, hotel_id, amount, currency, status, payment_method, payment_notes, invoice_number, paid_at, created_at,
         booking:bookings(
-          check_in, check_out, adults, children, guests, guest_name, guest_phone, total_amount, special_requests,
-          room:rooms(room_number, name, room_type:room_types(name)),
+          check_in, check_out, adults, children, guests, guest_name, guest_phone, total_amount, special_requests, room_ids,
+          room:rooms(id, room_number, name, price_per_night, room_type:room_types(name)),
           user:profiles(full_name, email)
         )
       `)
@@ -76,6 +85,25 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
 
   const currency = payment.currency || hotel?.currency || 'USD'
   const booking = payment.booking as unknown as BookingInfo
+
+  // A booking can hold several rooms (`room_ids`); `room` is only the primary
+  // one, so the rest are fetched here — a receipt has to account for every room
+  // the guest is being charged for.
+  const bookedRoomIds = booking?.room_ids?.length
+    ? booking.room_ids
+    : booking?.room ? [booking.room.id] : []
+  const extraRoomIds = bookedRoomIds.filter(rid => rid !== booking?.room?.id)
+  const { data: extraRoomRows } = extraRoomIds.length
+    ? await supabase
+        .from('rooms')
+        .select('id, room_number, name, price_per_night, room_type:room_types(name)')
+        .in('id', extraRoomIds)
+    : { data: [] }
+  const rooms: RoomInfo[] = [
+    ...(booking?.room ? [booking.room] : []),
+    ...((extraRoomRows ?? []) as unknown as RoomInfo[]),
+  ]
+
   const guestName = booking?.user?.full_name || booking?.guest_name || 'Guest'
   const guestContact = booking?.user?.email || booking?.guest_phone || ''
   const receiptNumber = payment.invoice_number || `RCPT-${payment.id.slice(0, 8).toUpperCase()}`
@@ -86,6 +114,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
     ? Math.max(1, Math.round((new Date(booking.check_out).getTime() - new Date(booking.check_in).getTime()) / 86400000))
     : null
   const nightlyRate = booking && nights ? booking.total_amount / nights : null
+  const roomsSubtotal = nights ? rooms.reduce((sum, r) => sum + r.price_per_night * nights, 0) : 0
   // Balance still outstanding after ALL completed payments (including this one)
   const balanceDue = booking ? Math.max(booking.total_amount - totalPaid, 0) : 0
   // Is this an advance/partial receipt (balance still owed)?
@@ -156,15 +185,21 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
             <p className="font-semibold text-gray-900">{guestName}</p>
             {guestContact && <p className="text-sm text-gray-500 mt-0.5">{guestContact}</p>}
           </div>
-          {booking?.room && (
+          {rooms.length > 0 && (
             <div className="rounded-xl bg-gray-50 p-4">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
-                <BedDouble className="h-3.5 w-3.5" /> Room
+                <BedDouble className="h-3.5 w-3.5" /> {rooms.length === 1 ? 'Room' : `Rooms (${rooms.length})`}
               </div>
-              <p className="font-semibold text-gray-900">
-                Room {booking.room.room_number}{booking.room.name ? ` (${booking.room.name})` : ''}
-              </p>
-              <p className="text-sm text-gray-500 mt-0.5">{booking.room.room_type?.name}</p>
+              <ul className="space-y-1.5">
+                {rooms.map(r => (
+                  <li key={r.id}>
+                    <p className="font-semibold text-gray-900">
+                      Room {r.room_number}{r.name ? ` (${r.name})` : ''}
+                    </p>
+                    {r.room_type?.name && <p className="text-sm text-gray-500">{r.room_type.name}</p>}
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
         </div>
@@ -194,7 +229,34 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
         {/* Charges */}
         <div className="mx-8 mt-6 border-t border-gray-100" />
         <div className="px-8 pt-5">
-          {booking && nightlyRate != null && (
+          {booking && nights != null && rooms.length > 0 && (
+            <>
+              {rooms.map(r => (
+                <div key={r.id} className="flex items-center justify-between text-sm pb-3">
+                  <span className="text-gray-600">
+                    Room {r.room_number}{r.room_type?.name ? ` (${r.room_type.name})` : ''} — {nights} night{nights !== 1 ? 's' : ''} × {formatCurrency(r.price_per_night, currency)}
+                  </span>
+                  <span className="font-medium text-gray-900">{formatCurrency(r.price_per_night * nights, currency)}</span>
+                </div>
+              ))}
+              {/* Manual discounts/adjustments live on the booking, so any gap
+                  between the room lines and the agreed total is shown, never hidden. */}
+              {Math.abs(booking.total_amount - roomsSubtotal) >= 1 && (
+                <div className="flex items-center justify-between text-sm pb-3">
+                  <span className="text-gray-600">Adjustment</span>
+                  <span className="font-medium text-gray-900">
+                    {booking.total_amount > roomsSubtotal ? '+' : '−'}
+                    {formatCurrency(Math.abs(booking.total_amount - roomsSubtotal), currency)}
+                  </span>
+                </div>
+              )}
+              <div className="flex items-center justify-between text-sm pb-3 border-t border-gray-100 pt-3">
+                <span className="text-gray-600">Booking total</span>
+                <span className="font-semibold text-gray-900">{formatCurrency(booking.total_amount, currency)}</span>
+              </div>
+            </>
+          )}
+          {booking && rooms.length === 0 && nightlyRate != null && (
             <div className="flex items-center justify-between text-sm pb-3">
               <span className="text-gray-600">
                 Room charge — {nights} night{nights !== 1 ? 's' : ''} × {formatCurrency(nightlyRate, currency)}

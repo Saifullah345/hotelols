@@ -215,8 +215,8 @@ export function customerInviteTemplate(fullName: string, inviteUrl: string): { s
 export interface BookingConfirmationData {
   guestName: string
   hotelName: string
-  roomNumber?: string
-  roomType?: string
+  /** Every room on the booking, so multi-room stays list them all. */
+  rooms?: { roomNumber?: string; roomType?: string }[]
   checkIn: string
   checkOut: string
   nights: number
@@ -235,10 +235,16 @@ export function bookingConfirmationTemplate(d: BookingConfirmationData): { subje
       <td style="padding:8px 0;font-size:13px;color:${BRAND.text};text-align:right;font-weight:600;">${escapeHtml(value)}</td>
     </tr>`
 
+  const roomLabels = (d.rooms ?? [])
+    .map(r => [r.roomNumber ? `Room ${r.roomNumber}` : '', r.roomType ? `(${r.roomType})` : ''].filter(Boolean).join(' '))
+    .filter(Boolean)
+
   const bodyHtml = `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${BRAND.border};border-radius:12px;padding:6px 18px;">
       ${row('Hotel', d.hotelName)}
-      ${row('Room', [d.roomNumber ? `Room ${d.roomNumber}` : '', d.roomType ? `(${d.roomType})` : ''].filter(Boolean).join(' ') || '—')}
+      ${roomLabels.length > 1
+        ? roomLabels.map((label, i) => row(i === 0 ? `Rooms (${roomLabels.length})` : '', label)).join('')
+        : row('Room', roomLabels[0] || '—')}
       ${row('Check-in', d.checkIn)}
       ${row('Check-out', d.checkOut)}
       ${row('Nights', String(d.nights))}
@@ -257,35 +263,6 @@ export function bookingConfirmationTemplate(d: BookingConfirmationData): { subje
       intro: `Hi ${name}, your reservation is all set. Here are your details:`,
       bodyHtml,
       footnote: 'Need to make a change? Just reply to this email or contact the property directly.',
-    }),
-  }
-}
-
-/** Branded one-time login code email. */
-export function otpEmailTemplate(code: string): { subject: string; html: string } {
-  const spaced = code.split('').join('&nbsp;&nbsp;')
-  const bodyHtml = `
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-      <tr>
-        <td align="center" style="padding:8px 0 4px;">
-          <div style="display:inline-block;background:${BRAND.bg};border:1px solid ${BRAND.border};border-radius:12px;padding:18px 28px;">
-            <div style="font-size:32px;font-weight:800;letter-spacing:6px;color:${BRAND.primaryDark};font-family:'Inter',Arial,sans-serif;">${spaced}</div>
-          </div>
-        </td>
-      </tr>
-    </table>
-    <p style="margin:20px 0 0;font-size:14px;line-height:1.6;color:${BRAND.muted};">
-      This code expires in <strong style="color:${BRAND.text};">10 minutes</strong>. Enter it on the sign-in screen to finish logging in.
-    </p>`
-
-  return {
-    subject: `Your ${BRAND.name} login code: ${code}`,
-    html: renderBrandedEmail({
-      preview: `Your ${BRAND.name} verification code is ${code}`,
-      heading: 'Verify your sign-in',
-      intro: 'Use the one-time code below to securely sign in to your account.',
-      bodyHtml,
-      footnote: 'For your security, never share this code with anyone. BookQayam staff will never ask for it.',
     }),
   }
 }

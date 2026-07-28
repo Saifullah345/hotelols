@@ -1,12 +1,19 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 
+export interface InvoiceRoom {
+  roomNumber?: string
+  roomType?: string
+  /** Per-night rate; omitted for legacy callers that only know the total. */
+  pricePerNight?: number
+}
+
 export interface InvoiceData {
   invoiceNumber: string
   hotelName: string
   guestName: string
   guestEmail?: string
-  roomNumber?: string
-  roomType?: string
+  /** Every room on the booking — a multi-room stay must bill all of them. */
+  rooms?: InvoiceRoom[]
   checkIn: string
   checkOut: string
   nights: number
@@ -62,21 +69,34 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<Uint8Array>
   page.drawText('DESCRIPTION', { x: margin + 10, y, size: 9, font: bold, color: MUTED })
   page.drawText('AMOUNT', { x: width - margin - 90, y, size: 9, font: bold, color: MUTED })
 
-  // Line item
+  // Line items — one row per room on the booking.
+  const rooms = data.rooms?.length ? data.rooms : [{}]
+  const stayLine = `${data.checkIn} → ${data.checkOut} · ${data.nights} night${data.nights === 1 ? '' : 's'}`
+
   y -= 30
-  const desc = [
-    `Room ${data.roomNumber ?? ''}`.trim(),
-    data.roomType ? `(${data.roomType})` : '',
-  ].filter(Boolean).join(' ')
-  page.drawText(desc || 'Room booking', { x: margin + 10, y, size: 11, font, color: DARK })
-  page.drawText(money(data.amount), { x: width - margin - 90, y, size: 11, font, color: DARK })
-  y -= 16
-  page.drawText(`${data.checkIn} → ${data.checkOut} · ${data.nights} night${data.nights === 1 ? '' : 's'}`, {
-    x: margin + 10, y, size: 9, font, color: MUTED,
-  })
+  for (const room of rooms) {
+    const desc = [
+      room.roomNumber ? `Room ${room.roomNumber}` : '',
+      room.roomType ? `(${room.roomType})` : '',
+    ].filter(Boolean).join(' ')
+    page.drawText(desc || 'Room booking', { x: margin + 10, y, size: 11, font, color: DARK })
+    // Per-room amounts are only shown when the rate is known; otherwise the
+    // booking total carries the charge on the Total row below.
+    if (room.pricePerNight !== undefined) {
+      page.drawText(money(room.pricePerNight * data.nights), { x: width - margin - 90, y, size: 11, font, color: DARK })
+    }
+    y -= 16
+    page.drawText(
+      room.pricePerNight !== undefined
+        ? `${stayLine} · ${money(room.pricePerNight)}/night`
+        : stayLine,
+      { x: margin + 10, y, size: 9, font, color: MUTED },
+    )
+    y -= 22
+  }
 
   // Divider + total
-  y -= 24
+  y -= 2
   page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 1, color: LINE })
   y -= 26
   page.drawText('Total', { x: width - margin - 200, y, size: 13, font: bold, color: DARK })

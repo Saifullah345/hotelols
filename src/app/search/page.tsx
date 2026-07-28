@@ -5,6 +5,8 @@ import Image from 'next/image'
 import PublicNavbar from '@/components/layout/PublicNavbar'
 import HotelSearchBar from '@/components/landing/HotelSearchBar'
 import { pageMetadata } from '@/lib/seo'
+import { formatCurrency } from '@/lib/currency'
+import { tokenize, buildOrFilter, relevance, hasValidRange, nightsBetween, getBookedRoomIds } from '@/lib/search'
 
 // noIndex: every filter combination is a near-duplicate of the landing page.
 // follow stays on so crawlers still reach the hotel detail pages from here.
@@ -21,6 +23,8 @@ type HotelRow = {
   name: string
   city: string | null
   country: string | null
+  address: string | null
+  currency: string | null
   rating: number
   cover_image: string | null
   amenities: string[] | null
@@ -35,7 +39,7 @@ export default async function SearchPage({
   const guests = Math.max(1, Number(guestsParam) || 1)
 
   // Valid date range = both provided and check-out strictly after check-in.
-  const hasDates = Boolean(check_in && check_out && new Date(check_out) > new Date(check_in))
+  const hasDates = hasValidRange(check_in, check_out)
 
   // Service role: public browsing bypasses RLS but we only ever expose active
   // hotels and minimal room info — never private guest/booking data.
@@ -43,22 +47,22 @@ export default async function SearchPage({
 
   let hotelQuery = supabase
     .from('hotels')
-    .select('id, name, city, country, rating, cover_image, amenities')
+    .select('id, name, city, country, address, currency, rating, cover_image, amenities')
     .eq('status', 'active')
     .order('rating', { ascending: false })
 
-  // Strip characters that carry meaning inside a PostgREST or() filter so a
-  // destination like "a,status.eq.x" can't break out of the intended query.
-  const term = city?.replace(/[,()*]/g, ' ').trim()
-  if (term) hotelQuery = hotelQuery.or(`city.ilike.%${term}%,name.ilike.%${term}%`)
+  // Matched token by token so multi-word destinations still find their city.
+  const tokens = tokenize(city ?? '')
+  if (tokens.length) hotelQuery = hotelQuery.or(buildOrFilter(tokens))
 
   const { data: matchedHotels } = await hotelQuery
   const hotels = (matchedHotels ?? []) as HotelRow[]
   const hotelIds = hotels.map(h => h.id)
 
-  // For each hotel, find rooms that (a) sleep the party and (b) are free for the
-  // chosen dates, then keep only hotels with at least one such room.
+  // For each hotel, find rooms that are free for the chosen dates, then keep
+  // only hotels whose free rooms can seat the whole party between them.
   const fromPriceByHotel = new Map<string, number>()
+  const capacityByHotel = new Map<string, number>()
 
   if (hotelIds.length) {
     const { data: rooms } = await supabase
@@ -66,23 +70,10 @@ export default async function SearchPage({
       .select('id, hotel_id, price_per_night, capacity')
       .in('hotel_id', hotelIds)
       .eq('status', 'available')
-      .gte('capacity', guests)
 
-    let bookedRoomIds = new Set<string>()
-    if (hasDates) {
-      const { data: conflicts } = await supabase
-        .from('bookings')
-        .select('room_id, room_ids')
-        .in('hotel_id', hotelIds)
-        .in('status', ['confirmed', 'checked_in'])
-        .lt('check_in', check_out!)
-        .gt('check_out', check_in!)
-      bookedRoomIds = new Set(
-        (conflicts ?? []).flatMap((b: { room_id: string; room_ids: string[] | null }) =>
-          b.room_ids?.length ? b.room_ids : [b.room_id],
-        ),
-      )
-    }
+    const bookedRoomIds = hasDates
+      ? await getBookedRoomIds(supabase, hotelIds, check_in!, check_out!)
+      : new Set<string>()
 
     for (const room of rooms ?? []) {
       if (bookedRoomIds.has(room.id)) continue
@@ -90,15 +81,16 @@ export default async function SearchPage({
       if (prev === undefined || room.price_per_night < prev) {
         fromPriceByHotel.set(room.hotel_id, room.price_per_night)
       }
+      capacityByHotel.set(room.hotel_id, (capacityByHotel.get(room.hotel_id) ?? 0) + (room.capacity ?? 0))
     }
   }
 
-  const results = hotels.filter(h => fromPriceByHotel.has(h.id))
+  const results = hotels
+    .filter(h => fromPriceByHotel.has(h.id) && (capacityByHotel.get(h.id) ?? 0) >= guests)
+    .sort((a, b) => relevance(a, tokens) - relevance(b, tokens) || b.rating - a.rating)
   const count = results.length
 
-  const nights = hasDates
-    ? Math.max(1, Math.ceil((new Date(check_out!).getTime() - new Date(check_in!).getTime()) / 86_400_000))
-    : 0
+  const nights = hasDates ? nightsBetween(check_in!, check_out!) : 0
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -137,7 +129,7 @@ export default async function SearchPage({
             {results.map(hotel => (
               <Link
                 key={hotel.id}
-                href={`/customer/hotels/${hotel.id}`}
+                href={`/hotels/${hotel.id}${hasDates ? `?check_in=${check_in}&check_out=${check_out}&adults=${guests}` : ''}`}
                 className="group overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl"
               >
                 <div className="relative h-48 overflow-hidden bg-gradient-to-br from-primary-100 to-primary-200">
@@ -177,7 +169,7 @@ export default async function SearchPage({
 
                   <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-4">
                     <span className="text-sm text-gray-500">
-                      from <span className="text-base font-bold text-gray-900">${fromPriceByHotel.get(hotel.id)}</span>/night
+                      from <span className="text-base font-bold text-gray-900">{formatCurrency(fromPriceByHotel.get(hotel.id) ?? 0, hotel.currency ?? 'PKR')}</span>/night
                     </span>
                     <span className="inline-flex items-center gap-1 text-sm font-medium text-primary-600 transition-transform group-hover:translate-x-0.5">
                       View &amp; book <ArrowRight className="h-4 w-4" />

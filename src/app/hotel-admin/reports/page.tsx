@@ -2,7 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { RevenueChart } from '@/components/dashboard/RevenueChart'
 import { StatsCard } from '@/components/dashboard/StatsCard'
-import { DollarSign, TrendingUp, CalendarCheck, Star } from 'lucide-react'
+import { TrendingUp, CalendarCheck, Star } from 'lucide-react'
+import { formatCurrency } from '@/lib/currency'
+import { currencyIcon } from '@/components/dashboard/CurrencyIcon'
 
 export const metadata = { title: 'Reports & Analytics' }
 
@@ -20,12 +22,16 @@ export default async function ReportsPage() {
     { count: totalBookings },
     { data: rooms },
     { data: reviews },
+    { data: hotelInfo },
   ] = await Promise.all([
     supabase.from('payments').select('amount, created_at, status').eq('hotel_id', tenantId).eq('status', 'completed'),
     supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('hotel_id', tenantId),
     supabase.from('rooms').select('status').eq('hotel_id', tenantId),
     supabase.from('reviews').select('rating').eq('hotel_id', tenantId),
+    supabase.from('hotels').select('currency').eq('id', tenantId).single(),
   ])
+
+  const currency = (hotelInfo as { currency?: string } | null)?.currency ?? 'USD'
 
   const totalRevenue = payments?.reduce((s, p) => s + p.amount, 0) ?? 0
   const avgRating = reviews?.length
@@ -54,7 +60,7 @@ export default async function ReportsPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard title="Total Revenue" value={totalRevenue} icon={DollarSign} prefix="$"
+        <StatsCard title="Total Revenue" value={formatCurrency(totalRevenue, currency)} icon={currencyIcon(currency)}
           iconBg="bg-green-50" iconColor="text-green-600" change={12} />
         <StatsCard title="Total Bookings" value={totalBookings ?? 0} icon={CalendarCheck}
           iconBg="bg-blue-50" iconColor="text-blue-600" change={8} />
@@ -64,7 +70,7 @@ export default async function ReportsPage() {
           iconBg="bg-gold-50" iconColor="text-gold-600" />
       </div>
 
-      <RevenueChart data={monthlyRevenue} />
+      <RevenueChart data={monthlyRevenue} currency={currency} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card p-6">
@@ -93,21 +99,21 @@ export default async function ReportsPage() {
           <div className="space-y-3">
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">This Month</span>
-              <span className="font-semibold text-gray-900">${monthlyRevenue[11]?.revenue.toLocaleString()}</span>
+              <span className="font-semibold text-gray-900">{formatCurrency(monthlyRevenue[11]?.revenue ?? 0, currency)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Last Month</span>
-              <span className="font-semibold text-gray-900">${monthlyRevenue[10]?.revenue.toLocaleString()}</span>
+              <span className="font-semibold text-gray-900">{formatCurrency(monthlyRevenue[10]?.revenue ?? 0, currency)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">This Year Total</span>
-              <span className="font-semibold text-gray-900">${totalRevenue.toLocaleString()}</span>
+              <span className="font-semibold text-gray-900">{formatCurrency(totalRevenue, currency)}</span>
             </div>
             <div className="pt-3 border-t border-gray-200">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Avg per Booking</span>
                 <span className="font-semibold text-gray-900">
-                  ${totalBookings ? Math.round(totalRevenue / totalBookings).toLocaleString() : 0}
+                  {formatCurrency(totalBookings ? totalRevenue / totalBookings : 0, currency)}
                 </span>
               </div>
             </div>

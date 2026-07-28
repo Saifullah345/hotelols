@@ -26,7 +26,7 @@ export async function POST(request: Request) {
 
   const { data: booking, error } = await supabase
     .from('bookings')
-    .select('*, hotel:hotels(name), room:rooms(room_number, room_type:room_types(name)), user:profiles(full_name, email)')
+    .select('*, hotel:hotels(name, currency), room:rooms(id, room_number, price_per_night, room_type:room_types(name)), user:profiles(full_name, email)')
     .eq('id', bookingId)
     .single()
   if (error || !booking) {
@@ -47,8 +47,34 @@ export async function POST(request: Request) {
   }
 
   // Gather details for the invoice + email.
-  const hotelName = (booking.hotel as { name?: string } | null)?.name ?? 'Hotel'
-  const room = booking.room as { room_number?: string; room_type?: { name?: string } } | null
+  const hotelRow = booking.hotel as { name?: string; currency?: string } | null
+  const hotelName = hotelRow?.name ?? 'Hotel'
+  const currency = hotelRow?.currency ?? 'USD'
+  type RoomRow = { id: string; room_number?: string; price_per_night?: number; room_type?: { name?: string } | null }
+  const primaryRoom = booking.room as RoomRow | null
+
+  // Multi-room bookings keep every room in `room_ids`; the invoice and the
+  // confirmation email must list all of them, not just the primary room.
+  const allRoomIds: string[] = (booking.room_ids as string[] | null)?.length
+    ? (booking.room_ids as string[])
+    : primaryRoom ? [primaryRoom.id] : []
+  const extraRoomIds = allRoomIds.filter(rid => rid !== primaryRoom?.id)
+  const { data: extraRooms } = extraRoomIds.length
+    ? await supabase
+        .from('rooms')
+        .select('id, room_number, price_per_night, room_type:room_types(name)')
+        .in('id', extraRoomIds)
+    : { data: [] }
+
+  const bookedRooms = [
+    ...(primaryRoom ? [primaryRoom] : []),
+    ...((extraRooms ?? []) as unknown as RoomRow[]),
+  ].map(r => ({
+    roomNumber: r.room_number,
+    roomType: r.room_type?.name,
+    pricePerNight: r.price_per_night,
+  }))
+
   const guest = booking.user as { full_name?: string; email?: string } | null
   const guestName = guest?.full_name || (booking as { guest_name?: string }).guest_name || 'Guest'
   const guestEmail = guest?.email || undefined
@@ -80,24 +106,24 @@ export async function POST(request: Request) {
       hotelName,
       guestName,
       guestEmail,
-      roomNumber: room?.room_number,
-      roomType: room?.room_type?.name,
+      rooms: bookedRooms,
       checkIn: new Date(booking.check_in).toLocaleDateString(),
       checkOut: new Date(booking.check_out).toLocaleDateString(),
       nights,
       amount: Number(booking.total_amount),
+      currency,
       issuedAt: new Date().toISOString(),
     })
 
     const { subject, html } = bookingConfirmationTemplate({
       guestName,
       hotelName,
-      roomNumber: room?.room_number,
-      roomType: room?.room_type?.name,
+      rooms: bookedRooms,
       checkIn: new Date(booking.check_in).toLocaleDateString(),
       checkOut: new Date(booking.check_out).toLocaleDateString(),
       nights,
       amount: Number(booking.total_amount),
+      currency,
       invoiceNumber,
     })
 

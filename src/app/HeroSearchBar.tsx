@@ -30,18 +30,40 @@ export default function HeroSearchBar({
   const guestSum    = adults + children
   const hasGuests   = guestSum > 0
 
+  const nextDay = (date: string) => {
+    const d = new Date(`${date}T00:00:00`)
+    d.setDate(d.getDate() + 1)
+    return d.toISOString().split('T')[0]
+  }
+
+  // A stay needs both ends of the range to be searchable, so picking one date
+  // fills in the other rather than silently dropping the filter.
+  const onCheckInChange = (value: string) => {
+    setCheckIn(value)
+    if (value && (!checkOut || checkOut <= value)) setCheckOut(nextDay(value))
+  }
+
+  const onCheckOutChange = (value: string) => {
+    setCheckOut(value)
+    if (value && checkIn && value <= checkIn) setCheckIn('')
+  }
+
   const handleSearch = () => {
     const p = new URLSearchParams()
     if (city.trim()) p.set('city', city.trim())
-    if (checkIn)     p.set('check_in', checkIn)
-    if (checkOut)    p.set('check_out', checkOut)
+    // Only send a range the results page can actually use.
+    if (checkIn && checkOut && checkOut > checkIn) {
+      p.set('check_in', checkIn)
+      p.set('check_out', checkOut)
+    }
     // Only carried in the URL once the user actually picks a party size.
     if (hasGuests) {
       p.set('adults',   String(adults))
       p.set('children', String(children))
     }
     const qs = p.toString()
-    router.push(qs ? `/?${qs}` : '/')
+    // #results jumps past the hero so the guest lands on what they searched for.
+    router.push(qs ? `/?${qs}#results` : '/')
   }
 
   const clearGuests = () => {
@@ -76,7 +98,7 @@ export default function HeroSearchBar({
             type="date"
             min={today}
             value={checkIn}
-            onChange={e => setCheckIn(e.target.value)}
+            onChange={e => onCheckInChange(e.target.value)}
             className="text-sm font-semibold text-gray-900 bg-transparent outline-none cursor-pointer w-32"
           />
         </div>
@@ -89,9 +111,9 @@ export default function HeroSearchBar({
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Check-out</p>
           <input
             type="date"
-            min={checkIn || today}
+            min={checkIn ? nextDay(checkIn) : today}
             value={checkOut}
-            onChange={e => setCheckOut(e.target.value)}
+            onChange={e => onCheckOutChange(e.target.value)}
             className="text-sm font-semibold text-gray-900 bg-transparent outline-none cursor-pointer w-32"
           />
         </div>
