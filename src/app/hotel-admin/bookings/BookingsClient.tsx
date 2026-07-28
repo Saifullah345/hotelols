@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import {
   Plus, Search, DoorOpen, Phone, MessageCircle, Globe,
   Pencil, Trash2, Loader2, X, AlertTriangle, Calendar,
-  Users, Moon, Eye,
+  Users, Moon, Eye, Clock, BadgeCheck, BedDouble,
 } from 'lucide-react'
 import BookingActions from './BookingActions'
 import { formatCurrency } from '@/lib/currency'
@@ -359,39 +359,54 @@ export default function BookingsClient({
     <>
       <div className="space-y-6">
 
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Bookings</h2>
-            <p className="text-gray-500 text-sm mt-1">{bookings.length} total</p>
+        {/* Header banner */}
+        <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-indigo-950 via-indigo-900 to-indigo-800 px-6 py-5 sm:px-8">
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-indigo-600/20 blur-3xl" />
+            <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full bg-violet-600/20 blur-3xl" />
           </div>
-          <Link href="/hotel-admin/bookings/new" className="btn-primary flex items-center gap-2 text-sm">
-            <Plus className="h-4 w-4" /> New Booking
-          </Link>
-        </div>
-
-        {/* Summary cards */}
-        <div className="grid grid-cols-3 gap-4">
-          {[
-            { label: 'Pending',    count: counts.pending,    color: 'bg-amber-50 text-amber-700 border-amber-200'      },
-            { label: 'Confirmed',  count: counts.confirmed,  color: 'bg-blue-50 text-blue-700 border-blue-200'         },
-            { label: 'Checked In', count: counts.checked_in, color: 'bg-emerald-50 text-emerald-700 border-emerald-200'},
-          ].map(s => (
-            <div key={s.label} className={`rounded-xl border p-4 text-center ${s.color}`}>
-              <p className="text-2xl font-bold">{s.count}</p>
-              <p className="text-sm font-medium">{s.label}</p>
+          <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-extrabold text-white leading-tight">Bookings</h2>
+              <p className="text-indigo-300 text-sm mt-0.5">{bookings.length} total reservations</p>
             </div>
-          ))}
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3.5 py-2 rounded-xl text-sm">
+                <Clock className="h-4 w-4 text-amber-400" />
+                <div>
+                  <p className="text-white font-bold leading-none">{counts.pending}</p>
+                  <p className="text-indigo-300 text-xs leading-none mt-0.5">Pending</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3.5 py-2 rounded-xl text-sm">
+                <BadgeCheck className="h-4 w-4 text-blue-400" />
+                <div>
+                  <p className="text-white font-bold leading-none">{counts.confirmed}</p>
+                  <p className="text-indigo-300 text-xs leading-none mt-0.5">Confirmed</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3.5 py-2 rounded-xl text-sm">
+                <BedDouble className="h-4 w-4 text-emerald-400" />
+                <div>
+                  <p className="text-white font-bold leading-none">{counts.checked_in}</p>
+                  <p className="text-indigo-300 text-xs leading-none mt-0.5">Checked In</p>
+                </div>
+              </div>
+              <Link href="/hotel-admin/bookings/new" className="flex items-center gap-2 bg-white text-indigo-700 font-semibold text-sm px-4 py-2 rounded-xl hover:bg-indigo-50 transition-colors shadow-sm">
+                <Plus className="h-4 w-4" /> New Booking
+              </Link>
+            </div>
+          </div>
         </div>
 
         {/* Filter row */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="card flex flex-wrap items-center gap-3 px-4 py-3">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
             <input
               value={q} onChange={e => setQ(e.target.value)}
               placeholder="Search guest, phone, room…"
-              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
             />
           </div>
 
@@ -402,7 +417,7 @@ export default function BookingsClient({
                 onClick={() => setStatusTab(tab)}
                 className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                   statusTab === tab
-                    ? 'bg-primary-600 text-white'
+                    ? 'bg-indigo-600 text-white'
                     : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
                 }`}
               >

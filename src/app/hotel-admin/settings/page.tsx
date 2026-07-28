@@ -139,9 +139,16 @@ export default function HotelSettingsPage() {
 
   return (
     <div className="max-w-3xl space-y-8">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">Hotel Settings</h2>
-        <p className="text-gray-500 text-sm mt-1">Manage your hotel information, visuals and integrations</p>
+      {/* Header banner */}
+      <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-indigo-950 via-indigo-900 to-indigo-800 px-6 py-5 sm:px-8">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-indigo-600/20 blur-3xl" />
+          <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full bg-violet-600/20 blur-3xl" />
+        </div>
+        <div className="relative">
+          <h2 className="text-2xl font-extrabold text-white leading-tight">Hotel Settings</h2>
+          <p className="text-indigo-300 text-sm mt-0.5">Manage your hotel information, visuals and integrations</p>
+        </div>
       </div>
 
       <section className="space-y-4">
