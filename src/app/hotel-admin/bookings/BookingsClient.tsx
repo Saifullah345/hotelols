@@ -7,11 +7,14 @@ import { toast } from 'sonner'
 import {
   Plus, Search, DoorOpen, Phone, MessageCircle, Globe,
   Pencil, Trash2, Loader2, X, AlertTriangle, Calendar,
-  Users, Moon, Eye, Clock, BadgeCheck, BedDouble,
+  Users, Moon, Eye, Clock, BadgeCheck, BedDouble, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import BookingActions from './BookingActions'
 import { formatCurrency } from '@/lib/currency'
 import { todayISO } from '@/lib/date'
+import { DATE_RANGES, resolveDateWindow, inWindow } from '@/lib/dateRange'
+import DateRangeChips from '@/components/admin/DateRangeChips'
+import Pagination from '@/components/admin/Pagination'
 import PhoneInput from '@/components/ui/PhoneInput'
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -47,19 +50,6 @@ type Booking = {
 
 // ── Config ─────────────────────────────────────────────────────────
 const STATUS_TABS = ['all', 'pending', 'confirmed', 'checked_in', 'checked_out', 'cancelled']
-
-/**
- * "When was this booked" filter, counted back from today. `daysBack: 0` is
- * today only; `2` covers today plus the two days before it, and so on up to the
- * last 10 days. `null` lifts the filter entirely.
- */
-const DATE_RANGES: { key: string; label: string; daysBack: number | null }[] = [
-  { key: 'all',   label: 'All time',     daysBack: null },
-  { key: 'today', label: 'Today',        daysBack: 0    },
-  { key: '3d',    label: 'Last 3 days',  daysBack: 2    },
-  { key: '7d',    label: 'Last 7 days',  daysBack: 6    },
-  { key: '10d',   label: 'Last 10 days', daysBack: 9    },
-]
 
 const statusBadge: Record<string, string> = {
   pending: 'badge-yellow', confirmed: 'badge-blue',
@@ -342,7 +332,9 @@ export default function BookingsClient({
 
   const [bookings, setBookings] = useState(initial)
   const [statusTab, setStatusTab] = useState('all')
-  const [dateRange, setDateRange] = useState('all')
+  // Today's arrivals are what staff need first thing; older bookings are one
+  // click away on the range chips.
+  const [dateRange, setDateRange] = useState('today')
   const [q, setQ]                 = useState('')
   const [editing, setEditing]     = useState<Booking | null>(null)
   const [deleting, setDeleting]   = useState<Booking | null>(null)
@@ -353,33 +345,18 @@ export default function BookingsClient({
   const bookedOnOrAfter = (b: Booking, from: number) =>
     new Date(b.created_at).getTime() >= from
 
-  // [from, to) window in ms that the current filter accepts, or null for all time.
-  // Derived from the server's `today` so both renders agree.
-  const bookedWindow = useMemo((): { from: number; to: number } | null => {
-    if (dateRange === 'custom') {
-      if (!customFrom && !customTo) return null
-      const from = customFrom ? new Date(`${customFrom}T00:00:00`).getTime() : 0
-      // Inclusive of the whole "to" day.
-      const toDate = customTo ? new Date(`${customTo}T00:00:00`) : null
-      if (toDate) toDate.setDate(toDate.getDate() + 1)
-      return { from, to: toDate ? toDate.getTime() : Infinity }
-    }
-    const range = DATE_RANGES.find(r => r.key === dateRange)
-    if (!range || range.daysBack === null) return null
-    const d = new Date(`${today}T00:00:00`)
-    d.setDate(d.getDate() - range.daysBack)
-    return { from: d.getTime(), to: Infinity }
-  }, [dateRange, today, customFrom, customTo])
+  // Window of "booked on" dates the current filter accepts.
+  const bookedWindow = useMemo(
+    () => resolveDateWindow(dateRange, today, customFrom, customTo),
+    [dateRange, today, customFrom, customTo],
+  )
 
   const filtered = useMemo(() => {
     const lq = q.toLowerCase()
     return bookings
       .filter(b => {
         if (statusTab !== 'all' && b.status !== statusTab) return false
-        if (bookedWindow) {
-          const made = new Date(b.created_at).getTime()
-          if (made < bookedWindow.from || made >= bookedWindow.to) return false
-        }
+        if (!inWindow(b.created_at, bookedWindow)) return false
         if (lq) {
           const guest = (b.user?.full_name ?? b.guest_name ?? '').toLowerCase()
           const phone = (b.user?.email ?? b.guest_phone ?? '').toLowerCase()
@@ -392,6 +369,27 @@ export default function BookingsClient({
       // came in most recently".
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
   }, [bookings, statusTab, bookedWindow, q])
+
+  // ── Pagination ────────────────────────────────────────────────────
+  const [page, setPage]       = useState(1)
+  const [perPage, setPerPage] = useState(10)
+
+  // Any filter change puts you back on the first page
+  useEffect(() => { setPage(1) }, [q, statusTab, dateRange, customFrom, customTo, perPage])
+
+  // Clamp instead of storing — the list can shrink under us (delete + refresh)
+  const safePage = Math.min(page, Math.max(1, Math.ceil(filtered.length / perPage)))
+  const paged    = filtered.slice((safePage - 1) * perPage, (safePage - 1) * perPage + perPage)
+
+  // Counts shown on each range chip, so the volume is visible before clicking.
+  const rangeCounts = useMemo(() => {
+    const out: Record<string, number> = {}
+    for (const r of DATE_RANGES) {
+      const w = resolveDateWindow(r.key, today)
+      out[r.key] = bookings.filter(b => inWindow(b.created_at, w)).length
+    }
+    return out
+  }, [bookings, today])
 
   const startOfToday = useMemo(() => new Date(`${today}T00:00:00`).getTime(), [today])
 
@@ -503,79 +501,23 @@ export default function BookingsClient({
           </div>
 
           {/* Booked-on filter — today through the last 10 days */}
-          <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
-            <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">
-              <Calendar className="h-3.5 w-3.5" /> Booked
-            </span>
-            {DATE_RANGES.map(r => {
-              const count = r.daysBack === null
-                ? bookings.length
-                : bookings.filter(b => {
-                    const from = new Date(`${today}T00:00:00`)
-                    from.setDate(from.getDate() - r.daysBack!)
-                    return bookedOnOrAfter(b, from.getTime())
-                  }).length
-              return (
-                <button
-                  key={r.key}
-                  onClick={() => setDateRange(r.key)}
-                  className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-                    dateRange === r.key
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                  }`}
-                >
-                  {r.label}
-                  <span className={dateRange === r.key ? 'ml-1.5 text-indigo-200' : 'ml-1.5 text-gray-400'}>{count}</span>
-                </button>
-              )
-            })}
-
-            {/* Any other window the presets don't cover */}
-            <button
-              onClick={() => setDateRange('custom')}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-                dateRange === 'custom'
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-              }`}
-            >
-              Custom
-            </button>
-
-            {dateRange === 'custom' && (
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={customFrom}
-                  max={customTo || today}
-                  onChange={e => setCustomFrom(e.target.value)}
-                  className="text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                />
-                <span className="text-gray-400 text-sm">→</span>
-                <input
-                  type="date"
-                  value={customTo}
-                  min={customFrom || undefined}
-                  onChange={e => setCustomTo(e.target.value)}
-                  className="text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                />
-                {(customFrom || customTo) && (
-                  <button
-                    onClick={() => { setCustomFrom(''); setCustomTo('') }}
-                    className="text-gray-400 hover:text-gray-600 p-1"
-                    title="Clear dates"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-            )}
+          <div className="border-t border-gray-100 pt-3">
+            <DateRangeChips
+              label="Booked"
+              value={dateRange}
+              onChange={setDateRange}
+              customFrom={customFrom}
+              customTo={customTo}
+              onCustomFrom={setCustomFrom}
+              onCustomTo={setCustomTo}
+              today={today}
+              counts={rangeCounts}
+            />
           </div>
 
           {/* What the table is currently showing */}
           <p className="text-xs text-gray-400">
-            Showing {filtered.length} of {bookings.length} booking{bookings.length === 1 ? '' : 's'} · newest first
+            {filtered.length} of {bookings.length} booking{bookings.length === 1 ? '' : 's'} match · newest first
             {dateRange === 'custom'
               ? (customFrom || customTo) && ` · booked ${customFrom || 'any'} → ${customTo || 'today'}`
               : dateRange !== 'all' && ` · ${DATE_RANGES.find(r => r.key === dateRange)?.label.toLowerCase()}`}
@@ -599,7 +541,7 @@ export default function BookingsClient({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filtered.map(b => {
+                {paged.map(b => {
                   const guest    = b.user?.full_name ?? b.guest_name ?? 'Guest'
                   const contact  = b.user?.email ?? b.guest_phone ?? ''
                   const initial  = guest.charAt(0).toUpperCase()
@@ -761,6 +703,15 @@ export default function BookingsClient({
               </tbody>
             </table>
           </div>
+
+          <Pagination
+            page={page}
+            onPage={setPage}
+            perPage={perPage}
+            onPerPage={setPerPage}
+            total={filtered.length}
+            noun="booking"
+          />
         </div>
       </div>
 

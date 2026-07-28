@@ -40,6 +40,7 @@ export default async function HotelAdminDashboard() {
     { data: revenueData },
     { data: recentBookings },
     { count: checkedInToday },
+    { count: bookedToday },
   ] = await Promise.all([
     supabase.from('hotels').select('currency, name, city').eq('id', tenantId).single(),
     supabase.from('rooms').select('*', { count: 'exact', head: true }).eq('hotel_id', tenantId),
@@ -54,6 +55,9 @@ export default async function HotelAdminDashboard() {
       .limit(5),
     supabase.from('bookings').select('*', { count: 'exact', head: true })
       .eq('hotel_id', tenantId).eq('status', 'checked_in').eq('check_in', today),
+    // Reservations taken today, whatever their stay dates — the day's intake.
+    supabase.from('bookings').select('*', { count: 'exact', head: true })
+      .eq('hotel_id', tenantId).gte('created_at', `${today}T00:00:00`),
   ])
 
   const hotel = hotelInfo as { currency?: string; name?: string; city?: string } | null
@@ -139,6 +143,7 @@ export default async function HotelAdminDashboard() {
           </div>
           <div className="p-5 space-y-3">
             {[
+              { label: 'Bookings Today', value: bookedToday ?? 0, bg: 'bg-sky-50', text: 'text-sky-700', bar: 'bg-sky-500' },
               { label: 'Check-ins Today', value: checkedInToday ?? 0, bg: 'bg-emerald-50', text: 'text-emerald-700', bar: 'bg-emerald-500' },
               { label: 'Pending Bookings', value: pendingBookings ?? 0, bg: 'bg-amber-50', text: 'text-amber-700', bar: 'bg-amber-500' },
               { label: 'Occupancy Rate', value: `${occupancyRate}%`, bg: 'bg-indigo-50', text: 'text-indigo-700', bar: 'bg-indigo-500' },

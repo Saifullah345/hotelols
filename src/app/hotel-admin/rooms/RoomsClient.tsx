@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { Plus, BedDouble, Search, Pencil, Users, X, ChevronLeft, ChevronRight, GripVertical, Wrench, BookOpen, CalendarSearch, Loader2, CheckCircle2, XCircle } from 'lucide-react'
+import { Plus, BedDouble, Search, Pencil, Users, X, ChevronLeft, ChevronRight, GripVertical, Wrench, BookOpen, CalendarSearch, Loader2, CheckCircle2, XCircle, ArrowRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { addDays, todayISO } from '@/lib/date'
 import RoomStatusToggle from './RoomStatusToggle'
@@ -264,77 +264,106 @@ export default function RoomsClient({
         </div>
       </div>
 
-      {/* Availability checker */}
-      <div className="card px-4 py-3.5 space-y-3">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-gray-700 pb-2">
-            <CalendarSearch className="h-4 w-4 text-indigo-500" />
-            Check availability
+      {/* Availability checker — a tool, not a list filter, so it reads as its
+          own panel: pick a stay on the left, get the verdict on the right. */}
+      <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 overflow-hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-4 px-4 py-4 sm:px-5">
+
+          {/* Title */}
+          <div className="flex items-center gap-3 lg:w-56 shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0">
+              <CalendarSearch className="h-4.5 w-4.5 text-white" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-gray-900 leading-tight">Check availability</p>
+              <p className="text-xs text-indigo-500/80 leading-tight mt-0.5">See what&apos;s free on a date</p>
+            </div>
           </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Check-in</label>
-            <input
-              type="date"
-              value={availFrom}
-              onChange={e => onFromChange(e.target.value)}
-              className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white text-gray-700"
-            />
+
+          {/* Dates — grouped so the two inputs read as one range */}
+          <div className="flex items-center gap-2 rounded-xl bg-white border border-indigo-100 px-3 py-2 shadow-sm">
+            <div>
+              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Check-in</label>
+              <input
+                type="date"
+                value={availFrom}
+                onChange={e => onFromChange(e.target.value)}
+                className="text-sm font-semibold text-gray-900 bg-transparent outline-none w-[8.5rem]"
+              />
+            </div>
+            <ArrowRight className="h-4 w-4 text-gray-300 shrink-0" />
+            <div>
+              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Check-out</label>
+              <input
+                type="date"
+                value={availTo}
+                min={availFrom ? nextDay(availFrom) : undefined}
+                onChange={e => setAvailTo(e.target.value)}
+                className="text-sm font-semibold text-gray-900 bg-transparent outline-none w-[8.5rem]"
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Check-out</label>
-            <input
-              type="date"
-              value={availTo}
-              min={availFrom ? nextDay(availFrom) : undefined}
-              onChange={e => setAvailTo(e.target.value)}
-              className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white text-gray-700"
-            />
-          </div>
+
+          {/* Quick picks, until a stay is chosen */}
           {!availFrom && (
-            <button
-              // Resolved on click, so it lands on the viewer's own "today"
-              // rather than the server's.
-              onClick={() => onFromChange(todayISO())}
-              className="text-sm font-medium text-indigo-600 hover:text-indigo-700 px-3 py-2"
-            >
-              Tonight
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Resolved on click, so they land on the viewer's own "today". */}
+              <button
+                onClick={() => onFromChange(todayISO())}
+                className="px-3 py-1.5 rounded-lg bg-white border border-indigo-200 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors"
+              >
+                Tonight
+              </button>
+              <button
+                onClick={() => onFromChange(addDays(todayISO(), 1))}
+                className="px-3 py-1.5 rounded-lg bg-white border border-indigo-200 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors"
+              >
+                Tomorrow
+              </button>
+            </div>
           )}
+
+          {/* Verdict */}
           {rangeActive && (
-            <>
+            <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
+              {checking ? (
+                <span className="flex items-center gap-1.5 text-sm text-gray-500">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking…
+                </span>
+              ) : (
+                <span
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-bold ${
+                    freeCount > 0
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-red-100 text-red-700'
+                  }`}
+                >
+                  {freeCount > 0 ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                  {freeCount} of {rooms.length} free
+                  <span className="font-medium opacity-70">· {fmtShort(availFrom)}–{fmtShort(availTo)}</span>
+                </span>
+              )}
               <button
                 onClick={() => setFreeOnly(v => !v)}
-                className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
-                  freeOnly ? 'bg-emerald-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                  freeOnly
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
                 }`}
               >
                 Free only
               </button>
-              <button onClick={clearRange} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors px-2 py-2">
-                <X className="h-3.5 w-3.5" /> Clear dates
+              <button
+                onClick={clearRange}
+                title="Clear dates"
+                aria-label="Clear dates"
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-white transition-colors"
+              >
+                <X className="h-4 w-4" />
               </button>
-            </>
+            </div>
           )}
         </div>
-
-        {rangeActive && (
-          <p className="flex items-center gap-2 text-sm">
-            {checking ? (
-              <span className="flex items-center gap-1.5 text-gray-500">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking {fmtShort(availFrom)} – {fmtShort(availTo)}…
-              </span>
-            ) : (
-              <>
-                <span className={`font-semibold ${freeCount > 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                  {freeCount} of {rooms.length} room{rooms.length === 1 ? '' : 's'} free
-                </span>
-                <span className="text-gray-400">
-                  for {fmtShort(availFrom)} – {fmtShort(availTo)}
-                </span>
-              </>
-            )}
-          </p>
-        )}
       </div>
 
       {/* Filter bar */}

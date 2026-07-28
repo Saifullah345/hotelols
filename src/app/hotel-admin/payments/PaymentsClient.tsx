@@ -1,12 +1,16 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
   Search, CreditCard, CheckCircle, Clock, Receipt,
   BedDouble, User, Phone, Calendar, Trash2, AlertTriangle, Loader2,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/currency'
+import { todayISO } from '@/lib/date'
+import { DATE_RANGES, resolveDateWindow, inWindow } from '@/lib/dateRange'
+import DateRangeChips from '@/components/admin/DateRangeChips'
+import Pagination from '@/components/admin/Pagination'
 import { toast } from 'sonner'
 
 export type PaymentRow = {
@@ -89,9 +93,11 @@ function guestSub(p: PaymentRow) {
 export default function PaymentsClient({
   payments: initial,
   currency,
+  today: serverToday,
 }: {
   payments: PaymentRow[]
   currency: string
+  today: string
 }) {
   const [payments, setPayments] = useState(initial)
   const [q,        setQ]        = useState('')
@@ -99,6 +105,31 @@ export default function PaymentsClient({
   const [method,   setMethod]   = useState('')
   const [deleteTarget, setDeleteTarget] = useState<PaymentRow | null>(null)
   const [deleting,     setDeleting]     = useState(false)
+
+  // ── Paid-on date filter ───────────────────────────────────────────
+  // Server value first so hydration matches, then the viewer's own date.
+  const [today, setToday] = useState(serverToday)
+  useEffect(() => { setToday(todayISO()) }, [])
+  const [dateRange, setDateRange]   = useState('all')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo]     = useState('')
+
+  // A payment is dated by when it was taken; unpaid rows fall back to creation.
+  const paidOn = (p: PaymentRow) => p.paid_at ?? p.created_at
+
+  const paidWindow = useMemo(
+    () => resolveDateWindow(dateRange, today, customFrom, customTo),
+    [dateRange, today, customFrom, customTo],
+  )
+
+  const rangeCounts = useMemo(() => {
+    const out: Record<string, number> = {}
+    for (const r of DATE_RANGES) {
+      const w = resolveDateWindow(r.key, today)
+      out[r.key] = payments.filter(p => inWindow(paidOn(p), w)).length
+    }
+    return out
+  }, [payments, today])
 
   const handleDelete = async () => {
     if (!deleteTarget) return
@@ -122,6 +153,7 @@ export default function PaymentsClient({
     return payments.filter(p => {
       if (status && p.status !== status) return false
       if (method && p.payment_method !== method) return false
+      if (!inWindow(paidOn(p), paidWindow)) return false
       if (!term) return true
       return (
         guestName(p).toLowerCase().includes(term) ||
@@ -131,12 +163,20 @@ export default function PaymentsClient({
         (p.booking?.guest_phone ?? '').includes(term)
       )
     })
-  }, [payments, q, status, method])
+  }, [payments, q, status, method, paidWindow])
 
   // Stats from full dataset
   const totalRevenue   = payments.filter(p => p.status === 'completed').reduce((s, p) => s + p.amount, 0)
   const pendingAmount  = payments.filter(p => p.status === 'pending').reduce((s, p) => s + p.amount, 0)
-  const hasFilter = !!(q || status || method)
+  const hasFilter = !!(q || status || method || dateRange !== 'all')
+
+  // ── Pagination ────────────────────────────────────────────────────
+  const [page, setPage]       = useState(1)
+  const [perPage, setPerPage] = useState(10)
+  useEffect(() => { setPage(1) }, [q, status, method, dateRange, customFrom, customTo, perPage])
+
+  const safePage = Math.min(page, Math.max(1, Math.ceil(filtered.length / perPage)))
+  const paged    = filtered.slice((safePage - 1) * perPage, (safePage - 1) * perPage + perPage)
 
   return (
     <div className="space-y-5">
@@ -157,45 +197,62 @@ export default function PaymentsClient({
       </div>
 
       {/* Search + filters */}
-      <div className="card p-3 flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-          <input
-            value={q}
-            onChange={e => setQ(e.target.value)}
-            placeholder="Search guest name, phone, room, invoice…"
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+      <div className="card p-3 space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+            <input
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              placeholder="Search guest name, phone, room, invoice…"
+              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          <select
+            value={status}
+            onChange={e => setStatus(e.target.value)}
+            className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+          >
+            <option value="">All Statuses</option>
+            {STATUSES.map(s => (
+              <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+            ))}
+          </select>
+          <select
+            value={method}
+            onChange={e => setMethod(e.target.value)}
+            className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+          >
+            <option value="">All Methods</option>
+            {METHODS.map(m => (
+              <option key={m} value={m}>{METHOD_LABEL[m] ?? m}</option>
+            ))}
+          </select>
+          {hasFilter && (
+            <button
+              onClick={() => { setQ(''); setStatus(''); setMethod(''); setDateRange('all'); setCustomFrom(''); setCustomTo('') }}
+              className="text-sm text-gray-500 hover:text-gray-800 px-2"
+            >
+              Clear
+            </button>
+          )}
+          <span className="ml-auto text-xs text-gray-400">{filtered.length} result{filtered.length !== 1 ? 's' : ''}</span>
+        </div>
+
+        {/* Paid-on filter — today through the last 10 days */}
+        <div className="border-t border-gray-100 pt-3">
+          <DateRangeChips
+            label="Paid"
+            value={dateRange}
+            onChange={setDateRange}
+            customFrom={customFrom}
+            customTo={customTo}
+            onCustomFrom={setCustomFrom}
+            onCustomTo={setCustomTo}
+            today={today}
+            counts={rangeCounts}
           />
         </div>
-        <select
-          value={status}
-          onChange={e => setStatus(e.target.value)}
-          className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
-        >
-          <option value="">All Statuses</option>
-          {STATUSES.map(s => (
-            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-          ))}
-        </select>
-        <select
-          value={method}
-          onChange={e => setMethod(e.target.value)}
-          className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
-        >
-          <option value="">All Methods</option>
-          {METHODS.map(m => (
-            <option key={m} value={m}>{METHOD_LABEL[m] ?? m}</option>
-          ))}
-        </select>
-        {hasFilter && (
-          <button
-            onClick={() => { setQ(''); setStatus(''); setMethod('') }}
-            className="text-sm text-gray-500 hover:text-gray-800 px-2"
-          >
-            Clear
-          </button>
-        )}
-        <span className="ml-auto text-xs text-gray-400">{filtered.length} result{filtered.length !== 1 ? 's' : ''}</span>
       </div>
 
       {/* Payment cards */}
@@ -207,7 +264,7 @@ export default function PaymentsClient({
             <p className="text-sm mt-1">{hasFilter ? 'Try a different search or filter.' : 'No payments recorded yet.'}</p>
           </div>
         ) : (
-          filtered.map(p => {
+          paged.map(p => {
             const Icon = STATUS_ICON[p.status] ?? Clock
             const name = guestName(p)
             const sub  = guestSub(p)
@@ -322,6 +379,15 @@ export default function PaymentsClient({
             )
           })
         )}
+
+        <Pagination
+          page={page}
+          onPage={setPage}
+          perPage={perPage}
+          onPerPage={setPerPage}
+          total={filtered.length}
+          noun="payment"
+        />
       </div>
 
       {/* Delete confirmation modal */}

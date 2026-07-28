@@ -84,6 +84,7 @@ export default async function PaymentsPage() {
       <PaymentsClient
         payments={paymentList}
         currency={currency}
+        today={new Date().toISOString().split('T')[0]}
       />
     </div>
   )
