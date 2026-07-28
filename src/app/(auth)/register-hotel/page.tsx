@@ -10,9 +10,10 @@ import {
   Loader2, Eye, EyeOff, MailCheck,
   User, Building2, ArrowRight, ArrowLeft,
 } from 'lucide-react'
+import { nameSchema } from '@/lib/validation'
 
 const schema = z.object({
-  full_name:       z.string().min(2,  'Full name is required'),
+  full_name:       nameSchema,
   email:           z.string().email('Invalid email address'),
   password:        z.string().min(8,  'Password must be at least 8 characters'),
   confirm_password: z.string(),
@@ -45,6 +46,7 @@ export default function RegisterHotelPage() {
     resolver: zodResolver(schema),
     defaultValues: { country: 'Pakistan' },
   })
+  const fullNameField = register('full_name')
 
   const goToStep2 = async () => {
     const ok = await trigger(STEP_1_FIELDS)
@@ -146,7 +148,15 @@ export default function RegisterHotelPage() {
           <>
             <div>
               <label className="label">Full Name</label>
-              <input {...register('full_name')} className="input" placeholder="Ahmed Khan" />
+              <input
+                {...fullNameField}
+                onChange={e => {
+                  e.target.value = e.target.value.replace(/[^a-zA-ZÀ-ɏ\s'-]/g, '')
+                  fullNameField.onChange(e)
+                }}
+                className="input"
+                placeholder="Ahmed Khan"
+              />
               {errors.full_name && <p className="text-red-500 text-xs mt-1">{errors.full_name.message}</p>}
             </div>
 

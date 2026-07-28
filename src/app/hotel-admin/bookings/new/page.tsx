@@ -372,6 +372,7 @@ export default function NewBookingPage() {
     resolver: zodResolver(offlineSchema),
     defaultValues: { adults: 1, children: 0, status: 'confirmed' },
   })
+  const guestNameField = offlineForm.register('guest_name')
 
   const [checkIn, checkOut]       = onlineForm.watch(['check_in', 'check_out'])
   const [checkInOff, checkOutOff] = offlineForm.watch(['check_in', 'check_out'])
@@ -673,7 +674,15 @@ export default function NewBookingPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <label className="label">Full Name <span className="text-red-500">*</span></label>
-                <input {...offlineForm.register('guest_name')} className="input" placeholder="John Smith" />
+                <input
+                  {...guestNameField}
+                  onChange={e => {
+                    e.target.value = e.target.value.replace(/[^a-zA-ZÀ-ɏ\s'-]/g, '')
+                    guestNameField.onChange(e)
+                  }}
+                  className="input"
+                  placeholder="John Smith"
+                />
                 {offlineForm.formState.errors.guest_name && (
                   <p className="text-red-500 text-xs mt-1">{offlineForm.formState.errors.guest_name.message}</p>
                 )}

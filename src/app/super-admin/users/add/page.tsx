@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2, ArrowLeft, MailCheck, Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
+import { nameSchema } from '@/lib/validation'
 
 const STAFF_PERMISSIONS = [
   'rooms:read', 'rooms:write',
@@ -17,7 +18,7 @@ const STAFF_PERMISSIONS = [
 ]
 
 const schema = z.object({
-  full_name: z.string().min(2, 'Full name is required'),
+  full_name: nameSchema,
   email: z.string().email('Valid email required'),
   password: z.string().optional(),
   role: z.enum(['hotel_admin', 'staff', 'customer']),
@@ -46,6 +47,7 @@ export default function AddUserPage() {
     resolver: zodResolver(schema),
     defaultValues: { role: 'customer' },
   })
+  const fullNameField = register('full_name')
 
   const role = watch('role')
 
@@ -113,7 +115,15 @@ export default function AddUserPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="label">Full Name</label>
-            <input {...register('full_name')} className="input" placeholder="John Doe" />
+            <input
+              {...fullNameField}
+              onChange={e => {
+                e.target.value = e.target.value.replace(/[^a-zA-ZÀ-ɏ\s'-]/g, '')
+                fullNameField.onChange(e)
+              }}
+              className="input"
+              placeholder="John Doe"
+            />
             {errors.full_name && <p className="text-red-500 text-xs mt-1">{errors.full_name.message}</p>}
           </div>
 

@@ -163,8 +163,12 @@ export default function EditBookingPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="label">Full Name</label>
-                <input value={guestName} onChange={e => setGuestName(e.target.value)}
-                  className="input" placeholder="John Smith" />
+                <input
+                  value={guestName}
+                  onChange={e => setGuestName(e.target.value.replace(/[^a-zA-ZÀ-ɏ\s'-]/g, ''))}
+                  className="input"
+                  placeholder="John Smith"
+                />
               </div>
               <div>
                 <label className="label">Phone</label>

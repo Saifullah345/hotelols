@@ -7,9 +7,10 @@ import { z } from 'zod'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { Loader2, Eye, EyeOff, MailCheck, ArrowRight, Check } from 'lucide-react'
+import { nameSchema } from '@/lib/validation'
 
 const schema = z.object({
-  full_name: z.string().min(2, 'Name is required'),
+  full_name: nameSchema,
   email: z.string().email('Invalid email'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   confirm_password: z.string(),
@@ -98,6 +99,7 @@ export default function RegisterPage() {
   )
 
   const pwdRegister = register('password')
+  const fullNameField = register('full_name')
 
   return (
     <div>
@@ -108,7 +110,16 @@ export default function RegisterPage() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Field label="Full name" error={errors.full_name?.message}>
-          <input {...register('full_name')} className={inputCls} placeholder="Ahmad Khan" autoFocus />
+          <input
+            {...fullNameField}
+            onChange={e => {
+              e.target.value = e.target.value.replace(/[^a-zA-ZÀ-ɏ\s'-]/g, '')
+              fullNameField.onChange(e)
+            }}
+            className={inputCls}
+            placeholder="Ahmad Khan"
+            autoFocus
+          />
         </Field>
 
         <Field label="Email address" error={errors.email?.message}>

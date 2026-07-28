@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { Loader2, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { DEPARTMENTS } from '@/lib/staff-constants'
+import { nameSchema } from '@/lib/validation'
 
 const STAFF_PERMISSIONS = [
   'rooms:read', 'rooms:write',
@@ -17,7 +18,7 @@ const STAFF_PERMISSIONS = [
 ]
 
 const schema = z.object({
-  full_name: z.string().min(2, 'Full name is required'),
+  full_name: nameSchema,
   email: z.string().email('Valid email required'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   department: z.string().min(1, 'Department is required'),
@@ -31,6 +32,7 @@ export default function InviteStaffPage() {
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
+  const fullNameField = register('full_name')
 
   const togglePermission = (perm: string) => {
     setPermissions(prev =>
@@ -72,7 +74,15 @@ export default function InviteStaffPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="label">Full Name</label>
-            <input {...register('full_name')} className="input" placeholder="Jane Smith" />
+            <input
+              {...fullNameField}
+              onChange={e => {
+                e.target.value = e.target.value.replace(/[^a-zA-ZÀ-ɏ\s'-]/g, '')
+                fullNameField.onChange(e)
+              }}
+              className="input"
+              placeholder="Jane Smith"
+            />
             {errors.full_name && <p className="text-red-500 text-xs mt-1">{errors.full_name.message}</p>}
           </div>
 

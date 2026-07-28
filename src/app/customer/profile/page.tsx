@@ -7,10 +7,10 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Loader2, Save, User } from 'lucide-react'
-import { phoneSchema } from '@/lib/validation'
+import { phoneSchema, nameSchema } from '@/lib/validation'
 
 const schema = z.object({
-  full_name: z.string().min(2, 'Full name is required'),
+  full_name: nameSchema,
   phone: phoneSchema,
   country: z.string().optional(),
   city: z.string().optional(),
@@ -24,6 +24,7 @@ export default function CustomerProfilePage() {
   const { register, handleSubmit, reset, formState: { isSubmitting, errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
+  const fullNameField = register('full_name')
 
   useEffect(() => {
     const supabase = createClient()
@@ -75,7 +76,14 @@ export default function CustomerProfilePage() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
             <label className="label">Full Name</label>
-            <input {...register('full_name')} className="input" />
+            <input
+              {...fullNameField}
+              onChange={e => {
+                e.target.value = e.target.value.replace(/[^a-zA-ZÀ-ɏ\s'-]/g, '')
+                fullNameField.onChange(e)
+              }}
+              className="input"
+            />
             {errors.full_name && <p className="text-red-500 text-xs mt-1">{errors.full_name.message}</p>}
           </div>
           <div>
