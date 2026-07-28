@@ -5,18 +5,17 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Calendar, Check, MapPin, Star, X, PhoneCall,
-  BedDouble, Clock, CheckCircle2, XCircle, Loader2,
-  MoonStar, History,
+  BedDouble, Loader2, CheckCircle2, XCircle,
+  MoonStar, Search, ChevronDown, SlidersHorizontal,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 // ─── Types ────────────────────────────────────────────────────────────
 type Payment = { status?: string; amount?: number; payment_method?: string }
 type Hotel   = { name?: string; city?: string; country?: string }
 type Room    = { room_number?: string; room_type?: { name?: string } }
 type Review  = { id: string; rating: number; comment: string }
-
 type Booking = {
   id: string
   hotel_id: string
@@ -26,17 +25,20 @@ type Booking = {
   adults: number
   children: number
   total_amount: number
-  special_requests?: string | null
   created_at: string
   hotel: Hotel
   room: Room
   payment: Payment | Payment[]
-  review?: Review | null
+  review?: Review | Review[] | null
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────
-const ACTIVE_STATUSES  = new Set(['pending', 'confirmed', 'checked_in'])
-const HISTORY_STATUSES = new Set(['checked_out', 'cancelled'])
+// ─── Constants ────────────────────────────────────────────────────────
+const TABS = [
+  { key: 'upcoming',  label: 'Upcoming',  statuses: ['pending', 'confirmed', 'checked_in'] },
+  { key: 'completed', label: 'Completed', statuses: ['checked_out'] },
+  { key: 'cancelled', label: 'Cancelled', statuses: ['cancelled'] },
+] as const
+type TabKey = (typeof TABS)[number]['key']
 
 const STATUS_LABEL: Record<string, string> = {
   pending:     'Pending',
@@ -45,37 +47,40 @@ const STATUS_LABEL: Record<string, string> = {
   checked_out: 'Completed',
   cancelled:   'Cancelled',
 }
-
 const STATUS_BADGE: Record<string, string> = {
-  pending:     'bg-amber-100  text-amber-700  border border-amber-200',
-  confirmed:   'bg-blue-100   text-blue-700   border border-blue-200',
-  checked_in:  'bg-emerald-100 text-emerald-700 border border-emerald-200',
-  checked_out: 'bg-teal-100   text-teal-700   border border-teal-200',
-  cancelled:   'bg-red-100    text-red-600    border border-red-200',
+  pending:     'bg-amber-100  text-amber-700  border-amber-200',
+  confirmed:   'bg-blue-100   text-blue-700   border-blue-200',
+  checked_in:  'bg-emerald-100 text-emerald-700 border-emerald-200',
+  checked_out: 'bg-teal-100   text-teal-700   border-teal-200',
+  cancelled:   'bg-red-100    text-red-500    border-red-200',
 }
-
 const PAYMENT_BADGE: Record<string, string> = {
   pending:   'bg-amber-50  text-amber-600',
   completed: 'bg-emerald-50 text-emerald-700',
   failed:    'bg-red-50    text-red-600',
   refunded:  'bg-gray-100  text-gray-500',
 }
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
-function nights(checkIn: string, checkOut: string) {
-  return Math.max(1, Math.ceil(
-    (new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86_400_000
-  ))
+// ─── Helpers ─────────────────────────────────────────────────────────
+function nights(ci: string, co: string) {
+  return Math.max(1, Math.ceil((new Date(co).getTime() - new Date(ci).getTime()) / 86_400_000))
 }
-
-function resolvePayment(raw: Payment | Payment[] | undefined): Payment | undefined {
+function resolvePayment(raw: Payment | Payment[] | undefined) {
   const list = Array.isArray(raw) ? raw : raw ? [raw] : []
   return list.find(p => p.status === 'completed') ?? list[0]
 }
+function resolveReview(raw: Review | Review[] | undefined | null) {
+  if (!raw) return null
+  return Array.isArray(raw) ? raw[0] ?? null : raw
+}
 
 // ─── Booking Card ─────────────────────────────────────────────────────
-interface CardProps {
+function BookingCard({
+  booking, cancellingId, reviewingId, reviewState,
+  onCancel, onRating, onComment, onSubmitReview,
+}: {
   booking: Booking
-  isHistory: boolean
   cancellingId: string | null
   reviewingId: string | null
   reviewState: Record<string, { rating: number; comment: string }>
@@ -83,150 +88,130 @@ interface CardProps {
   onRating: (id: string, r: number) => void
   onComment: (id: string, c: string) => void
   onSubmitReview: (id: string) => void
-}
-
-function BookingCard({
-  booking, isHistory,
-  cancellingId, reviewingId, reviewState,
-  onCancel, onRating, onComment, onSubmitReview,
-}: CardProps) {
-  const status    = booking.status
-  const n         = nights(booking.check_in, booking.check_out)
-  const payment   = resolvePayment(booking.payment)
-  const payStatus = payment?.status ?? 'pending'
-  const rev       = reviewState[booking.id] ?? { rating: 5, comment: '' }
-
-  const isCompleted  = status === 'checked_out'
-  const isCancelled  = status === 'cancelled'
-  const canCancel    = status === 'pending'
-  const needsReview  = isCompleted && !booking.review
+}) {
+  const { id, status, check_in, check_out, adults, children, total_amount, hotel, room, payment } = booking
+  const n          = nights(check_in, check_out)
+  const pay        = resolvePayment(payment)
+  const payStatus  = pay?.status ?? 'pending'
+  const review     = resolveReview(booking.review)
+  const rev        = reviewState[id] ?? { rating: 5, comment: '' }
+  const isCancelled = status === 'cancelled'
+  const isCompleted = status === 'checked_out'
+  const badge       = STATUS_BADGE[status] ?? 'bg-gray-100 text-gray-600 border-gray-200'
 
   return (
-    <div className={`bg-white rounded-2xl border transition-shadow hover:shadow-md overflow-hidden ${
-      isCancelled ? 'border-red-100 opacity-80' : 'border-gray-200'
-    }`}>
-      {/* Card header */}
-      <div className="px-5 pt-5 pb-4 flex items-start justify-between gap-3">
+    <div className={`bg-white rounded-2xl border overflow-hidden transition-shadow hover:shadow-md ${isCancelled ? 'border-red-100' : 'border-gray-200'}`}>
+
+      {/* Top strip: hotel + status */}
+      <div className="px-5 pt-4 pb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <Link
-            href={`/hotels/${booking.hotel_id}`}
-            className="font-semibold text-gray-900 hover:text-indigo-600 transition-colors truncate block"
-          >
-            {booking.hotel?.name ?? '—'}
+          <Link href={`/hotels/${booking.hotel_id}`}
+            className="font-semibold text-gray-900 hover:text-indigo-600 transition-colors leading-snug">
+            {hotel?.name ?? '—'}
           </Link>
-          <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
+          <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
             <MapPin className="h-3 w-3 shrink-0" />
-            {booking.hotel?.city}, {booking.hotel?.country}
+            {hotel?.city}, {hotel?.country}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_BADGE[status] ?? 'bg-gray-100 text-gray-600'}`}>
+          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${badge}`}>
             {STATUS_LABEL[status] ?? status}
           </span>
-          {canCancel && (
-            <button
-              onClick={() => onCancel(booking.id)}
-              disabled={cancellingId === booking.id}
-              className="p-1.5 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-40 text-red-500"
-              aria-label="Cancel booking"
-            >
-              {cancellingId === booking.id
-                ? <Loader2 className="h-4 w-4 animate-spin" />
-                : <X className="h-4 w-4" />}
+          {status === 'pending' && (
+            <button onClick={() => onCancel(id)} disabled={cancellingId === id}
+              className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors disabled:opacity-40"
+              aria-label="Cancel">
+              {cancellingId === id
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                : <X className="h-3.5 w-3.5" />}
             </button>
           )}
         </div>
       </div>
 
-      {/* Info grid */}
-      <div className="mx-5 mb-4 grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-xl bg-gray-50 px-4 py-3 text-sm">
+      {/* Info strip */}
+      <div className="mx-5 mb-3 grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-xl bg-gray-50 px-4 py-3">
         <div>
-          <p className="text-gray-400 text-xs mb-0.5 flex items-center gap-1"><BedDouble className="h-3 w-3" /> Room</p>
-          <p className="font-medium text-gray-800 truncate">
-            {booking.room?.room_number ?? '—'}
-            {booking.room?.room_type?.name ? ` · ${booking.room.room_type.name}` : ''}
+          <p className="text-gray-400 text-[10px] uppercase tracking-wide mb-0.5 flex items-center gap-1">
+            <BedDouble className="h-3 w-3" /> Room
+          </p>
+          <p className="text-sm font-medium text-gray-800 truncate">
+            {room?.room_number ?? '—'}{room?.room_type?.name ? ` · ${room.room_type.name}` : ''}
           </p>
         </div>
         <div>
-          <p className="text-gray-400 text-xs mb-0.5 flex items-center gap-1"><Calendar className="h-3 w-3" /> Check-in</p>
-          <p className="font-medium text-gray-800">{new Date(booking.check_in).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+          <p className="text-gray-400 text-[10px] uppercase tracking-wide mb-0.5 flex items-center gap-1">
+            <Calendar className="h-3 w-3" /> Check-in
+          </p>
+          <p className="text-sm font-medium text-gray-800">
+            {new Date(check_in).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </p>
         </div>
         <div>
-          <p className="text-gray-400 text-xs mb-0.5 flex items-center gap-1"><Calendar className="h-3 w-3" /> Check-out</p>
-          <p className="font-medium text-gray-800">{new Date(booking.check_out).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+          <p className="text-gray-400 text-[10px] uppercase tracking-wide mb-0.5 flex items-center gap-1">
+            <Calendar className="h-3 w-3" /> Check-out
+          </p>
+          <p className="text-sm font-medium text-gray-800">
+            {new Date(check_out).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </p>
         </div>
         <div>
-          <p className="text-gray-400 text-xs mb-0.5 flex items-center gap-1"><MoonStar className="h-3 w-3" /> Duration</p>
-          <p className="font-medium text-gray-800">{n} night{n !== 1 ? 's' : ''}</p>
+          <p className="text-gray-400 text-[10px] uppercase tracking-wide mb-0.5 flex items-center gap-1">
+            <MoonStar className="h-3 w-3" /> Duration
+          </p>
+          <p className="text-sm font-medium text-gray-800">{n} night{n !== 1 ? 's' : ''}</p>
         </div>
       </div>
 
-      {/* Footer row */}
-      <div className="px-5 pb-4 flex flex-wrap items-center gap-3 text-sm">
-        <div className="flex items-baseline gap-1">
-          <span className="text-gray-400 text-xs">Total</span>
-          <span className="font-bold text-gray-900">Rs {Number(booking.total_amount).toLocaleString()}</span>
-        </div>
-        <div className="h-3 w-px bg-gray-200" />
-        <div className="flex items-center gap-1.5">
-          <span className="text-gray-400 text-xs">Payment</span>
-          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${PAYMENT_BADGE[payStatus] ?? 'bg-gray-100 text-gray-500'}`}>
-            {payStatus.replace('_', ' ')}
-          </span>
-          {payment?.payment_method && (
-            <span className="text-gray-400 text-xs capitalize">· {payment.payment_method}</span>
-          )}
-        </div>
-        {booking.adults > 0 && (
+      {/* Footer */}
+      <div className="px-5 pb-4 flex flex-wrap items-center gap-2.5 text-xs text-gray-500">
+        <span className="font-bold text-gray-900 text-sm">Rs {Number(total_amount).toLocaleString()}</span>
+        <span className="text-gray-200">|</span>
+        <span>Payment</span>
+        <span className={`font-semibold px-2 py-0.5 rounded-full text-xs ${PAYMENT_BADGE[payStatus] ?? 'bg-gray-100 text-gray-500'}`}>
+          {payStatus.replace('_', ' ')}
+        </span>
+        {pay?.payment_method && <span className="capitalize text-gray-400">· {pay.payment_method}</span>}
+        {adults > 0 && (
           <>
-            <div className="h-3 w-px bg-gray-200" />
-            <span className="text-gray-400 text-xs">{booking.adults} adult{booking.adults !== 1 ? 's' : ''}{booking.children > 0 ? `, ${booking.children} child${booking.children !== 1 ? 'ren' : ''}` : ''}</span>
+            <span className="text-gray-200">|</span>
+            <span>{adults} adult{adults !== 1 ? 's' : ''}{children > 0 ? `, ${children} child${children !== 1 ? 'ren' : ''}` : ''}</span>
           </>
         )}
       </div>
 
-      {/* Pending advance notice */}
+      {/* Pending notice */}
       {status === 'pending' && (
         <div className="mx-5 mb-4 flex items-start gap-2.5 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
-          <PhoneCall className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+          <PhoneCall className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
           <div>
             <p className="text-sm font-semibold text-amber-800">Awaiting advance payment</p>
-            <p className="text-xs text-amber-700 mt-0.5">
-              Our team will contact you to collect a 50% advance. Your booking will be confirmed once received.
-            </p>
+            <p className="text-xs text-amber-700 mt-0.5">Our team will contact you to collect a 50% advance. Booking confirms once received.</p>
           </div>
         </div>
       )}
 
-      {/* Review form — only for completed bookings with no review */}
-      {needsReview && (
-        <div className="mx-5 mb-5 rounded-xl border border-indigo-100 bg-indigo-50/50 p-4">
-          <p className="text-xs font-semibold text-indigo-700 mb-2 flex items-center gap-1.5">
-            <Star className="h-3.5 w-3.5" /> Share your experience
+      {/* Review form (completed, no review yet) */}
+      {isCompleted && !review && (
+        <div className="mx-5 mb-5 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
+          <p className="text-xs font-semibold text-indigo-600 mb-2 flex items-center gap-1.5">
+            <Star className="h-3.5 w-3.5" /> How was your stay?
           </p>
-          <div className="flex items-center gap-0.5 mb-2">
-            {[1,2,3,4,5].map(star => (
-              <button key={star} type="button" onClick={() => onRating(booking.id, star)} className="p-0.5">
-                <Star className={`h-5 w-5 transition-colors ${star <= rev.rating ? 'text-amber-400 fill-current' : 'text-gray-300'}`} />
+          <div className="flex items-center gap-0.5 mb-2.5">
+            {[1,2,3,4,5].map(s => (
+              <button key={s} type="button" onClick={() => onRating(id, s)} className="p-0.5">
+                <Star className={`h-5 w-5 transition-colors ${s <= rev.rating ? 'text-amber-400 fill-current' : 'text-gray-300'}`} />
               </button>
             ))}
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <input
-              type="text"
-              value={rev.comment}
-              onChange={e => onComment(booking.id, e.target.value)}
-              placeholder="How was your stay?"
-              className="input text-sm flex-1"
-            />
-            <button
-              onClick={() => onSubmitReview(booking.id)}
-              disabled={reviewingId === booking.id || !rev.comment.trim()}
-              className="btn-primary text-xs px-4 shrink-0 inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
-            >
-              {reviewingId === booking.id
-                ? <Loader2 className="h-3 w-3 animate-spin" />
-                : <Check className="h-3 w-3" />}
+            <input type="text" value={rev.comment} onChange={e => onComment(id, e.target.value)}
+              placeholder="Tell us about your experience…" className="input text-sm flex-1" />
+            <button onClick={() => onSubmitReview(id)}
+              disabled={reviewingId === id || !rev.comment.trim()}
+              className="btn-primary text-xs px-4 shrink-0 inline-flex items-center justify-center gap-1.5 disabled:opacity-50">
+              {reviewingId === id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
               Submit
             </button>
           </div>
@@ -234,17 +219,18 @@ function BookingCard({
       )}
 
       {/* Review submitted */}
-      {isCompleted && booking.review && (
-        <div className="mx-5 mb-4 rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-3 flex items-start gap-2">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
+      {isCompleted && review && (
+        <div className="mx-5 mb-4 rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-3 flex items-center gap-3">
+          <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
           <div>
-            <p className="text-xs font-semibold text-emerald-700">Review submitted</p>
-            <div className="flex items-center gap-0.5 mt-1">
+            <p className="text-xs font-semibold text-emerald-700">Your review</p>
+            <div className="flex items-center gap-0.5 mt-0.5">
               {[1,2,3,4,5].map(s => (
-                <Star key={s} className={`h-3.5 w-3.5 ${s <= ((booking.review as Review).rating) ? 'text-amber-400 fill-current' : 'text-gray-300'}`} />
+                <Star key={s} className={`h-3.5 w-3.5 ${s <= review.rating ? 'text-amber-400 fill-current' : 'text-gray-300'}`} />
               ))}
             </div>
           </div>
+          {review.comment && <p className="text-xs text-gray-500 ml-1 truncate">{review.comment}</p>}
         </div>
       )}
     </div>
@@ -258,14 +244,22 @@ export default function CustomerBookingsPage() {
 
   const [bookings,     setBookings]     = useState<Booking[]>([])
   const [loading,      setLoading]      = useState(true)
+  const [activeTab,    setActiveTab]    = useState<TabKey>('upcoming')
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [reviewingId,  setReviewingId]  = useState<string | null>(null)
   const [reviewState,  setReviewState]  = useState<Record<string, { rating: number; comment: string }>>({})
-  const [showHistory,  setShowHistory]  = useState(true)
+  const [showFilters,  setShowFilters]  = useState(false)
 
-  const getReview    = (id: string) => reviewState[id] ?? { rating: 5, comment: '' }
-  const setRating    = (id: string, rating: number)  => setReviewState(p => ({ ...p, [id]: { ...getReview(id), rating } }))
-  const setComment   = (id: string, comment: string) => setReviewState(p => ({ ...p, [id]: { ...getReview(id), comment } }))
+  // Filters
+  const [searchHotel,  setSearchHotel]  = useState('')
+  const [filterMonth,  setFilterMonth]  = useState('')   // 'YYYY-MM'
+  const [filterFrom,   setFilterFrom]   = useState('')
+  const [filterTo,     setFilterTo]     = useState('')
+  const [sortOrder,    setSortOrder]    = useState<'asc'|'desc'>('desc')
+
+  const getReview  = (id: string) => reviewState[id] ?? { rating: 5, comment: '' }
+  const setRating  = (id: string, r: number) => setReviewState(p => ({ ...p, [id]: { ...getReview(id), rating: r } }))
+  const setComment = (id: string, c: string) => setReviewState(p => ({ ...p, [id]: { ...getReview(id), comment: c } }))
 
   const fetchBookings = useCallback(async () => {
     setLoading(true)
@@ -282,9 +276,9 @@ export default function CustomerBookingsPage() {
   }, [router])
 
   useEffect(() => {
-    const payment = searchParams.get('payment')
-    if (payment === 'success')   { toast.success('Payment completed successfully'); fetchBookings() }
-    if (payment === 'cancelled') { toast.error('Payment was cancelled') }
+    const p = searchParams.get('payment')
+    if (p === 'success')   { toast.success('Payment completed'); fetchBookings() }
+    if (p === 'cancelled') { toast.error('Payment was cancelled') }
   }, [fetchBookings, searchParams])
 
   useEffect(() => { fetchBookings() }, [fetchBookings])
@@ -293,8 +287,7 @@ export default function CustomerBookingsPage() {
     setCancellingId(bookingId)
     try {
       const res  = await fetch('/api/bookings/cancel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bookingId }),
       })
       const json = await res.json().catch(() => ({}))
@@ -305,11 +298,8 @@ export default function CustomerBookingsPage() {
         const list = Array.isArray(b.payment) ? b.payment : b.payment ? [b.payment] : []
         return { ...b, status: 'cancelled', payment: list.map((p: Payment) => p.status === 'pending' ? { ...p, status: 'failed' } : p) }
       }))
-    } catch {
-      toast.error('Could not cancel booking')
-    } finally {
-      setCancellingId(null)
-    }
+    } catch { toast.error('Could not cancel booking') }
+    finally  { setCancellingId(null) }
   }
 
   const handleSubmitReview = async (bookingId: string) => {
@@ -318,118 +308,264 @@ export default function CustomerBookingsPage() {
     setReviewingId(bookingId)
     const booking = bookings.find(b => b.id === bookingId)
     const res = await fetch('/api/reviews', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ booking_id: bookingId, hotel_id: booking?.hotel_id ?? '', rating, comment }),
     })
     const json = await res.json()
-    if (!res.ok) {
-      toast.error(json.error ?? 'Could not submit review')
-    } else {
+    if (!res.ok) { toast.error(json.error ?? 'Could not submit review') }
+    else {
       toast.success('Review submitted!')
       setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, review: json } : b))
-      setReviewState(prev => { const next = { ...prev }; delete next[bookingId]; return next })
+      setReviewState(prev => { const n = { ...prev }; delete n[bookingId]; return n })
     }
     setReviewingId(null)
   }
 
-  const activeBookings  = bookings.filter(b => ACTIVE_STATUSES.has(b.status))
-  const historyBookings = bookings.filter(b => HISTORY_STATUSES.has(b.status))
-  const completedCount  = historyBookings.filter(b => b.status === 'checked_out').length
-  const cancelledCount  = historyBookings.filter(b => b.status === 'cancelled').length
+  // Available months from all bookings (for the month filter chips)
+  const availableMonths = useMemo(() => {
+    const set = new Set<string>()
+    bookings.forEach(b => set.add(b.check_in.slice(0, 7)))
+    return Array.from(set).sort()
+  }, [bookings])
 
-  const cardProps = {
-    cancellingId, reviewingId, reviewState,
-    onCancel: handleCancel,
-    onRating: setRating,
-    onComment: setComment,
-    onSubmitReview: handleSubmitReview,
-  }
+  // Tab counts
+  const countByTab = useMemo(() => {
+    const map: Record<string, number> = { upcoming: 0, completed: 0, cancelled: 0 }
+    bookings.forEach(b => {
+      if (['pending','confirmed','checked_in'].includes(b.status)) map.upcoming++
+      else if (b.status === 'checked_out') map.completed++
+      else if (b.status === 'cancelled')   map.cancelled++
+    })
+    return map
+  }, [bookings])
+
+  // Tab + filter pipeline
+  const visibleBookings = useMemo(() => {
+    const tab = TABS.find(t => t.key === activeTab)!
+    let list = bookings.filter(b => (tab.statuses as readonly string[]).includes(b.status))
+
+    if (searchHotel.trim()) {
+      const q = searchHotel.toLowerCase()
+      list = list.filter(b => b.hotel?.name?.toLowerCase().includes(q) || b.hotel?.city?.toLowerCase().includes(q))
+    }
+    if (filterMonth) {
+      list = list.filter(b => b.check_in.startsWith(filterMonth))
+    }
+    if (filterFrom) {
+      list = list.filter(b => b.check_in >= filterFrom)
+    }
+    if (filterTo) {
+      list = list.filter(b => b.check_in <= filterTo)
+    }
+
+    list = [...list].sort((a, b) =>
+      sortOrder === 'desc'
+        ? new Date(b.check_in).getTime() - new Date(a.check_in).getTime()
+        : new Date(a.check_in).getTime() - new Date(b.check_in).getTime()
+    )
+    return list
+  }, [bookings, activeTab, searchHotel, filterMonth, filterFrom, filterTo, sortOrder])
+
+  const hasFilters = searchHotel || filterMonth || filterFrom || filterTo
+  const clearFilters = () => { setSearchHotel(''); setFilterMonth(''); setFilterFrom(''); setFilterTo('') }
+
+  const cardProps = { cancellingId, reviewingId, reviewState, onCancel: handleCancel, onRating: setRating, onComment: setComment, onSubmitReview: handleSubmitReview }
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
-      <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+      <Loader2 className="h-7 w-7 animate-spin text-indigo-400" />
     </div>
   )
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
 
-      {/* ── Page header ── */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">My Bookings</h2>
-          <p className="text-sm text-gray-500 mt-0.5">{bookings.length} total booking{bookings.length !== 1 ? 's' : ''}</p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-100">
-            <Clock className="h-3.5 w-3.5 text-indigo-500" />
-            <span className="text-xs font-semibold text-indigo-700">{activeBookings.length} Active</span>
-          </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-teal-50 border border-teal-100">
-            <CheckCircle2 className="h-3.5 w-3.5 text-teal-500" />
-            <span className="text-xs font-semibold text-teal-700">{completedCount} Completed</span>
-          </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-red-50 border border-red-100">
-            <XCircle className="h-3.5 w-3.5 text-red-400" />
-            <span className="text-xs font-semibold text-red-600">{cancelledCount} Cancelled</span>
-          </div>
-        </div>
+      {/* ── Header ── */}
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900">My Bookings</h2>
+        <p className="text-sm text-gray-500 mt-0.5">{bookings.length} total booking{bookings.length !== 1 ? 's' : ''}</p>
       </div>
 
-      {/* ── Empty state ── */}
-      {bookings.length === 0 && (
-        <div className="bg-white rounded-2xl border border-gray-200 p-16 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center mx-auto mb-4">
-            <Calendar className="h-8 w-8 text-indigo-400" />
-          </div>
-          <p className="text-lg font-semibold text-gray-800 mb-1">No bookings yet</p>
-          <p className="text-gray-500 text-sm mb-5">Find a hotel and make your first booking</p>
-          <Link href="/" className="btn-primary text-sm px-5">Browse Hotels</Link>
-        </div>
-      )}
+      {/* ── Tabs ── */}
+      <div className="flex items-center gap-1 border-b border-gray-200">
+        {TABS.map(tab => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => { setActiveTab(tab.key); clearFilters() }}
+            className={`relative px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap ${
+              activeTab === tab.key
+                ? 'text-indigo-600 border-b-2 border-indigo-600 -mb-px'
+                : 'text-gray-500 hover:text-gray-800'
+            }`}
+          >
+            {tab.label}
+            {countByTab[tab.key] > 0 && (
+              <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full font-semibold ${
+                activeTab === tab.key ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-500'
+              }`}>
+                {countByTab[tab.key]}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
 
-      {/* ── Active Bookings ── */}
-      {activeBookings.length > 0 && (
-        <section className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-indigo-500" />
-            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Active Bookings</h3>
-            <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">{activeBookings.length}</span>
+      {/* ── Filter bar ── */}
+      <div className="bg-white rounded-2xl border border-gray-200">
+        {/* Search + toggle */}
+        <div className="flex items-center gap-3 px-4 py-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              value={searchHotel}
+              onChange={e => setSearchHotel(e.target.value)}
+              placeholder="Search by hotel or city…"
+              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+            />
           </div>
-          <div className="space-y-3">
-            {activeBookings.map(b => (
-              <BookingCard key={b.id} booking={b} isHistory={false} {...cardProps} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ── Booking History ── */}
-      {historyBookings.length > 0 && (
-        <section className="space-y-3">
           <button
             type="button"
-            onClick={() => setShowHistory(v => !v)}
-            className="flex items-center gap-2 w-full text-left group"
+            onClick={() => setShowFilters(v => !v)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium transition-colors ${
+              showFilters || filterMonth || filterFrom || filterTo
+                ? 'border-indigo-300 bg-indigo-50 text-indigo-600'
+                : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}
           >
-            <History className="h-4 w-4 text-gray-400" />
-            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Booking History</h3>
-            <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{historyBookings.length}</span>
-            <span className="ml-auto text-xs text-gray-400 group-hover:text-gray-600 transition-colors">
-              {showHistory ? 'Hide' : 'Show'}
-            </span>
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            Filters
+            {hasFilters && <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full" />}
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
           </button>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-gray-400">Sort</span>
+            <select
+              value={sortOrder}
+              onChange={e => setSortOrder(e.target.value as 'asc'|'desc')}
+              className="text-sm border border-gray-200 rounded-xl px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-700"
+            >
+              <option value="desc">Newest first</option>
+              <option value="asc">Oldest first</option>
+            </select>
+          </div>
+        </div>
 
-          {showHistory && (
-            <div className="space-y-3">
-              {historyBookings.map(b => (
-                <BookingCard key={b.id} booking={b} isHistory={true} {...cardProps} />
-              ))}
+        {/* Expandable filters */}
+        {showFilters && (
+          <div className="border-t border-gray-100 px-4 py-4 space-y-4">
+
+            {/* Month chips */}
+            {availableMonths.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Filter by Month</p>
+                <div className="flex flex-wrap gap-2">
+                  {availableMonths.map(m => {
+                    const [y, mo] = m.split('-')
+                    const label = `${MONTHS[parseInt(mo) - 1]} ${y}`
+                    const active = filterMonth === m
+                    return (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setFilterMonth(active ? '' : m)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                          active
+                            ? 'bg-indigo-600 text-white border-indigo-600'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Date range */}
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Check-in Date Range</p>
+              <div className="flex flex-wrap gap-3 items-center">
+                <div>
+                  <label className="text-xs text-gray-400 block mb-1">From</label>
+                  <input type="date" value={filterFrom} onChange={e => setFilterFrom(e.target.value)}
+                    className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 block mb-1">To</label>
+                  <input type="date" value={filterTo} onChange={e => setFilterTo(e.target.value)}
+                    min={filterFrom}
+                    className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                </div>
+                {hasFilters && (
+                  <button type="button" onClick={clearFilters}
+                    className="self-end text-xs text-red-500 hover:text-red-700 font-medium transition-colors px-2 py-2">
+                    Clear all
+                  </button>
+                )}
+              </div>
             </div>
-          )}
-        </section>
-      )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Booking list ── */}
+      <div className="space-y-3">
+        {visibleBookings.map(b => (
+          <BookingCard key={b.id} booking={b} {...cardProps} />
+        ))}
+
+        {/* Empty states */}
+        {visibleBookings.length === 0 && bookings.length === 0 && (
+          <div className="bg-white rounded-2xl border border-gray-200 py-16 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center mx-auto mb-4">
+              <Calendar className="h-7 w-7 text-indigo-400" />
+            </div>
+            <p className="font-semibold text-gray-800 mb-1">No bookings yet</p>
+            <p className="text-sm text-gray-400 mb-5">Find a hotel and make your first booking</p>
+            <Link href="/" className="btn-primary text-sm px-5">Browse Hotels</Link>
+          </div>
+        )}
+
+        {visibleBookings.length === 0 && bookings.length > 0 && !hasFilters && (
+          <div className="bg-white rounded-2xl border border-gray-200 py-14 text-center">
+            {activeTab === 'upcoming' && (
+              <>
+                <CheckCircle2 className="h-10 w-10 text-teal-300 mx-auto mb-3" />
+                <p className="font-semibold text-gray-700 mb-1">No upcoming bookings</p>
+                <p className="text-sm text-gray-400 mb-5">Ready for your next trip?</p>
+                <Link href="/" className="btn-primary text-sm px-5">Find a Hotel</Link>
+              </>
+            )}
+            {activeTab === 'completed' && (
+              <>
+                <CheckCircle2 className="h-10 w-10 text-gray-200 mx-auto mb-3" />
+                <p className="font-semibold text-gray-700">No completed stays yet</p>
+                <p className="text-sm text-gray-400 mt-1">Completed stays will appear here after checkout</p>
+              </>
+            )}
+            {activeTab === 'cancelled' && (
+              <>
+                <XCircle className="h-10 w-10 text-gray-200 mx-auto mb-3" />
+                <p className="font-semibold text-gray-700">No cancelled bookings</p>
+                <p className="text-sm text-gray-400 mt-1">Great news — nothing cancelled!</p>
+              </>
+            )}
+          </div>
+        )}
+
+        {visibleBookings.length === 0 && hasFilters && (
+          <div className="bg-white rounded-2xl border border-gray-200 py-12 text-center">
+            <Search className="h-8 w-8 text-gray-200 mx-auto mb-3" />
+            <p className="font-semibold text-gray-700 mb-1">No bookings match your filters</p>
+            <button onClick={clearFilters} className="text-sm text-indigo-600 hover:text-indigo-700 font-medium mt-2">
+              Clear filters
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
