@@ -102,26 +102,22 @@ export function Sidebar({ role, hotelName, isOpen = false, onClose }: SidebarPro
       )}>
 
         {/* Logo */}
-        <div className="px-5 py-5 border-b border-white/10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <LogoMark svgSize={30} />
-              <span className="font-black text-[17px] text-white tracking-tight">
-                Book<span className="text-amber-400">Qayam</span>
-              </span>
-            </div>
-            <button
-              onClick={onClose}
-              className="md:hidden p-1 rounded-lg hover:bg-white/10 text-indigo-300"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-          {(hotelName || titleMap[role]) && (
-            <p className="text-xs text-indigo-400 mt-2 truncate pl-0.5">
-              {hotelName || titleMap[role]}
+        <div className="h-16 px-4 flex items-center border-b border-white/10 gap-2">
+          <button
+            onClick={onClose}
+            className="md:hidden p-1 rounded-lg hover:bg-white/10 text-indigo-300 mr-1"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <LogoMark svgSize={32} />
+          <div className="min-w-0">
+            <p className="font-black text-white text-sm truncate">
+              Book<span className="text-amber-400">Qayam</span>
             </p>
-          )}
+            {(hotelName || titleMap[role]) && (
+              <p className="text-xs text-indigo-300 truncate">{hotelName || titleMap[role]}</p>
+            )}
+          </div>
         </div>
 
         {/* Nav */}
