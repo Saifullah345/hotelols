@@ -554,12 +554,12 @@ export default function NewBookingPage() {
       <p className="text-sm font-semibold text-gray-700">Dates</p>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="label">Check-in</label>
+          <label className="label">Check-in <span className="text-red-500">*</span></label>
           <input {...reg('check_in')} type="date" min={today} className="input" />
           {errs.check_in && <p className="text-red-500 text-xs mt-1">{errs.check_in.message}</p>}
         </div>
         <div>
-          <label className="label">Check-out</label>
+          <label className="label">Check-out <span className="text-red-500">*</span></label>
           <input {...reg('check_out')} type="date" min={ci || today} className="input" />
           {errs.check_out && <p className="text-red-500 text-xs mt-1">{errs.check_out.message}</p>}
         </div>
@@ -573,7 +573,7 @@ export default function NewBookingPage() {
       <p className="text-sm font-semibold text-gray-700">Details</p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="label">Adults</label>
+          <label className="label">Adults <span className="text-red-500">*</span></label>
           <input {...reg('adults')} type="number" min={1} max={20} className="input" />
           {errs.adults && <p className="text-red-500 text-xs mt-1">{errs.adults.message}</p>}
         </div>
@@ -582,7 +582,7 @@ export default function NewBookingPage() {
           <input {...reg('children')} type="number" min={0} max={20} className="input" />
         </div>
         <div>
-          <label className="label">Status</label>
+          <label className="label">Status <span className="text-red-500">*</span></label>
           <select {...reg('status')} className="input">
             <option value="confirmed">Confirmed</option>
             <option value="pending">Pending</option>
@@ -646,19 +646,19 @@ export default function NewBookingPage() {
             <p className="text-sm font-semibold text-gray-700">Guest Info</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
-                <label className="label">Full Name</label>
+                <label className="label">Full Name <span className="text-red-500">*</span></label>
                 <input {...offlineForm.register('guest_name')} className="input" placeholder="John Smith" />
                 {offlineForm.formState.errors.guest_name && (
                   <p className="text-red-500 text-xs mt-1">{offlineForm.formState.errors.guest_name.message}</p>
                 )}
               </div>
               <div className="md:col-span-2">
-                <label className="label">Phone Number</label>
+                <label className="label">Phone Number <span className="text-red-500">*</span></label>
                 <PhoneInput
                   value={offlineForm.watch('guest_phone') ?? ''}
-                  onChange={v => offlineForm.setValue('guest_phone', v, { shouldValidate: true })}
+                  onChange={v => offlineForm.setValue('guest_phone', v, { shouldValidate: offlineForm.formState.isSubmitted })}
                 />
-                {offlineForm.formState.errors.guest_phone && (
+                {offlineForm.formState.isSubmitted && offlineForm.formState.errors.guest_phone && (
                   <p className="text-red-500 text-xs mt-1">{offlineForm.formState.errors.guest_phone.message}</p>
                 )}
               </div>
