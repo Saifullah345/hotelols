@@ -9,7 +9,6 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import PublicNavbar from '@/components/layout/PublicNavbar'
 import PublicFooter from '@/components/layout/PublicFooter'
-import PublicBookRoomButton from './PublicBookRoomButton'
 import HotelImageGallery from './HotelImageGallery'
 import SaveHotelButton from '@/components/SaveHotelButton'
 import JsonLd from '@/components/seo/JsonLd'
@@ -301,47 +300,81 @@ export default async function PublicHotelDetailPage({ params }: { params: Promis
               <div className="space-y-4">
                 {rooms?.map(room => {
                   const roomImages = (room.images as string[] | null) ?? []
+                  const amenities  = (room.amenities as string[] | null) ?? []
                   const thumb = roomImages[0]
-                  const type = room.room_type as { name?: string; description?: string } | null
+                  const type  = room.room_type as { name?: string; description?: string } | null
+                  const href  = `/hotels/${id}/rooms/${room.id}`
                   return (
-                    <div key={room.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5 hover:shadow-md transition-shadow">
-                      <div className="flex items-center gap-4">
-                        {thumb ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={thumb} alt={type?.name ?? 'Room'} className="h-14 w-14 shrink-0 rounded-xl object-cover" />
-                        ) : (
-                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-primary-50">
-                            <BedDouble className="h-7 w-7 text-primary-600" />
-                          </div>
-                        )}
-                        <div>
-                          <h3 className="font-semibold text-gray-900">
-                            {room.name ?? `Room ${room.room_number}`}
-                            {type?.name ? <span className="ml-1 text-gray-500 font-normal">({type.name})</span> : null}
-                          </h3>
-                          <div className="flex items-center gap-2 mt-0.5 text-sm text-gray-500">
-                            <span>Floor {room.floor}</span>
-                            {room.max_adults && (
-                              <>
-                                <span>·</span>
-                                <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {room.max_adults} adults{room.max_children ? `, ${room.max_children} children` : ''}</span>
-                              </>
+                    <div key={room.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow group">
+                      <div className="flex flex-col sm:flex-row">
+                        {/* Clickable image */}
+                        <Link href={href} className="sm:w-44 shrink-0">
+                          {thumb ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={thumb}
+                              alt={type?.name ?? 'Room'}
+                              className="h-44 sm:h-full w-full object-cover group-hover:brightness-95 transition"
+                            />
+                          ) : (
+                            <div className="flex h-44 sm:h-full w-full items-center justify-center bg-indigo-50">
+                              <BedDouble className="h-10 w-10 text-indigo-300" />
+                            </div>
+                          )}
+                        </Link>
+
+                        {/* Info */}
+                        <div className="flex flex-1 flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5">
+                          <div className="flex-1 min-w-0">
+                            <Link href={href} className="hover:text-indigo-700 transition-colors">
+                              <h3 className="font-semibold text-gray-900 group-hover:text-indigo-700 transition-colors">
+                                {room.name ?? `Room ${room.room_number}`}
+                                {type?.name ? <span className="ml-1.5 text-gray-400 font-normal text-sm">({type.name})</span> : null}
+                              </h3>
+                            </Link>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-gray-500">
+                              <span>Floor {room.floor}</span>
+                              {room.max_adults && (
+                                <span className="flex items-center gap-1">
+                                  <Users className="h-3.5 w-3.5" />
+                                  {room.max_adults} adults{room.max_children ? `, ${room.max_children} children` : ''}
+                                </span>
+                              )}
+                            </div>
+                            {/* Amenity chips (up to 4) */}
+                            {amenities.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5 mt-2.5">
+                                {amenities.slice(0, 4).map(a => (
+                                  <span key={a} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                    {a}
+                                  </span>
+                                ))}
+                                {amenities.length > 4 && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                                    +{amenities.length - 4} more
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {roomImages.length > 1 && (
+                              <p className="text-xs text-gray-400 mt-1.5">{roomImages.length} photos available</p>
                             )}
                           </div>
+
+                          {/* Price + CTA */}
+                          <div className="flex items-center justify-between gap-4 border-t border-gray-100 pt-4 sm:flex-col sm:items-end sm:border-0 sm:pt-0 sm:text-right shrink-0">
+                            <div>
+                              <p className="text-2xl font-bold text-gray-900">Rs {room.price_per_night.toLocaleString()}</p>
+                              <p className="text-sm text-gray-500">per night</p>
+                            </div>
+                            <Link
+                              href={href}
+                              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors"
+                            >
+                              View Room →
+                            </Link>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center justify-between gap-4 border-t border-gray-100 pt-4 sm:flex-col sm:items-end sm:border-0 sm:pt-0 sm:text-right">
-                        <div>
-                          <p className="text-2xl font-bold text-gray-900">Rs {room.price_per_night.toLocaleString()}</p>
-                          <p className="text-sm text-gray-500">per night</p>
-                        </div>
-                        <PublicBookRoomButton
-                          roomId={room.id}
-                          hotelId={id}
-                          hotelSlug={id}
-                          pricePerNight={room.price_per_night}
-                          isLoggedIn={!!user}
-                        />
                       </div>
                     </div>
                   )
