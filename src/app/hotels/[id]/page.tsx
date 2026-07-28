@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
   Star, Clock, Phone, Mail, BedDouble, ShieldCheck, ArrowLeft,
@@ -85,9 +85,17 @@ function getAmenityIcon(name: string): LucideIcon {
 export default async function PublicHotelDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
-  // Check if user is logged in (no redirect — public page)
   const authSupabase = await createClient()
   const { data: { user } } = await authSupabase.auth.getUser()
+
+  // Non-customer accounts have their own dashboards — redirect them away.
+  if (user) {
+    const { data: profile } = await authSupabase
+      .from('profiles').select('role').eq('id', user.id).single()
+    if (profile?.role === 'hotel_admin') redirect('/hotel-admin/dashboard')
+    if (profile?.role === 'super_admin') redirect('/super-admin/dashboard')
+    if (profile?.role === 'staff') redirect('/staff/dashboard')
+  }
 
   const supabase = await createAdminClient()
 
