@@ -6,9 +6,10 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Loader2, Save, User } from 'lucide-react'
+import { Loader2, Save, User, ArrowLeft } from 'lucide-react'
 import { phoneSchema, nameSchema } from '@/lib/validation'
 import PhoneInput from '@/components/ui/PhoneInput'
+import Link from 'next/link'
 
 const schema = z.object({
   full_name: nameSchema,
@@ -57,9 +58,14 @@ export default function CustomerProfilePage() {
 
   return (
     <div className="max-w-lg space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">My Profile</h2>
-        <p className="text-gray-500 text-sm mt-1">Manage your account details</p>
+      <div className="flex items-center gap-3">
+        <Link href="/customer/bookings" className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-500">
+          <ArrowLeft className="h-5 w-5" />
+        </Link>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">My Profile</h2>
+          <p className="text-gray-500 text-sm mt-0.5">Manage your account details</p>
+        </div>
       </div>
 
       <div className="card p-6">
