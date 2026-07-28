@@ -186,7 +186,7 @@ function PaymentBlock({
 
 // ── Standalone Room Picker (must be outside parent to keep input focus) ──
 function RoomPicker({
-  rooms, selectedRoomIds, unavailableRoomIds, currency, nights, totalAmount, onToggle,
+  rooms, selectedRoomIds, unavailableRoomIds, currency, nights, totalAmount, onToggle, checkingAvailability,
 }: {
   rooms: Room[]
   selectedRoomIds: string[]
@@ -195,6 +195,7 @@ function RoomPicker({
   nights: number
   totalAmount: number
   onToggle: (id: string) => void
+  checkingAvailability: boolean
 }) {
   const [q, setQ] = useState('')
   const lq = q.toLowerCase()
@@ -206,16 +207,30 @@ function RoomPicker({
       )
     : rooms
 
+  const availableCount = rooms.filter(r => !unavailableRoomIds.has(r.id)).length
+
   return (
     <div className="card p-5 space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-gray-700">Rooms</p>
-        {selectedRoomIds.length > 0 && (
-          <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-            <Check className="h-3 w-3" />
-            {selectedRoomIds.length} selected
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {checkingAvailability ? (
+            <span className="inline-flex items-center gap-1.5 text-xs text-gray-400">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Checking availability…
+            </span>
+          ) : unavailableRoomIds.size > 0 ? (
+            <span className="text-xs text-emerald-600 font-medium">
+              {availableCount} of {rooms.length} available
+            </span>
+          ) : null}
+          {selectedRoomIds.length > 0 && (
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+              <Check className="h-3 w-3" />
+              {selectedRoomIds.length} selected
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="relative">
@@ -322,6 +337,7 @@ export default function NewBookingPage() {
   const [currency, setCurrency]           = useState('USD')
   const [tenantId, setTenantId]           = useState<string | null>(null)
   const [unavailableRoomIds, setUnavailableRoomIds] = useState<Set<string>>(new Set())
+  const [checkingAvailability, setCheckingAvailability] = useState(false)
 
   // Payment state (offline only)
   const [payMethod, setPayMethod]         = useState('cash')
@@ -393,8 +409,9 @@ export default function NewBookingPage() {
   useEffect(() => {
     const check = async () => {
       if (!tenantId || !activeCheckIn || !activeCheckOut || new Date(activeCheckOut) <= new Date(activeCheckIn)) {
-        setUnavailableRoomIds(new Set()); return
+        setUnavailableRoomIds(new Set()); setCheckingAvailability(false); return
       }
+      setCheckingAvailability(true)
       const { data } = await createClient()
         .from('bookings')
         .select('room_id, room_ids')
@@ -411,6 +428,7 @@ export default function NewBookingPage() {
       setUnavailableRoomIds(ids)
       // Deselect any rooms that became unavailable
       setSelectedRoomIds(prev => prev.filter(id => !ids.has(id)))
+      setCheckingAvailability(false)
     }
     check()
   }, [tenantId, activeCheckIn, activeCheckOut])
@@ -530,51 +548,52 @@ export default function NewBookingPage() {
 
   const today = new Date().toISOString().split('T')[0]
 
-  // ── Dates + Details block ─────────────────────────────────────
-  const DatesDetailsBlock = (reg: Parameters<typeof onlineForm.register>[0] extends string ? any : any, errs: Record<string, { message?: string }>, ci: string) => (
-    <>
-      <div className="card p-5 space-y-4">
-        <p className="text-sm font-semibold text-gray-700">Dates</p>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="label">Check-in</label>
-            <input {...reg('check_in')} type="date" min={today} className="input" />
-            {errs.check_in && <p className="text-red-500 text-xs mt-1">{errs.check_in.message}</p>}
-          </div>
-          <div>
-            <label className="label">Check-out</label>
-            <input {...reg('check_out')} type="date" min={ci || today} className="input" />
-            {errs.check_out && <p className="text-red-500 text-xs mt-1">{errs.check_out.message}</p>}
-          </div>
+  // ── Dates block (shown ABOVE rooms so availability filters correctly) ────
+  const DatesBlock = (reg: any, errs: Record<string, { message?: string }>, ci: string) => (
+    <div className="card p-5 space-y-4">
+      <p className="text-sm font-semibold text-gray-700">Dates</p>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="label">Check-in</label>
+          <input {...reg('check_in')} type="date" min={today} className="input" />
+          {errs.check_in && <p className="text-red-500 text-xs mt-1">{errs.check_in.message}</p>}
+        </div>
+        <div>
+          <label className="label">Check-out</label>
+          <input {...reg('check_out')} type="date" min={ci || today} className="input" />
+          {errs.check_out && <p className="text-red-500 text-xs mt-1">{errs.check_out.message}</p>}
         </div>
       </div>
+    </div>
+  )
 
-      <div className="card p-5 space-y-4">
-        <p className="text-sm font-semibold text-gray-700">Details</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="label">Adults</label>
-            <input {...reg('adults')} type="number" min={1} max={20} className="input" />
-            {errs.adults && <p className="text-red-500 text-xs mt-1">{errs.adults.message}</p>}
-          </div>
-          <div>
-            <label className="label">Children</label>
-            <input {...reg('children')} type="number" min={0} max={20} className="input" />
-          </div>
-          <div>
-            <label className="label">Status</label>
-            <select {...reg('status')} className="input">
-              <option value="confirmed">Confirmed</option>
-              <option value="pending">Pending</option>
-            </select>
-          </div>
-          <div className="md:col-span-2">
-            <label className="label">Special Requests <span className="text-gray-400 font-normal">(optional)</span></label>
-            <textarea {...reg('special_requests')} className="input resize-none" rows={3} placeholder="Any special requests..." />
-          </div>
+  // ── Details block (guests, status, requests — shown after rooms) ─────────
+  const DetailsBlock = (reg: any, errs: Record<string, { message?: string }>) => (
+    <div className="card p-5 space-y-4">
+      <p className="text-sm font-semibold text-gray-700">Details</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="label">Adults</label>
+          <input {...reg('adults')} type="number" min={1} max={20} className="input" />
+          {errs.adults && <p className="text-red-500 text-xs mt-1">{errs.adults.message}</p>}
+        </div>
+        <div>
+          <label className="label">Children</label>
+          <input {...reg('children')} type="number" min={0} max={20} className="input" />
+        </div>
+        <div>
+          <label className="label">Status</label>
+          <select {...reg('status')} className="input">
+            <option value="confirmed">Confirmed</option>
+            <option value="pending">Pending</option>
+          </select>
+        </div>
+        <div className="md:col-span-2">
+          <label className="label">Special Requests <span className="text-gray-400 font-normal">(optional)</span></label>
+          <textarea {...reg('special_requests')} className="input resize-none" rows={3} placeholder="Any special requests..." />
         </div>
       </div>
-    </>
+    </div>
   )
 
   // ── Payment block ─────────────────────────────────────────────
@@ -646,6 +665,7 @@ export default function NewBookingPage() {
             </div>
           </div>
 
+          {DatesBlock(offlineForm.register, offlineForm.formState.errors as Record<string, { message?: string }>, checkInOff)}
           <RoomPicker
             rooms={rooms}
             selectedRoomIds={selectedRoomIds}
@@ -654,8 +674,9 @@ export default function NewBookingPage() {
             nights={nights}
             totalAmount={totalAmount}
             onToggle={toggleRoom}
+            checkingAvailability={checkingAvailability}
           />
-          {DatesDetailsBlock(offlineForm.register, offlineForm.formState.errors as Record<string, { message?: string }>, checkInOff)}
+          {DetailsBlock(offlineForm.register, offlineForm.formState.errors as Record<string, { message?: string }>)}
           <PaymentBlock
             totalAmount={totalAmount}
             currency={currency}
@@ -716,6 +737,7 @@ export default function NewBookingPage() {
             )}
           </div>
 
+          {DatesBlock(onlineForm.register, onlineForm.formState.errors as Record<string, { message?: string }>, checkIn)}
           <RoomPicker
             rooms={rooms}
             selectedRoomIds={selectedRoomIds}
@@ -724,8 +746,9 @@ export default function NewBookingPage() {
             nights={nights}
             totalAmount={totalAmount}
             onToggle={toggleRoom}
+            checkingAvailability={checkingAvailability}
           />
-          {DatesDetailsBlock(onlineForm.register, onlineForm.formState.errors as Record<string, { message?: string }>, checkIn)}
+          {DetailsBlock(onlineForm.register, onlineForm.formState.errors as Record<string, { message?: string }>)}
 
           <div className="flex justify-end gap-3">
             <Link href="/hotel-admin/bookings" className="btn-secondary">Cancel</Link>
