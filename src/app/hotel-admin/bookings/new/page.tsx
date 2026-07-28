@@ -10,7 +10,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   Loader2, ArrowLeft, Search, User, BedDouble,
   MessageCircle, Phone, DoorOpen, Globe,
-  Banknote, CreditCard, Building2, FileText, HelpCircle, CheckCircle, Users, Check,
+  Banknote, CreditCard, Building2, FileText, HelpCircle, CheckCircle, Users, Check, AlertTriangle,
 } from 'lucide-react'
 import Link from 'next/link'
 import PhoneInput from '@/components/ui/PhoneInput'
@@ -76,14 +76,14 @@ const PAY_METHODS: { value: string; label: string; icon: React.ElementType }[] =
 
 // ── Payment Block (must be outside parent to keep input focus) ──────────
 function PaymentBlock({
-  totalAmount, currency, nights,
+  totalAmount, currency, nights, source,
   payMethod, setPayMethod,
   payNow, setPayNow,
   isAdvance, setIsAdvance,
   advanceAmount, setAdvanceAmount,
   payNotes, setPayNotes,
 }: {
-  totalAmount: number; currency: string; nights: number
+  totalAmount: number; currency: string; nights: number; source: string
   payMethod: string; setPayMethod: (v: string) => void
   payNow: boolean; setPayNow: (v: boolean) => void
   isAdvance: boolean; setIsAdvance: (v: boolean) => void
@@ -174,10 +174,22 @@ function PaymentBlock({
           </span>
         </div>
       )}
-      {!payNow && (
-        <div className="flex items-center gap-2 p-3 bg-orange-50 border border-orange-200 rounded-lg text-sm text-orange-700">
-          <Loader2 className="h-4 w-4 flex-shrink-0" />
-          Payment pending — guest will pay later.
+      {!payNow && source === 'walk_in' && (
+        <div className="flex items-start gap-2.5 p-3.5 bg-red-50 border border-red-300 rounded-lg">
+          <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-red-700">Advance payment is required for walk-in bookings</p>
+            <p className="text-xs text-red-600 mt-0.5">The guest is present — collect an advance now to confirm the booking.</p>
+          </div>
+        </div>
+      )}
+      {!payNow && source !== 'walk_in' && (
+        <div className="flex items-start gap-2.5 p-3.5 bg-amber-50 border border-amber-200 rounded-lg">
+          <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-amber-700">Booking will be Pending</p>
+            <p className="text-xs text-amber-600 mt-0.5">No advance collected yet. Use <strong>Collect Payment</strong> once the guest transfers the advance to confirm this booking.</p>
+          </div>
         </div>
       )}
     </div>
@@ -517,6 +529,10 @@ export default function NewBookingPage() {
   }
 
   const submitOffline = async (data: OfflineForm) => {
+    if (!payNow && source === 'walk_in') {
+      toast.error('Advance payment is required for walk-in bookings')
+      return
+    }
     if (advanceInvalid) {
       toast.error(`Advance amount must be greater than 0 and no more than ${formatCurrency(totalAmount, currency)}`)
       return
@@ -546,6 +562,13 @@ export default function NewBookingPage() {
     })
   }
 
+  // When payment is collected, status must be confirmed — pending makes no sense.
+  useEffect(() => {
+    if (payNow && isOffline) {
+      offlineForm.setValue('status', 'confirmed')
+    }
+  }, [payNow, isOffline]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const today = new Date().toISOString().split('T')[0]
 
   // ── Dates block (shown ABOVE rooms so availability filters correctly) ────
@@ -568,7 +591,7 @@ export default function NewBookingPage() {
   )
 
   // ── Details block (guests, status, requests — shown after rooms) ─────────
-  const DetailsBlock = (reg: any, errs: Record<string, { message?: string }>) => (
+  const DetailsBlock = (reg: any, errs: Record<string, { message?: string }>, lockConfirmed = false) => (
     <div className="card p-5 space-y-4">
       <p className="text-sm font-semibold text-gray-700">Details</p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -583,10 +606,13 @@ export default function NewBookingPage() {
         </div>
         <div>
           <label className="label">Status <span className="text-red-500">*</span></label>
-          <select {...reg('status')} className="input">
+          <select {...reg('status')} className="input" disabled={lockConfirmed}>
             <option value="confirmed">Confirmed</option>
-            <option value="pending">Pending</option>
+            {!lockConfirmed && <option value="pending">Pending</option>}
           </select>
+          {lockConfirmed && (
+            <p className="text-xs text-indigo-600 mt-1">Auto-confirmed because payment is being collected.</p>
+          )}
         </div>
         <div className="md:col-span-2">
           <label className="label">Special Requests <span className="text-gray-400 font-normal">(optional)</span></label>
@@ -676,11 +702,12 @@ export default function NewBookingPage() {
             onToggle={toggleRoom}
             checkingAvailability={checkingAvailability}
           />
-          {DetailsBlock(offlineForm.register, offlineForm.formState.errors as Record<string, { message?: string }>)}
+          {DetailsBlock(offlineForm.register, offlineForm.formState.errors as Record<string, { message?: string }>, payNow)}
           <PaymentBlock
             totalAmount={totalAmount}
             currency={currency}
             nights={nights}
+            source={source}
             payMethod={payMethod}    setPayMethod={setPayMethod}
             payNow={payNow}          setPayNow={setPayNow}
             isAdvance={isAdvance}    setIsAdvance={setIsAdvance}
@@ -690,7 +717,7 @@ export default function NewBookingPage() {
 
           <div className="flex justify-end gap-3">
             <Link href="/hotel-admin/bookings" className="btn-secondary">Cancel</Link>
-            <button type="submit" disabled={submitting || advanceInvalid || selectedRoomIds.length === 0}
+            <button type="submit" disabled={submitting || (!payNow && source === 'walk_in') || advanceInvalid || selectedRoomIds.length === 0}
               className="btn-primary flex items-center gap-2">
               {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
               {submitting ? 'Creating…' : 'Create Booking'}
