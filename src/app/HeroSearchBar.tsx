@@ -97,7 +97,7 @@ export default function HeroSearchBar({
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Check-in</p>
           <input
             type="date"
-            min={today}
+            min={today || undefined}
             value={checkIn}
             onChange={e => onCheckInChange(e.target.value)}
             className="text-sm font-semibold text-gray-900 bg-transparent outline-none cursor-pointer w-32"
@@ -112,7 +112,7 @@ export default function HeroSearchBar({
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Check-out</p>
           <input
             type="date"
-            min={checkIn ? nextDay(checkIn) : today}
+            min={checkIn ? nextDay(checkIn) : (today || undefined)}
             value={checkOut}
             onChange={e => onCheckOutChange(e.target.value)}
             className="text-sm font-semibold text-gray-900 bg-transparent outline-none cursor-pointer w-32"

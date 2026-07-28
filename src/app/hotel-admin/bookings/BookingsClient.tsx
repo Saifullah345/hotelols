@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import BookingActions from './BookingActions'
 import { formatCurrency } from '@/lib/currency'
+import { todayISO } from '@/lib/date'
 import PhoneInput from '@/components/ui/PhoneInput'
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -325,7 +326,7 @@ export default function BookingsClient({
   bookings: initial,
   currency,
   rooms,
-  today,
+  today: serverToday,
 }: {
   bookings: Booking[]
   currency: string
@@ -333,6 +334,12 @@ export default function BookingsClient({
   today: string
 }) {
   const router = useRouter()
+  // The server's date keeps the first paint identical for hydration; the
+  // viewer's own date takes over on mount, so "Today" means their today even
+  // when the server runs in a different timezone.
+  const [today, setToday] = useState(serverToday)
+  useEffect(() => { setToday(todayISO()) }, [])
+
   const [bookings, setBookings] = useState(initial)
   const [statusTab, setStatusTab] = useState('all')
   const [dateRange, setDateRange] = useState('all')
