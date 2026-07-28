@@ -7,6 +7,7 @@ import {
   Calendar, Check, MapPin, Star, X, PhoneCall,
   BedDouble, Loader2, CheckCircle2, XCircle,
   MoonStar, Search, ChevronDown, SlidersHorizontal,
+  AlertTriangle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -75,6 +76,83 @@ function resolveReview(raw: Review | Review[] | undefined | null) {
   return Array.isArray(raw) ? raw[0] ?? null : raw
 }
 
+// ─── Confirm Cancel Modal ─────────────────────────────────────────────
+function ConfirmCancelModal({
+  booking, cancelling, onConfirm, onDismiss,
+}: {
+  booking: Booking
+  cancelling: boolean
+  onConfirm: () => void
+  onDismiss: () => void
+}) {
+  const n = nights(booking.check_in, booking.check_out)
+  const fmt = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+
+        {/* Header */}
+        <div className="bg-red-50 px-6 pt-6 pb-5 text-center">
+          <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-3">
+            <AlertTriangle className="h-6 w-6 text-red-500" />
+          </div>
+          <h3 className="text-lg font-bold text-gray-900">Cancel Booking?</h3>
+          <p className="text-sm text-gray-500 mt-1">
+            This will cancel your booking at{' '}
+            <span className="font-semibold text-gray-700">{booking.hotel?.name}</span>.
+          </p>
+        </div>
+
+        {/* Booking summary */}
+        <div className="px-6 py-4 space-y-2 border-b border-gray-100">
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-400">Check-in</span>
+            <span className="font-medium text-gray-800">{fmt(booking.check_in)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-400">Check-out</span>
+            <span className="font-medium text-gray-800">{fmt(booking.check_out)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-400">Duration</span>
+            <span className="font-medium text-gray-800">{n} night{n !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-400">Total</span>
+            <span className="font-bold text-gray-900">Rs {Number(booking.total_amount).toLocaleString()}</span>
+          </div>
+        </div>
+
+        <div className="px-6 py-3">
+          <p className="text-xs text-gray-400 text-center">This action cannot be undone.</p>
+        </div>
+
+        {/* Actions */}
+        <div className="px-6 pb-6 flex gap-3">
+          <button
+            type="button"
+            onClick={onDismiss}
+            disabled={cancelling}
+            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            Keep Booking
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={cancelling}
+            className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {cancelling && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            Yes, Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Booking Card ─────────────────────────────────────────────────────
 function BookingCard({
   booking, cancellingId, reviewingId, reviewState,
@@ -119,12 +197,16 @@ function BookingCard({
             {STATUS_LABEL[status] ?? status}
           </span>
           {status === 'pending' && (
-            <button onClick={() => onCancel(id)} disabled={cancellingId === id}
-              className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors disabled:opacity-40"
-              aria-label="Cancel">
+            <button
+              type="button"
+              onClick={() => onCancel(id)}
+              disabled={cancellingId === id}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 text-xs font-semibold transition-colors disabled:opacity-40"
+            >
               {cancellingId === id
-                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                : <X className="h-3.5 w-3.5" />}
+                ? <Loader2 className="h-3 w-3 animate-spin" />
+                : <X className="h-3 w-3" />}
+              Cancel Booking
             </button>
           )}
         </div>
@@ -245,7 +327,8 @@ export default function CustomerBookingsPage() {
   const [bookings,     setBookings]     = useState<Booking[]>([])
   const [loading,      setLoading]      = useState(true)
   const [activeTab,    setActiveTab]    = useState<TabKey>('upcoming')
-  const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [cancellingId,       setCancellingId]       = useState<string | null>(null)
+  const [confirmCancelBooking, setConfirmCancelBooking] = useState<Booking | null>(null)
   const [reviewingId,  setReviewingId]  = useState<string | null>(null)
   const [reviewState,  setReviewState]  = useState<Record<string, { rating: number; comment: string }>>({})
   const [showFilters,  setShowFilters]  = useState(false)
@@ -283,6 +366,13 @@ export default function CustomerBookingsPage() {
 
   useEffect(() => { fetchBookings() }, [fetchBookings])
 
+  // Step 1 — show the confirm modal
+  const requestCancel = (bookingId: string) => {
+    const booking = bookings.find(b => b.id === bookingId) ?? null
+    setConfirmCancelBooking(booking)
+  }
+
+  // Step 2 — user confirmed: do the actual cancellation
   const handleCancel = async (bookingId: string) => {
     setCancellingId(bookingId)
     try {
@@ -298,6 +388,7 @@ export default function CustomerBookingsPage() {
         const list = Array.isArray(b.payment) ? b.payment : b.payment ? [b.payment] : []
         return { ...b, status: 'cancelled', payment: list.map((p: Payment) => p.status === 'pending' ? { ...p, status: 'failed' } : p) }
       }))
+      setConfirmCancelBooking(null)
     } catch { toast.error('Could not cancel booking') }
     finally  { setCancellingId(null) }
   }
@@ -369,7 +460,7 @@ export default function CustomerBookingsPage() {
   const hasFilters = searchHotel || filterMonth || filterFrom || filterTo
   const clearFilters = () => { setSearchHotel(''); setFilterMonth(''); setFilterFrom(''); setFilterTo('') }
 
-  const cardProps = { cancellingId, reviewingId, reviewState, onCancel: handleCancel, onRating: setRating, onComment: setComment, onSubmitReview: handleSubmitReview }
+  const cardProps = { cancellingId, reviewingId, reviewState, onCancel: requestCancel, onRating: setRating, onComment: setComment, onSubmitReview: handleSubmitReview }
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
@@ -566,6 +657,16 @@ export default function CustomerBookingsPage() {
           </div>
         )}
       </div>
+
+      {/* ── Confirm Cancel Modal ── */}
+      {confirmCancelBooking && (
+        <ConfirmCancelModal
+          booking={confirmCancelBooking}
+          cancelling={cancellingId === confirmCancelBooking.id}
+          onConfirm={() => handleCancel(confirmCancelBooking.id)}
+          onDismiss={() => setConfirmCancelBooking(null)}
+        />
+      )}
     </div>
   )
 }
