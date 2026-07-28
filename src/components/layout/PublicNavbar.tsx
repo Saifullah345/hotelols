@@ -1,12 +1,61 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
-import { Menu, X } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Menu, X, CalendarDays, User, LogOut, ChevronDown } from 'lucide-react'
 import Logo from '@/components/layout/Logo'
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
+
+type UserInfo = { name: string; email: string }
 
 export default function PublicNavbar() {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen]         = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [user, setUser]         = useState<UserInfo | null>(null)
+  const [loading, setLoading]   = useState(true)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const router  = useRouter()
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(async ({ data: { user: u } }) => {
+      if (u) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name, role')
+          .eq('id', u.id)
+          .single()
+        // Only show customer menu on public pages — admins are redirected away anyway
+        if (profile?.role === 'customer') {
+          setUser({ name: profile.full_name ?? u.email ?? 'Guest', email: u.email ?? '' })
+        }
+      }
+      setLoading(false)
+    })
+  }, [])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const handleSignOut = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    setUser(null)
+    setUserMenuOpen(false)
+    router.push('/')
+    router.refresh()
+  }
+
+  const initials = user?.name?.trim().split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() ?? '?'
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-gray-100">
@@ -23,14 +72,71 @@ export default function PublicNavbar() {
           <Link href="/contact" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors">Contact</Link>
         </nav>
 
-        {/* Right actions */}
+        {/* Right actions — desktop */}
         <div className="hidden md:flex items-center gap-2">
-          <Link href="/register" className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 rounded-lg hover:bg-gray-50 transition-colors">
-            Register
-          </Link>
-          <Link href="/login" className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors">
-            Sign in
-          </Link>
+          {!loading && user ? (
+            /* ── Logged-in user menu ── */
+            <div ref={menuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setUserMenuOpen(v => !v)}
+                className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-xl hover:bg-gray-50 border border-gray-200 transition-colors"
+              >
+                <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold">
+                  {initials}
+                </div>
+                <span className="text-sm font-medium text-gray-700 max-w-[120px] truncate">{user.name.split(' ')[0]}</span>
+                <ChevronDown className={`h-3.5 w-3.5 text-gray-400 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {userMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-50">
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                  </div>
+                  <div className="py-1">
+                    <Link
+                      href="/customer/bookings"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <CalendarDays className="h-4 w-4 text-gray-400" />
+                      My Bookings
+                    </Link>
+                    <Link
+                      href="/customer/profile"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <User className="h-4 w-4 text-gray-400" />
+                      My Profile
+                    </Link>
+                    <div className="border-t border-gray-100 mt-1 pt-1">
+                      <button
+                        type="button"
+                        onClick={handleSignOut}
+                        className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Sign Out
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : !loading ? (
+            /* ── Guest links ── */
+            <>
+              <Link href="/register" className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 rounded-lg hover:bg-gray-50 transition-colors">
+                Register
+              </Link>
+              <Link href="/login" className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors">
+                Sign in
+              </Link>
+            </>
+          ) : null}
         </div>
 
         {/* Mobile toggle */}
@@ -50,9 +156,39 @@ export default function PublicNavbar() {
           <Link href="/hotel-management" onClick={() => setOpen(false)} className="block px-3 py-2.5 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50">For Hotel Owners</Link>
           <Link href="/about" onClick={() => setOpen(false)} className="block px-3 py-2.5 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50">About</Link>
           <Link href="/contact" onClick={() => setOpen(false)} className="block px-3 py-2.5 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50">Contact</Link>
-          <div className="pt-2 border-t border-gray-100 flex flex-col gap-2">
-            <Link href="/register" onClick={() => setOpen(false)} className="text-center py-2.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg">Register</Link>
-            <Link href="/login" onClick={() => setOpen(false)} className="text-center py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-lg">Sign in</Link>
+
+          <div className="pt-2 border-t border-gray-100">
+            {!loading && user ? (
+              <div className="space-y-1">
+                <div className="flex items-center gap-2.5 px-3 py-2">
+                  <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                    {initials}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                  </div>
+                </div>
+                <Link href="/customer/bookings" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50">
+                  <CalendarDays className="h-4 w-4 text-gray-400" /> My Bookings
+                </Link>
+                <Link href="/customer/profile" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50">
+                  <User className="h-4 w-4 text-gray-400" /> My Profile
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => { setOpen(false); handleSignOut() }}
+                  className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm font-medium text-red-600 rounded-lg hover:bg-red-50"
+                >
+                  <LogOut className="h-4 w-4" /> Sign Out
+                </button>
+              </div>
+            ) : !loading ? (
+              <div className="flex flex-col gap-2">
+                <Link href="/register" onClick={() => setOpen(false)} className="text-center py-2.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg">Register</Link>
+                <Link href="/login" onClick={() => setOpen(false)} className="text-center py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-lg">Sign in</Link>
+              </div>
+            ) : null}
           </div>
         </div>
       )}
