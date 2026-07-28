@@ -10,6 +10,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Loader2, ArrowLeft, MailCheck, Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 import { nameSchema } from '@/lib/validation'
+import { CountrySelect, CitySelect } from '@/components/ui/CountryCitySelect'
 
 const STAFF_PERMISSIONS = [
   'rooms:read', 'rooms:write',
@@ -42,8 +43,9 @@ export default function AddUserPage() {
   const [permissions, setPermissions] = useState<string[]>([])
   const [invited, setInvited] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [countryCode, setCountryCode] = useState('')
 
-  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { role: 'customer' },
   })
@@ -214,11 +216,22 @@ export default function AddUserPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="label">Country</label>
-                <input {...register('country')} className="input" placeholder="United States" />
+                <CountrySelect
+                  value={countryCode}
+                  onChange={(isoCode, name) => {
+                    setCountryCode(isoCode)
+                    setValue('country', name)
+                    setValue('city', '')
+                  }}
+                />
               </div>
               <div>
                 <label className="label">City</label>
-                <input {...register('city')} className="input" placeholder="New York" />
+                <CitySelect
+                  countryCode={countryCode}
+                  value={watch('city') ?? ''}
+                  onChange={name => setValue('city', name)}
+                />
               </div>
               <div className="md:col-span-2">
                 <label className="label">Address</label>

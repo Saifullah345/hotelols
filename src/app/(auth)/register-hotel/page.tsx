@@ -11,6 +11,8 @@ import {
   User, Building2, ArrowRight, ArrowLeft,
 } from 'lucide-react'
 import { nameSchema } from '@/lib/validation'
+import PhoneInput from '@/components/ui/PhoneInput'
+import { CountrySelect, CitySelect } from '@/components/ui/CountryCitySelect'
 
 const schema = z.object({
   full_name:       nameSchema,
@@ -36,11 +38,14 @@ export default function RegisterHotelPage() {
   const [step, setStep]           = useState<1 | 2>(1)
   const [showPass, setShowPass]   = useState(false)
   const [done, setDone]           = useState(false)
+  const [countryCode, setCountryCode] = useState('PK')
 
   const {
     register,
     handleSubmit,
     trigger,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -213,14 +218,25 @@ export default function RegisterHotelPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">City</label>
-                <input {...register('city')} className="input" placeholder="Islamabad" />
-                {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city.message}</p>}
+                <label className="label">Country</label>
+                <CountrySelect
+                  value={countryCode}
+                  onChange={(isoCode, name) => {
+                    setCountryCode(isoCode)
+                    setValue('country', name, { shouldValidate: true })
+                    setValue('city', '', { shouldValidate: false })
+                  }}
+                />
+                {errors.country && <p className="text-red-500 text-xs mt-1">{errors.country.message}</p>}
               </div>
               <div>
-                <label className="label">Country</label>
-                <input {...register('country')} className="input" placeholder="Pakistan" />
-                {errors.country && <p className="text-red-500 text-xs mt-1">{errors.country.message}</p>}
+                <label className="label">City</label>
+                <CitySelect
+                  countryCode={countryCode}
+                  value={watch('city') ?? ''}
+                  onChange={name => setValue('city', name, { shouldValidate: true })}
+                />
+                {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city.message}</p>}
               </div>
             </div>
 
@@ -232,7 +248,10 @@ export default function RegisterHotelPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="label">Hotel Phone <span className="text-gray-400 font-normal">(optional)</span></label>
-                <input {...register('hotel_phone')} className="input" placeholder="+92 300 0000000" />
+                <PhoneInput
+                  value={watch('hotel_phone') ?? ''}
+                  onChange={v => setValue('hotel_phone', v)}
+                />
               </div>
               <div>
                 <label className="label">Hotel Email <span className="text-gray-400 font-normal">(optional)</span></label>

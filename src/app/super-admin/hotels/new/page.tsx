@@ -10,11 +10,14 @@ import { createClient } from '@/lib/supabase/client'
 import { Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 import { CURRENCIES } from '@/lib/currency'
+import { phoneSchema, nameSchema } from '@/lib/validation'
+import PhoneInput from '@/components/ui/PhoneInput'
+import { CountrySelect, CitySelect } from '@/components/ui/CountryCitySelect'
 
 const schema = z.object({
   name: z.string().min(2, 'Hotel name required'),
   email: z.string().email(),
-  phone: z.string().min(7),
+  phone: phoneSchema,
   address: z.string().min(5),
   city: z.string().min(2),
   country: z.string().min(2),
@@ -23,7 +26,7 @@ const schema = z.object({
   currency: z.string().min(3, 'Select a currency'),
   plan_id: z.string().uuid('Select a plan'),
   owner_email: z.string().email('Valid owner email required'),
-  owner_name: z.string().min(2, 'Owner name is required'),
+  owner_name: nameSchema,
   owner_password: z.string().min(8, 'Password must be at least 8 characters'),
 })
 type FormData = z.infer<typeof schema>
@@ -32,7 +35,8 @@ export default function NewHotelPage() {
   const router = useRouter()
   const [plans, setPlans] = useState<{ id: string; name: string; price_monthly: number }[]>([])
   const [showPassword, setShowPassword] = useState(false)
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const [countryCode, setCountryCode] = useState('')
+  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { check_in_time: '14:00', check_out_time: '11:00', currency: 'PKR' },
   })
@@ -42,6 +46,8 @@ export default function NewHotelPage() {
       if (data) setPlans(data)
     })
   }, [])
+
+  const ownerNameField = register('owner_name')
 
   const onSubmit = async (data: FormData) => {
     const supabase = createClient()
@@ -141,7 +147,10 @@ export default function NewHotelPage() {
 
           <div>
             <label className="label">Phone</label>
-            <input {...register('phone')} className="input" placeholder="+1 234 567 890" />
+            <PhoneInput
+              value={watch('phone') ?? ''}
+              onChange={v => setValue('phone', v, { shouldValidate: true })}
+            />
             {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
           </div>
 
@@ -152,15 +161,26 @@ export default function NewHotelPage() {
           </div>
 
           <div>
-            <label className="label">City</label>
-            <input {...register('city')} className="input" placeholder="New York" />
-            {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city.message}</p>}
+            <label className="label">Country</label>
+            <CountrySelect
+              value={countryCode}
+              onChange={(isoCode, name) => {
+                setCountryCode(isoCode)
+                setValue('country', name, { shouldValidate: true })
+                setValue('city', '', { shouldValidate: false })
+              }}
+            />
+            {errors.country && <p className="text-red-500 text-xs mt-1">{errors.country.message}</p>}
           </div>
 
           <div>
-            <label className="label">Country</label>
-            <input {...register('country')} className="input" placeholder="United States" />
-            {errors.country && <p className="text-red-500 text-xs mt-1">{errors.country.message}</p>}
+            <label className="label">City</label>
+            <CitySelect
+              countryCode={countryCode}
+              value={watch('city') ?? ''}
+              onChange={name => setValue('city', name, { shouldValidate: true })}
+            />
+            {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city.message}</p>}
           </div>
 
           <div>
@@ -212,7 +232,15 @@ export default function NewHotelPage() {
 
             <div>
               <label className="label">Owner Name</label>
-              <input {...register('owner_name')} className="input" placeholder="John Doe" />
+              <input
+                {...ownerNameField}
+                onChange={e => {
+                  e.target.value = e.target.value.replace(/[^a-zA-ZÀ-ɏ\s'-]/g, '')
+                  ownerNameField.onChange(e)
+                }}
+                className="input"
+                placeholder="John Doe"
+              />
               {errors.owner_name && <p className="text-red-500 text-xs mt-1">{errors.owner_name.message}</p>}
             </div>
 

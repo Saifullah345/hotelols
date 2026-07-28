@@ -7,6 +7,8 @@ import { toast } from 'sonner'
 import { Loader2, Save, MessageCircle, Copy, ExternalLink, ImagePlus, Trash2, AlertTriangle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { CURRENCIES } from '@/lib/currency'
+import PhoneInput from '@/components/ui/PhoneInput'
+import { CountrySelect, CitySelect } from '@/components/ui/CountryCitySelect'
 
 export default function HotelSettingsPage() {
   const router = useRouter()
@@ -18,6 +20,7 @@ export default function HotelSettingsPage() {
   const [uploadingImage, setUploadingImage] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [countryCode, setCountryCode] = useState('')
 
   const hotelForm = useForm()
   const waForm = useForm()
@@ -39,6 +42,11 @@ export default function HotelSettingsPage() {
         whatsapp_phone_number_id: data?.whatsapp_phone_number_id ?? '',
         whatsapp_access_token: data?.whatsapp_access_token ?? '',
       })
+      if (data?.country) {
+        const { Country } = await import('country-state-city')
+        const match = Country.getAllCountries().find(c => c.name === data.country)
+        if (match) setCountryCode(match.isoCode as string)
+      }
       setLoading(false)
     })
   }, [hotelForm, waForm])
@@ -206,19 +214,33 @@ export default function HotelSettingsPage() {
             </div>
             <div>
               <label className="label">Phone</label>
-              <input {...hotelForm.register('phone')} className="input" />
+              <PhoneInput
+                value={(hotelForm.watch('phone') as string) ?? ''}
+                onChange={v => hotelForm.setValue('phone', v)}
+              />
             </div>
             <div className="md:col-span-2">
               <label className="label">Address</label>
               <input {...hotelForm.register('address')} className="input" />
             </div>
             <div>
-              <label className="label">City</label>
-              <input {...hotelForm.register('city')} className="input" />
+              <label className="label">Country</label>
+              <CountrySelect
+                value={countryCode}
+                onChange={(isoCode, name) => {
+                  setCountryCode(isoCode)
+                  hotelForm.setValue('country', name)
+                  hotelForm.setValue('city', '')
+                }}
+              />
             </div>
             <div>
-              <label className="label">Country</label>
-              <input {...hotelForm.register('country')} className="input" />
+              <label className="label">City</label>
+              <CitySelect
+                countryCode={countryCode}
+                value={(hotelForm.watch('city') as string) ?? ''}
+                onChange={name => hotelForm.setValue('city', name)}
+              />
             </div>
             <div>
               <label className="label">Check-in Time</label>

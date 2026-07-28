@@ -151,7 +151,7 @@ function EditBookingModal({ booking, currency, onClose, onSaved }: {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label">Full Name</label>
-                  <input value={guestName} onChange={e => setGuestName(e.target.value)}
+                  <input value={guestName} onChange={e => setGuestName(e.target.value.replace(/[^a-zA-ZÀ-ɏ\s'-]/g, ''))}
                     className="input" placeholder="John Smith" />
                 </div>
                 <div>

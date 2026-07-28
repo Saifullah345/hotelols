@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { Loader2, Save, User, ArrowLeft } from 'lucide-react'
 import { phoneSchema, nameSchema } from '@/lib/validation'
 import PhoneInput from '@/components/ui/PhoneInput'
+import { CountrySelect, CitySelect } from '@/components/ui/CountryCitySelect'
 import Link from 'next/link'
 
 const schema = z.object({
@@ -21,8 +22,10 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 export default function CustomerProfilePage() {
-  const [profile, setProfile] = useState<Record<string, unknown> | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [profile,     setProfile]     = useState<Record<string, unknown> | null>(null)
+  const [loading,     setLoading]     = useState(true)
+  const [countryCode, setCountryCode] = useState('')   // ISO code for city lookup
+
   const { register, handleSubmit, reset, watch, setValue, formState: { isSubmitting, errors, isSubmitted } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
@@ -35,6 +38,12 @@ export default function CustomerProfilePage() {
       const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
       setProfile(data)
       reset(data)
+      // Try to restore ISO code from stored country name
+      if (data?.country) {
+        const { Country } = await import('country-state-city')
+        const match = Country.getAllCountries().find(c => c.name === data.country)
+        if (match) setCountryCode(match.isoCode)
+      }
       setLoading(false)
     })
   }, [reset])
@@ -104,11 +113,22 @@ export default function CustomerProfilePage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Country</label>
-              <input {...register('country')} className="input" placeholder="United States" />
+              <CountrySelect
+                value={countryCode}
+                onChange={(isoCode, name) => {
+                  setCountryCode(isoCode)
+                  setValue('country', name, { shouldValidate: isSubmitted })
+                  setValue('city', '', { shouldValidate: false })
+                }}
+              />
             </div>
             <div>
               <label className="label">City</label>
-              <input {...register('city')} className="input" placeholder="New York" />
+              <CitySelect
+                countryCode={countryCode}
+                value={watch('city') ?? ''}
+                onChange={name => setValue('city', name, { shouldValidate: isSubmitted })}
+              />
             </div>
           </div>
           <div>
