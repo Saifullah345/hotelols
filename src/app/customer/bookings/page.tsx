@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Calendar, Check, CreditCard, MapPin, Star, X, SlidersHorizontal, Clock, PhoneCall } from 'lucide-react'
+import { Calendar, Check, MapPin, Star, X, SlidersHorizontal, PhoneCall } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
@@ -35,10 +35,14 @@ export default function CustomerBookingsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [cancellingId, setCancellingId] = useState<string | null>(null)
-  const [payingId, setPayingId] = useState<string | null>(null)
   const [reviewingId, setReviewingId] = useState<string | null>(null)
-  const [reviewRating, setReviewRating] = useState(5)
-  const [reviewComment, setReviewComment] = useState('')
+  const [reviewState, setReviewState] = useState<Record<string, { rating: number; comment: string }>>({})
+
+  const getReview = (id: string) => reviewState[id] ?? { rating: 5, comment: '' }
+  const setReviewRating = (id: string, rating: number) =>
+    setReviewState(prev => ({ ...prev, [id]: { ...getReview(id), rating } }))
+  const setReviewComment = (id: string, comment: string) =>
+    setReviewState(prev => ({ ...prev, [id]: { ...getReview(id), comment } }))
   const [bookings, setBookings] = useState<Array<Record<string, unknown>>>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
@@ -127,26 +131,9 @@ export default function CustomerBookingsPage() {
     }
   }
 
-  const handlePayNow = async (bookingId: string) => {
-    setPayingId(bookingId)
-    const res = await fetch('/api/payments/stripe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ booking_id: bookingId }),
-    })
-    const json = await res.json()
-
-    if (!res.ok) {
-      toast.error(json.error ?? 'Unable to start payment')
-      setPayingId(null)
-      return
-    }
-
-    window.location.href = json.url
-  }
-
   const submitReview = async (bookingId: string) => {
-    if (!reviewComment.trim() || !reviewRating) return
+    const { rating, comment } = getReview(bookingId)
+    if (!comment.trim()) return
     setReviewingId(bookingId)
     const res = await fetch('/api/reviews', {
       method: 'POST',
@@ -154,8 +141,8 @@ export default function CustomerBookingsPage() {
       body: JSON.stringify({
         booking_id: bookingId,
         hotel_id: String((bookings.find(b => String(b.id) === bookingId) as Record<string, unknown> | undefined)?.hotel_id ?? ''),
-        rating: reviewRating,
-        comment: reviewComment,
+        rating,
+        comment,
       }),
     })
     const json = await res.json()
@@ -164,8 +151,7 @@ export default function CustomerBookingsPage() {
     } else {
       toast.success('Review submitted!')
       setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, review: json } : b))
-      setReviewComment('')
-      setReviewRating(5)
+      setReviewState(prev => { const next = { ...prev }; delete next[bookingId]; return next })
     }
     setReviewingId(null)
   }
@@ -222,7 +208,6 @@ export default function CustomerBookingsPage() {
           const paymentList = Array.isArray(paymentRaw) ? paymentRaw : paymentRaw ? [paymentRaw] : []
           const payment = paymentList.find(p => p.status === 'completed') ?? paymentList[0]
           const paymentStatus = payment?.status ?? 'pending'
-          const showPayButton = paymentStatus === 'pending' && booking.status !== 'cancelled'
 
           return (
             <div key={String(booking.id)} className="card p-5 transition duration-200 hover:shadow-md">
@@ -299,17 +284,6 @@ export default function CustomerBookingsPage() {
                 {payment?.payment_method && (
                   <span className="text-gray-400 capitalize">· {payment.payment_method}</span>
                 )}
-                {/* {showPayButton && (
-                  <button
-                    onClick={() => handlePayNow(String(booking.id))}
-                    // disabled={payingId === String(booking.id)}
-                    disabled={true}
-                    className="ml-auto inline-flex items-center gap-1 rounded-lg border border-primary-200 bg-primary-50 px-3 py-1.5 text-sm font-medium text-primary-700 transition hover:bg-primary-100 disabled:opacity-50"
-                  >
-                    <CreditCard className="h-4 w-4" />
-                    {payingId === String(booking.id) ? 'Redirecting...' : 'Pay now'}
-                  </button>
-                )} */}
               </div>
 
               {booking.status === 'checked_out' && !booking.review && (
@@ -317,17 +291,18 @@ export default function CustomerBookingsPage() {
                   <label className="text-xs font-medium text-gray-500">Leave a review</label>
                   <div className="mt-1.5 flex items-center gap-0.5">
                     {[1,2,3,4,5].map(star => (
-                      <button key={star} type="button" onClick={() => setReviewRating(star)}
+                      <button key={star} type="button" onClick={() => setReviewRating(String(booking.id), star)}
                         className="p-0.5">
-                        <Star key={star} className={`h-5 w-5 ${star <= reviewRating ? 'text-gold-500 fill-current' : 'text-gray-300'}`} />
+                        <Star className={`h-5 w-5 ${star <= getReview(String(booking.id)).rating ? 'text-gold-500 fill-current' : 'text-gray-300'}`} />
                       </button>
                     ))}
                   </div>
                   <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                    <input type="text" value={reviewComment} onChange={e => setReviewComment(e.target.value)}
+                    <input type="text" value={getReview(String(booking.id)).comment}
+                      onChange={e => setReviewComment(String(booking.id), e.target.value)}
                       placeholder="Write a comment..." className="input text-sm" />
                     <button onClick={() => submitReview(String(booking.id))}
-                      disabled={reviewingId === String(booking.id) || !reviewComment.trim()}
+                      disabled={reviewingId === String(booking.id) || !getReview(String(booking.id)).comment.trim()}
                       className="btn-primary text-xs px-4 inline-flex shrink-0 items-center justify-center gap-1">
                       {reviewingId === String(booking.id) && <Check className="h-3 w-3 animate-spin" />}
                       Submit Review
