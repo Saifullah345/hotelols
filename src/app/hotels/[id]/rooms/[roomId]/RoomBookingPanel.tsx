@@ -7,6 +7,7 @@ import {
   Loader2, LogIn, Plus, Minus, ShoppingBag,
   Calendar, CheckCircle2, ShieldCheck,
 } from 'lucide-react'
+import { formatCurrency } from '@/lib/currency'
 
 export type ExtraService = {
   id: string
@@ -24,18 +25,28 @@ interface Props {
   maxChildren: number
   extraServices: ExtraService[]
   isLoggedIn: boolean
+  currency?: string
+  /** Carried over from the search so the guest doesn't re-enter their stay. */
+  defaultCheckIn?: string
+  defaultCheckOut?: string
+  defaultAdults?: number
+  defaultChildren?: number
 }
-
-const fmt = (n: number) => `Rs ${Math.round(n).toLocaleString()}`
 
 export default function RoomBookingPanel({
   roomId, hotelId, pricePerNight, maxAdults, maxChildren, extraServices, isLoggedIn,
+  currency = 'PKR',
+  defaultCheckIn = '',
+  defaultCheckOut = '',
+  defaultAdults,
+  defaultChildren,
 }: Props) {
+  const fmt = (n: number) => formatCurrency(n, currency)
   const router  = useRouter()
-  const [checkIn,  setCheckIn]  = useState('')
-  const [checkOut, setCheckOut] = useState('')
-  const [adults,   setAdults]   = useState(1)
-  const [children, setChildren] = useState(0)
+  const [checkIn,  setCheckIn]  = useState(defaultCheckIn)
+  const [checkOut, setCheckOut] = useState(defaultCheckOut)
+  const [adults,   setAdults]   = useState(Math.max(1, defaultAdults ?? 1))
+  const [children, setChildren] = useState(Math.max(0, defaultChildren ?? 0))
   const [selected, setSelected] = useState<Record<string, boolean>>({})
   const [loading,  setLoading]  = useState(false)
 

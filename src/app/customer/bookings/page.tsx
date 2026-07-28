@@ -11,10 +11,11 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { formatCurrency } from '@/lib/currency'
 
 // ─── Types ────────────────────────────────────────────────────────────
 type Payment = { status?: string; amount?: number; payment_method?: string }
-type Hotel   = { name?: string; city?: string; country?: string }
+type Hotel   = { name?: string; city?: string; country?: string; currency?: string }
 type Room    = { room_number?: string; room_type?: { name?: string } }
 type Review  = { id: string; rating: number; comment: string }
 type Booking = {
@@ -120,7 +121,7 @@ function ConfirmCancelModal({
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-400">Total</span>
-            <span className="font-bold text-gray-900">Rs {Number(booking.total_amount).toLocaleString()}</span>
+            <span className="font-bold text-gray-900">{formatCurrency(Number(booking.total_amount), booking.hotel?.currency ?? 'PKR')}</span>
           </div>
         </div>
 
@@ -248,7 +249,7 @@ function BookingCard({
 
       {/* Footer */}
       <div className="px-5 pb-4 flex flex-wrap items-center gap-2.5 text-xs text-gray-500">
-        <span className="font-bold text-gray-900 text-sm">Rs {Number(total_amount).toLocaleString()}</span>
+        <span className="font-bold text-gray-900 text-sm">{formatCurrency(Number(total_amount), hotel?.currency ?? 'PKR')}</span>
         <span className="text-gray-200">|</span>
         <span>Payment</span>
         <span className={`font-semibold px-2 py-0.5 rounded-full text-xs ${PAYMENT_BADGE[payStatus] ?? 'bg-gray-100 text-gray-500'}`}>
@@ -351,7 +352,7 @@ export default function CustomerBookingsPage() {
     if (!user) { router.push('/login'); return }
     const { data } = await supabase
       .from('bookings')
-      .select('*, hotel:hotels(name, city, country), room:rooms(room_number, room_type:room_types(name)), payment:payments(status, amount, payment_method), review:reviews(id, rating, comment)')
+      .select('*, hotel:hotels(name, city, country, currency), room:rooms(room_number, room_type:room_types(name)), payment:payments(status, amount, payment_method), review:reviews(id, rating, comment)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
     setBookings((data ?? []) as Booking[])

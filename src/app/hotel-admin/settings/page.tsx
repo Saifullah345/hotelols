@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Loader2, Save, MessageCircle, Copy, ExternalLink, ImagePlus, Trash2, AlertTriangle, Plus, X as XIcon, ShoppingBag } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { CURRENCIES } from '@/lib/currency'
+import { CURRENCIES, formatCurrency } from '@/lib/currency'
 import PhoneInput from '@/components/ui/PhoneInput'
 import { CountrySelect, CitySelect } from '@/components/ui/CountryCitySelect'
 
@@ -415,7 +415,7 @@ export default function HotelSettingsPage() {
                   {s.description && <p className="text-xs text-gray-400 mt-0.5">{s.description}</p>}
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-sm font-bold text-gray-900">Rs {s.price.toLocaleString()}</p>
+                  <p className="text-sm font-bold text-gray-900">{formatCurrency(s.price, hotelForm.watch('currency') || 'PKR')}</p>
                   <p className="text-xs text-gray-400">
                     {s.per === 'flat' ? 'per stay' : s.per === 'per_night' ? 'per night' : 'per person'}
                   </p>

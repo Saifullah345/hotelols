@@ -13,6 +13,8 @@ import PublicNavbar from '@/components/layout/PublicNavbar'
 import PublicFooter from '@/components/layout/PublicFooter'
 import RoomGallery from './RoomGallery'
 import RoomBookingPanel, { type ExtraService } from './RoomBookingPanel'
+import { formatCurrency } from '@/lib/currency'
+import { hasValidRange } from '@/lib/search'
 
 // ── Icon helpers ──────────────────────────────────────────────────────
 function getAmenityIcon(name: string): LucideIcon {
@@ -72,10 +74,14 @@ export async function generateMetadata({
 // ── Page ──────────────────────────────────────────────────────────────
 export default async function RoomDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string; roomId: string }>
+  searchParams: Promise<{ check_in?: string; check_out?: string; adults?: string; children?: string }>
 }) {
   const { id: hotelId, roomId } = await params
+  // Dates and party size travel with the guest from the search results.
+  const { check_in, check_out, adults: adultsParam, children: childrenParam } = await searchParams
 
   const authSupabase = await createClient()
   const { data: { user } } = await authSupabase.auth.getUser()
@@ -109,6 +115,8 @@ export default async function RoomDetailPage({
   })
   const extraServices = (hotel.extra_services as ExtraService[] | null) ?? []
   const location      = [hotel.city, hotel.country].filter(Boolean).join(', ')
+  const currency      = (hotel.currency as string | null) ?? 'PKR'
+  const datesApplied  = hasValidRange(check_in, check_out)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -171,7 +179,7 @@ export default async function RoomDetailPage({
 
               {/* Mobile price (hidden lg) */}
               <div className="mt-4 pt-4 border-t border-gray-100 flex items-baseline gap-2 lg:hidden">
-                <p className="text-2xl font-bold text-gray-900">Rs {room.price_per_night.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-gray-900">{formatCurrency(room.price_per_night, currency)}</p>
                 <p className="text-sm text-gray-500">/ night</p>
               </div>
             </div>
@@ -217,7 +225,7 @@ export default async function RoomDetailPage({
                         {s.description && <p className="text-xs text-gray-500 mt-0.5">{s.description}</p>}
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-sm font-bold text-gray-900">Rs {s.price.toLocaleString()}</p>
+                        <p className="text-sm font-bold text-gray-900">{formatCurrency(s.price, currency)}</p>
                         <p className="text-xs text-gray-400">
                           {s.per === 'flat' ? 'per stay' : s.per === 'per_night' ? 'per night' : 'per person'}
                         </p>
@@ -257,7 +265,7 @@ export default async function RoomDetailPage({
                 </div>
                 <div className="p-3 rounded-xl bg-gray-50">
                   <p className="text-xs text-gray-400 mb-1">Price / Night</p>
-                  <p className="font-semibold text-indigo-700">Rs {room.price_per_night.toLocaleString()}</p>
+                  <p className="font-semibold text-indigo-700">{formatCurrency(room.price_per_night, currency)}</p>
                 </div>
               </div>
             </div>
@@ -319,6 +327,11 @@ export default async function RoomDetailPage({
                 maxChildren={room.max_children}
                 extraServices={extraServices}
                 isLoggedIn={!!user}
+                currency={currency}
+                defaultCheckIn={datesApplied ? check_in : undefined}
+                defaultCheckOut={datesApplied ? check_out : undefined}
+                defaultAdults={Number(adultsParam) || undefined}
+                defaultChildren={Number(childrenParam) || undefined}
               />
             </div>
           </div>

@@ -8,6 +8,7 @@ import {
   BedDouble, Users, Plus, Minus, Check, Calendar,
   Loader2, X, ArrowRight, LogIn, ShieldCheck,
 } from 'lucide-react'
+import { formatCurrency } from '@/lib/currency'
 
 type Room = {
   id: string
@@ -26,14 +27,28 @@ interface Props {
   rooms: Room[]
   hotelId: string
   isLoggedIn: boolean
+  currency?: string
+  /** Carried over from the search so the guest doesn't re-enter their stay. */
+  defaultCheckIn?: string
+  defaultCheckOut?: string
+  defaultAdults?: number
+  /** Shown instead of the generic copy when a date filter emptied the list. */
+  emptyMessage?: string
 }
 
-export default function RoomsSection({ rooms, hotelId, isLoggedIn }: Props) {
+export default function RoomsSection({
+  rooms, hotelId, isLoggedIn,
+  currency = 'PKR',
+  defaultCheckIn = '',
+  defaultCheckOut = '',
+  defaultAdults,
+  emptyMessage,
+}: Props) {
   const router = useRouter()
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [checkIn,  setCheckIn]  = useState('')
-  const [checkOut, setCheckOut] = useState('')
-  const [adults,   setAdults]   = useState(1)
+  const [checkIn,  setCheckIn]  = useState(defaultCheckIn)
+  const [checkOut, setCheckOut] = useState(defaultCheckOut)
+  const [adults,   setAdults]   = useState(Math.max(1, defaultAdults ?? 1))
   const [loading,  setLoading]  = useState(false)
 
   const today = new Date().toISOString().split('T')[0]
@@ -101,7 +116,7 @@ export default function RoomsSection({ rooms, hotelId, isLoggedIn }: Props) {
   if (!rooms.length) {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-gray-500">
-        No rooms available at this time — check back soon.
+        {emptyMessage ?? 'No rooms available at this time — check back soon.'}
       </div>
     )
   }
@@ -193,7 +208,7 @@ export default function RoomsSection({ rooms, hotelId, isLoggedIn }: Props) {
                   <div className="flex items-center justify-between gap-4 border-t border-gray-100 pt-4 sm:flex-col sm:items-end sm:border-0 sm:pt-0 sm:text-right shrink-0">
                     <div>
                       <p className="text-2xl font-bold text-gray-900">
-                        Rs {room.price_per_night.toLocaleString()}
+                        {formatCurrency(room.price_per_night, currency)}
                       </p>
                       <p className="text-sm text-gray-500">per night</p>
                     </div>
@@ -322,10 +337,10 @@ export default function RoomsSection({ rooms, hotelId, isLoggedIn }: Props) {
                   {nights > 0 && (
                     <>
                       <p className="text-xs text-gray-500 mb-0.5">
-                        {nights} night{nights !== 1 ? 's' : ''} · Rs {totalPerNight.toLocaleString()}/night
+                        {nights} night{nights !== 1 ? 's' : ''} · {formatCurrency(totalPerNight, currency)}/night
                       </p>
                       <p className="text-lg font-bold text-indigo-700 mb-2">
-                        Total: Rs {grandTotal.toLocaleString()}
+                        Total: {formatCurrency(grandTotal, currency)}
                       </p>
                     </>
                   )}
