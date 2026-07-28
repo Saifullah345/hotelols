@@ -90,69 +90,76 @@ export function Sidebar({ role, hotelName, isOpen = false, onClose }: SidebarPro
       {/* Mobile backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm"
           onClick={onClose}
         />
       )}
       <aside className={cn(
-        'w-64 bg-white border-r border-gray-200 flex-col flex-shrink-0 print:hidden',
+        'w-64 flex-col flex-shrink-0 print:hidden',
+        'bg-gradient-to-b from-indigo-950 to-indigo-900',
         // Desktop: always visible as a sticky sidebar
         'md:flex md:relative md:h-screen md:top-0 md:z-auto',
         // Mobile: fixed drawer when open, hidden otherwise
         isOpen ? 'flex fixed inset-y-0 left-0 z-50 h-screen' : 'hidden',
       )}>
-      {/* Logo */}
-      <div className="h-16 px-4 flex items-center border-b border-gray-200">
-        {/* Mobile close button */}
-        <button
-          onClick={onClose}
-          className="md:hidden mr-2 p-1 rounded-lg hover:bg-gray-100 text-gray-500"
-        >
-          <X className="h-5 w-5" />
-        </button>
-        <div className="flex items-center gap-1 min-w-0">
-          <LogoMark svgSize={32} />
-          <div className="min-w-0">
-            <p className="font-black text-gray-900 text-sm truncate">
-              Book<span className="text-indigo-600">Qayam</span>
+
+        {/* Logo */}
+        <div className="h-16 px-4 flex items-center border-b border-white/10">
+          {/* Mobile close button */}
+          <button
+            onClick={onClose}
+            className="md:hidden mr-2 p-1 rounded-lg hover:bg-white/10 text-indigo-300"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <div className="flex items-center gap-2 min-w-0">
+            <LogoMark svgSize={32} />
+            <div className="min-w-0">
+              <p className="font-black text-white text-sm truncate">
+                Book<span className="text-amber-400">Qayam</span>
+              </p>
               {(hotelName || titleMap[role]) && (
-                <span className="font-normal text-gray-400 ml-1">· {hotelName || titleMap[role]}</span>
+                <p className="text-xs text-indigo-300 truncate">{hotelName || titleMap[role]}</p>
               )}
-            </p>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Nav */}
-      <nav className="flex-1 px-3 pt-2 pb-4 space-y-1 overflow-y-auto">
-        {navItems.map(item => {
-          const Icon = item.icon
-          const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn('sidebar-link', isActive && 'active')}
-              onClick={onClose}
-            >
-              <Icon className="h-4 w-4 flex-shrink-0" />
-              {item.label}
-            </Link>
-          )
-        })}
-      </nav>
+        {/* Nav */}
+        <nav className="flex-1 px-3 pt-3 pb-4 space-y-0.5 overflow-y-auto">
+          {navItems.map(item => {
+            const Icon = item.icon
+            const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  'flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-all',
+                  isActive
+                    ? 'bg-white/15 text-white shadow-sm'
+                    : 'text-indigo-200 hover:text-white hover:bg-white/10'
+                )}
+                onClick={onClose}
+              >
+                <Icon className="h-4 w-4 flex-shrink-0" />
+                {item.label}
+              </Link>
+            )
+          })}
+        </nav>
 
-      {/* Logout */}
-      <div className="p-4 border-t border-gray-200">
-        <button
-          onClick={handleLogout}
-          className="sidebar-link w-full text-red-600 hover:text-red-700 hover:bg-red-50"
-        >
-          <LogOut className="h-4 w-4" />
-          Sign Out
-        </button>
-      </div>
-    </aside>
+        {/* Logout */}
+        <div className="p-4 border-t border-white/10">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-all text-red-300 hover:text-red-200 hover:bg-red-500/20 w-full"
+          >
+            <LogOut className="h-4 w-4 flex-shrink-0" />
+            Sign Out
+          </button>
+        </div>
+      </aside>
     </>
   )
 }
