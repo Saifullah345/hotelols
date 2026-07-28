@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { MapPin, Calendar, Users, Search, Plus, Minus } from 'lucide-react'
+import { addDays, todayISO } from '@/lib/date'
 
 export default function HeroSearchBar({
   defaultCity = '',
@@ -26,15 +27,15 @@ export default function HeroSearchBar({
   const [children,  setChildren]  = useState(defaultChildren)
   const [guestOpen, setGuestOpen] = useState(false)
 
-  const today       = new Date().toISOString().split('T')[0]
+  // Resolved after mount: "today" depends on the viewer's timezone, and
+  // rendering it during SSR would make the server markup disagree on hydration.
+  const [today, setToday] = useState('')
+  useEffect(() => { setToday(todayISO()) }, [])
+
   const guestSum    = adults + children
   const hasGuests   = guestSum > 0
 
-  const nextDay = (date: string) => {
-    const d = new Date(`${date}T00:00:00`)
-    d.setDate(d.getDate() + 1)
-    return d.toISOString().split('T')[0]
-  }
+  const nextDay = (date: string) => addDays(date, 1)
 
   // A stay needs both ends of the range to be searchable, so picking one date
   // fills in the other rather than silently dropping the filter.

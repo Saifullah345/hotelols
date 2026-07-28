@@ -39,6 +39,7 @@ export default async function RoomsPage() {
       rooms={rooms ?? []}
       roomTypes={roomTypes ?? []}
       currency={currency}
+      hotelId={tenantId}
     />
   )
 }

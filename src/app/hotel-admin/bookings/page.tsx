@@ -28,6 +28,16 @@ export default async function BookingsPage() {
   ])
 
   const currency = (hotelInfo as { currency?: string } | null)?.currency ?? 'USD'
+  // Anchor "today" server-side so the date filters can't disagree between the
+  // server render and the client hydration when the two are in different zones.
+  const today = new Date().toISOString().split('T')[0]
 
-  return <BookingsClient bookings={bookings ?? []} currency={currency} rooms={(rooms ?? []) as RoomOption[]} />
+  return (
+    <BookingsClient
+      bookings={bookings ?? []}
+      currency={currency}
+      rooms={(rooms ?? []) as RoomOption[]}
+      today={today}
+    />
+  )
 }

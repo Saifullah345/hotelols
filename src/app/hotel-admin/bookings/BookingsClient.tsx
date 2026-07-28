@@ -28,6 +28,7 @@ export type RoomOption = {
 type BookingRoom = { id: string; room_number: string; name: string | null; price_per_night: number; capacity: number; room_type: { name?: string } | null }
 type Booking = {
   id: string
+  created_at: string
   check_in: string
   check_out: string
   status: string
@@ -45,6 +46,19 @@ type Booking = {
 
 // ── Config ─────────────────────────────────────────────────────────
 const STATUS_TABS = ['all', 'pending', 'confirmed', 'checked_in', 'checked_out', 'cancelled']
+
+/**
+ * "When was this booked" filter, counted back from today. `daysBack: 0` is
+ * today only; `2` covers today plus the two days before it, and so on up to the
+ * last 10 days. `null` lifts the filter entirely.
+ */
+const DATE_RANGES: { key: string; label: string; daysBack: number | null }[] = [
+  { key: 'all',   label: 'All time',     daysBack: null },
+  { key: 'today', label: 'Today',        daysBack: 0    },
+  { key: '3d',    label: 'Last 3 days',  daysBack: 2    },
+  { key: '7d',    label: 'Last 7 days',  daysBack: 6    },
+  { key: '10d',   label: 'Last 10 days', daysBack: 9    },
+]
 
 const statusBadge: Record<string, string> = {
   pending: 'badge-yellow', confirmed: 'badge-blue',
@@ -311,37 +325,75 @@ export default function BookingsClient({
   bookings: initial,
   currency,
   rooms,
+  today,
 }: {
   bookings: Booking[]
   currency: string
   rooms: RoomOption[]
+  today: string
 }) {
   const router = useRouter()
   const [bookings, setBookings] = useState(initial)
   const [statusTab, setStatusTab] = useState('all')
+  const [dateRange, setDateRange] = useState('all')
   const [q, setQ]                 = useState('')
   const [editing, setEditing]     = useState<Booking | null>(null)
   const [deleting, setDeleting]   = useState<Booking | null>(null)
 
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo]     = useState('')
+
+  const bookedOnOrAfter = (b: Booking, from: number) =>
+    new Date(b.created_at).getTime() >= from
+
+  // [from, to) window in ms that the current filter accepts, or null for all time.
+  // Derived from the server's `today` so both renders agree.
+  const bookedWindow = useMemo((): { from: number; to: number } | null => {
+    if (dateRange === 'custom') {
+      if (!customFrom && !customTo) return null
+      const from = customFrom ? new Date(`${customFrom}T00:00:00`).getTime() : 0
+      // Inclusive of the whole "to" day.
+      const toDate = customTo ? new Date(`${customTo}T00:00:00`) : null
+      if (toDate) toDate.setDate(toDate.getDate() + 1)
+      return { from, to: toDate ? toDate.getTime() : Infinity }
+    }
+    const range = DATE_RANGES.find(r => r.key === dateRange)
+    if (!range || range.daysBack === null) return null
+    const d = new Date(`${today}T00:00:00`)
+    d.setDate(d.getDate() - range.daysBack)
+    return { from: d.getTime(), to: Infinity }
+  }, [dateRange, today, customFrom, customTo])
+
   const filtered = useMemo(() => {
     const lq = q.toLowerCase()
-    return bookings.filter(b => {
-      if (statusTab !== 'all' && b.status !== statusTab) return false
-      if (lq) {
-        const guest = (b.user?.full_name ?? b.guest_name ?? '').toLowerCase()
-        const phone = (b.user?.email ?? b.guest_phone ?? '').toLowerCase()
-        const room  = (b.room?.room_number ?? '').toLowerCase()
-        if (!guest.includes(lq) && !phone.includes(lq) && !room.includes(lq)) return false
-      }
-      return true
-    })
-  }, [bookings, statusTab, q])
+    return bookings
+      .filter(b => {
+        if (statusTab !== 'all' && b.status !== statusTab) return false
+        if (bookedWindow) {
+          const made = new Date(b.created_at).getTime()
+          if (made < bookedWindow.from || made >= bookedWindow.to) return false
+        }
+        if (lq) {
+          const guest = (b.user?.full_name ?? b.guest_name ?? '').toLowerCase()
+          const phone = (b.user?.email ?? b.guest_phone ?? '').toLowerCase()
+          const room  = (b.room?.room_number ?? '').toLowerCase()
+          if (!guest.includes(lq) && !phone.includes(lq) && !room.includes(lq)) return false
+        }
+        return true
+      })
+      // Newest booking first, whatever the filter — the default view is "what
+      // came in most recently".
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+  }, [bookings, statusTab, bookedWindow, q])
+
+  const startOfToday = useMemo(() => new Date(`${today}T00:00:00`).getTime(), [today])
 
   const counts = useMemo(() => ({
     pending:    bookings.filter(b => b.status === 'pending').length,
     confirmed:  bookings.filter(b => b.status === 'confirmed').length,
     checked_in: bookings.filter(b => b.status === 'checked_in').length,
-  }), [bookings])
+    today:      bookings.filter(b => bookedOnOrAfter(b, startOfToday)).length,
+  }), [bookings, startOfToday])
 
   const refresh = () => router.refresh()
 
@@ -371,6 +423,21 @@ export default function BookingsClient({
               <p className="text-indigo-300 text-sm mt-0.5">{bookings.length} total reservations</p>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
+              {/* Booked today — clicking it jumps straight to that filter. */}
+              <button
+                type="button"
+                onClick={() => { setDateRange(dateRange === 'today' ? 'all' : 'today'); setStatusTab('all') }}
+                title="Show bookings made today"
+                className={`flex items-center gap-2 backdrop-blur px-3.5 py-2 rounded-xl text-sm transition-colors ${
+                  dateRange === 'today' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'
+                }`}
+              >
+                <Calendar className={`h-4 w-4 ${dateRange === 'today' ? 'text-indigo-600' : 'text-sky-300'}`} />
+                <div className="text-left">
+                  <p className={`font-bold leading-none ${dateRange === 'today' ? 'text-indigo-700' : 'text-white'}`}>{counts.today}</p>
+                  <p className={`text-xs leading-none mt-0.5 ${dateRange === 'today' ? 'text-indigo-500' : 'text-indigo-300'}`}>Booked Today</p>
+                </div>
+              </button>
               <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3.5 py-2 rounded-xl text-sm">
                 <Clock className="h-4 w-4 text-amber-400" />
                 <div>
@@ -400,42 +467,124 @@ export default function BookingsClient({
         </div>
 
         {/* Filter row */}
-        <div className="card flex flex-wrap items-center gap-3 px-4 py-3">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-            <input
-              value={q} onChange={e => setQ(e.target.value)}
-              placeholder="Search guest, phone, room…"
-              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
-            />
+        <div className="card px-4 py-3 space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+              <input
+                value={q} onChange={e => setQ(e.target.value)}
+                placeholder="Search guest, phone, room…"
+                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              />
+            </div>
+
+            <div className="flex gap-1.5 overflow-x-auto">
+              {STATUS_TABS.map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setStatusTab(tab)}
+                  className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+                    statusTab === tab
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  {tab === 'all' ? 'All' : tab.replace('_', ' ')}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="flex gap-1.5 overflow-x-auto">
-            {STATUS_TABS.map(tab => (
-              <button
-                key={tab}
-                onClick={() => setStatusTab(tab)}
-                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-                  statusTab === tab
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                {tab === 'all' ? 'All' : tab.replace('_', ' ')}
-              </button>
-            ))}
+          {/* Booked-on filter — today through the last 10 days */}
+          <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">
+              <Calendar className="h-3.5 w-3.5" /> Booked
+            </span>
+            {DATE_RANGES.map(r => {
+              const count = r.daysBack === null
+                ? bookings.length
+                : bookings.filter(b => {
+                    const from = new Date(`${today}T00:00:00`)
+                    from.setDate(from.getDate() - r.daysBack!)
+                    return bookedOnOrAfter(b, from.getTime())
+                  }).length
+              return (
+                <button
+                  key={r.key}
+                  onClick={() => setDateRange(r.key)}
+                  className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+                    dateRange === r.key
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  {r.label}
+                  <span className={dateRange === r.key ? 'ml-1.5 text-indigo-200' : 'ml-1.5 text-gray-400'}>{count}</span>
+                </button>
+              )
+            })}
+
+            {/* Any other window the presets don't cover */}
+            <button
+              onClick={() => setDateRange('custom')}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+                dateRange === 'custom'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              Custom
+            </button>
+
+            {dateRange === 'custom' && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={customFrom}
+                  max={customTo || today}
+                  onChange={e => setCustomFrom(e.target.value)}
+                  className="text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                />
+                <span className="text-gray-400 text-sm">→</span>
+                <input
+                  type="date"
+                  value={customTo}
+                  min={customFrom || undefined}
+                  onChange={e => setCustomTo(e.target.value)}
+                  className="text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                />
+                {(customFrom || customTo) && (
+                  <button
+                    onClick={() => { setCustomFrom(''); setCustomTo('') }}
+                    className="text-gray-400 hover:text-gray-600 p-1"
+                    title="Clear dates"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
+
+          {/* What the table is currently showing */}
+          <p className="text-xs text-gray-400">
+            Showing {filtered.length} of {bookings.length} booking{bookings.length === 1 ? '' : 's'} · newest first
+            {dateRange === 'custom'
+              ? (customFrom || customTo) && ` · booked ${customFrom || 'any'} → ${customTo || 'today'}`
+              : dateRange !== 'all' && ` · ${DATE_RANGES.find(r => r.key === dateRange)?.label.toLowerCase()}`}
+          </p>
         </div>
 
         {/* Table */}
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[780px]">
+            <table className="w-full min-w-[880px]">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
                   <th className="table-header">Guest</th>
                   <th className="table-header">Room</th>
                   <th className="table-header">Stay</th>
+                  <th className="table-header">Booked</th>
                   <th className="table-header">Source</th>
                   <th className="table-header">Amount</th>
                   <th className="table-header">Status</th>
@@ -452,6 +601,7 @@ export default function BookingsClient({
                   const SrcIcon  = srcObj.icon
                   const roomName = b.room?.name ?? `Room ${b.room?.room_number}`
                   const typeName = (b.room?.room_type as { name?: string } | null)?.name
+                  const bookedToday = bookedOnOrAfter(b, startOfToday)
 
                   return (
                     <tr
@@ -500,6 +650,20 @@ export default function BookingsClient({
                           <Moon className="h-3 w-3 flex-shrink-0" />
                           <span>{n} night{n !== 1 ? 's' : ''} · out {fmtDate(b.check_out)}</span>
                         </div>
+                      </td>
+
+                      {/* Booked on */}
+                      <td className="table-cell">
+                        {bookedToday ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            Today
+                          </span>
+                        ) : (
+                          <p className="text-sm text-gray-600">{fmtDate(b.created_at)}</p>
+                        )}
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {new Date(b.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
                       </td>
 
                       {/* Source */}
@@ -567,11 +731,23 @@ export default function BookingsClient({
 
                 {!filtered.length && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-16 text-center">
+                    <td colSpan={8} className="px-4 py-16 text-center">
                       <Calendar className="h-9 w-9 text-gray-200 mx-auto mb-3" />
                       <p className="text-gray-400 text-sm">
-                        {q || statusTab !== 'all' ? 'No bookings match your filters.' : 'No bookings yet.'}
+                        {dateRange === 'today'
+                          ? 'No bookings made today yet.'
+                          : q || statusTab !== 'all' || dateRange !== 'all'
+                            ? 'No bookings match your filters.'
+                            : 'No bookings yet.'}
                       </p>
+                      {(q || statusTab !== 'all' || dateRange !== 'all') && (
+                        <button
+                          onClick={() => { setQ(''); setStatusTab('all'); setDateRange('all'); setCustomFrom(''); setCustomTo('') }}
+                          className="mt-3 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+                        >
+                          Clear filters
+                        </button>
+                      )}
                     </td>
                   </tr>
                 )}

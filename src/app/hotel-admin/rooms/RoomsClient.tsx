@@ -2,7 +2,9 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { Plus, BedDouble, Search, Pencil, Users, X, ChevronLeft, ChevronRight, GripVertical, Wrench, BookOpen } from 'lucide-react'
+import { Plus, BedDouble, Search, Pencil, Users, X, ChevronLeft, ChevronRight, GripVertical, Wrench, BookOpen, CalendarSearch, Loader2, CheckCircle2, XCircle } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { addDays, todayISO } from '@/lib/date'
 import RoomStatusToggle from './RoomStatusToggle'
 import DeleteRoomButton from './DeleteRoomButton'
 import { RoomRow, ActionsCell } from './RoomRow'
@@ -33,14 +35,25 @@ type Room = {
 
 type RoomType = { id: string; name: string }
 
+/** One night from the given day — the default range for a single-day check. */
+const nextDay = (date: string) => addDays(date, 1)
+
+const fmtShort = (d: string) =>
+  new Date(`${d}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+
+/** Who is occupying a room over the checked dates. */
+type Occupancy = { guest: string; checkIn: string; checkOut: string }
+
 export default function RoomsClient({
   rooms: initialRooms,
   roomTypes,
   currency,
+  hotelId,
 }: {
   rooms: Room[]
   roomTypes: RoomType[]
   currency: string
+  hotelId: string
 }) {
   const [rooms, setRooms]       = useState<Room[]>(initialRooms)
   const [saving, setSaving]     = useState(false)
@@ -51,17 +64,84 @@ export default function RoomsClient({
   const [typeId, setTypeId]     = useState('')
   const saveTimer               = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const hasFilter = !!(q || status || typeId)
+  // ── Availability check ────────────────────────────────────────────
+  // "Is this room free on that day?" — pick a range and every room is marked
+  // against the bookings that actually overlap it.
+  const [availFrom, setAvailFrom] = useState('')
+  const [availTo, setAvailTo]     = useState('')
+  const [occupancy, setOccupancy] = useState<Map<string, Occupancy>>(new Map())
+  const [checking, setChecking]   = useState(false)
+  const [freeOnly, setFreeOnly]   = useState(false)
+
+  const rangeActive = Boolean(availFrom && availTo && availTo > availFrom)
+
+  useEffect(() => {
+    if (!rangeActive) { setOccupancy(new Map()); return }
+
+    let cancelled = false
+    const run = async () => {
+      setChecking(true)
+      // Same overlap rule the booking trigger enforces: only confirmed and
+      // checked-in stays hold a room, and a same-day changeover isn't a clash.
+      const { data } = await createClient()
+        .from('bookings')
+        .select('room_id, room_ids, check_in, check_out, guest_name, user:profiles(full_name)')
+        .eq('hotel_id', hotelId)
+        .in('status', ['confirmed', 'checked_in'])
+        .lt('check_in', availTo)
+        .gt('check_out', availFrom)
+
+      if (cancelled) return
+      const map = new Map<string, Occupancy>()
+      for (const b of data ?? []) {
+        const row = b as unknown as {
+          room_id: string; room_ids: string[] | null
+          check_in: string; check_out: string
+          guest_name: string | null; user: { full_name?: string } | null
+        }
+        const guest = row.user?.full_name || row.guest_name || 'Guest'
+        for (const rid of row.room_ids?.length ? row.room_ids : [row.room_id]) {
+          map.set(rid, { guest, checkIn: row.check_in, checkOut: row.check_out })
+        }
+      }
+      setOccupancy(map)
+      setChecking(false)
+    }
+    run()
+    return () => { cancelled = true }
+  }, [rangeActive, availFrom, availTo, hotelId])
+
+  const onFromChange = (value: string) => {
+    setAvailFrom(value)
+    // One night by default, so a single click answers "free on this day?"
+    if (!value) { setAvailTo(''); return }
+    if (!availTo || availTo <= value) setAvailTo(nextDay(value))
+  }
+
+  const clearRange = () => { setAvailFrom(''); setAvailTo(''); setFreeOnly(false) }
+
+  /** Free = bookable status AND no overlapping booking for the checked dates. */
+  const isFree = (room: Room) => room.status === 'available' && !occupancy.has(room.id)
+
+  const hasFilter = !!(q || status || typeId || (rangeActive && freeOnly))
 
   const filtered = useMemo(() => {
     const lq = q.toLowerCase()
     return rooms.filter(room => {
       if (status && room.status !== status) return false
       if (typeId && room.room_type_id !== typeId) return false
+      if (rangeActive && freeOnly && !isFree(room)) return false
       if (lq && !room.room_number.toLowerCase().includes(lq) && !(room.name?.toLowerCase().includes(lq))) return false
       return true
     })
-  }, [rooms, q, status, typeId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rooms, q, status, typeId, rangeActive, freeOnly, occupancy])
+
+  const freeCount = useMemo(
+    () => (rangeActive ? rooms.filter(isFree).length : 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rooms, rangeActive, occupancy],
+  )
 
   // ── Pagination ────────────────────────────────────────────────────
   const [page, setPage]       = useState(1)
@@ -184,6 +264,79 @@ export default function RoomsClient({
         </div>
       </div>
 
+      {/* Availability checker */}
+      <div className="card px-4 py-3.5 space-y-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex items-center gap-2 text-sm font-semibold text-gray-700 pb-2">
+            <CalendarSearch className="h-4 w-4 text-indigo-500" />
+            Check availability
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Check-in</label>
+            <input
+              type="date"
+              value={availFrom}
+              onChange={e => onFromChange(e.target.value)}
+              className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white text-gray-700"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Check-out</label>
+            <input
+              type="date"
+              value={availTo}
+              min={availFrom ? nextDay(availFrom) : undefined}
+              onChange={e => setAvailTo(e.target.value)}
+              className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white text-gray-700"
+            />
+          </div>
+          {!availFrom && (
+            <button
+              // Resolved on click, so it lands on the viewer's own "today"
+              // rather than the server's.
+              onClick={() => onFromChange(todayISO())}
+              className="text-sm font-medium text-indigo-600 hover:text-indigo-700 px-3 py-2"
+            >
+              Tonight
+            </button>
+          )}
+          {rangeActive && (
+            <>
+              <button
+                onClick={() => setFreeOnly(v => !v)}
+                className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+                  freeOnly ? 'bg-emerald-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                Free only
+              </button>
+              <button onClick={clearRange} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors px-2 py-2">
+                <X className="h-3.5 w-3.5" /> Clear dates
+              </button>
+            </>
+          )}
+        </div>
+
+        {rangeActive && (
+          <p className="flex items-center gap-2 text-sm">
+            {checking ? (
+              <span className="flex items-center gap-1.5 text-gray-500">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking {fmtShort(availFrom)} – {fmtShort(availTo)}…
+              </span>
+            ) : (
+              <>
+                <span className={`font-semibold ${freeCount > 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                  {freeCount} of {rooms.length} room{rooms.length === 1 ? '' : 's'} free
+                </span>
+                <span className="text-gray-400">
+                  for {fmtShort(availFrom)} – {fmtShort(availTo)}
+                </span>
+              </>
+            )}
+          </p>
+        )}
+      </div>
+
       {/* Filter bar */}
       <div className="card flex flex-wrap items-center gap-3 px-4 py-3">
         <div className="relative flex-1 min-w-[160px]">
@@ -242,6 +395,7 @@ export default function RoomsClient({
                 <th className="table-header">Floor</th>
                 <th className="table-header">Capacity</th>
                 <th className="table-header">Price / Night</th>
+                {rangeActive && <th className="table-header">On these dates</th>}
                 <th className="table-header">Status</th>
                 <th className="table-header text-right pr-4">Actions</th>
               </tr>
@@ -320,6 +474,33 @@ export default function RoomsClient({
                     {formatCurrency(room.price_per_night, currency)}
                   </td>
 
+                  {/* Availability for the checked dates */}
+                  {rangeActive && (() => {
+                    const taken = occupancy.get(room.id)
+                    return (
+                      <td className="table-cell">
+                        {taken ? (
+                          <>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200">
+                              <XCircle className="h-3 w-3" /> Booked
+                            </span>
+                            <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[150px]">
+                              {taken.guest} · {fmtShort(taken.checkIn)}–{fmtShort(taken.checkOut)}
+                            </p>
+                          </>
+                        ) : room.status === 'available' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <CheckCircle2 className="h-3 w-3" /> Free
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-500 border border-gray-200 capitalize">
+                            {room.status}
+                          </span>
+                        )}
+                      </td>
+                    )
+                  })()}
+
                   {/* Status */}
                   <td className="table-cell">
                     <span className={`${statusBadge[room.status] ?? 'badge-gray'} capitalize`}>
@@ -345,10 +526,12 @@ export default function RoomsClient({
 
               {!filtered.length && (
                 <tr>
-                  <td colSpan={hasFilter ? 7 : 8} className="px-4 py-14 text-center">
+                  <td colSpan={(hasFilter ? 7 : 8) + (rangeActive ? 1 : 0)} className="px-4 py-14 text-center">
                     <BedDouble className="h-9 w-9 text-gray-200 mx-auto mb-3" />
                     <p className="text-gray-400 text-sm">
-                      {hasFilter ? 'No rooms match your filters.' : 'No rooms yet.'}
+                      {rangeActive && freeOnly
+                        ? `No rooms free for ${fmtShort(availFrom)} – ${fmtShort(availTo)}.`
+                        : hasFilter ? 'No rooms match your filters.' : 'No rooms yet.'}
                     </p>
                   </td>
                 </tr>
