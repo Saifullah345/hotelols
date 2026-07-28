@@ -63,7 +63,7 @@ export default function PublicBookRoomButton({ roomId, hotelId, hotelSlug, price
         setLoading(false)
         return
       }
-      toast.success('Booking created! Awaiting confirmation.')
+      toast.success('Booking submitted! The hotel will contact you to collect an advance payment and confirm your stay.')
       router.push('/customer/bookings')
     } catch {
       toast.error('Could not create booking')

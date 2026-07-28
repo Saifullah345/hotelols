@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Calendar, Check, CreditCard, MapPin, Star, X, SlidersHorizontal } from 'lucide-react'
+import { Calendar, Check, CreditCard, MapPin, Star, X, SlidersHorizontal, Clock, PhoneCall } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
@@ -278,6 +278,18 @@ export default function CustomerBookingsPage() {
                   <p className="font-bold text-primary-700">${String(booking.total_amount)}</p>
                 </div>
               </div>
+
+              {booking.status === 'pending' && (
+                <div className="mt-3 flex items-start gap-2.5 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
+                  <PhoneCall className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800">Awaiting advance payment</p>
+                    <p className="text-xs text-amber-700 mt-0.5">
+                      Our team will contact you to collect an advance payment (50% of total). Your booking will be confirmed once the advance is received.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-2 text-sm">
                 <span className="text-gray-500">Payment:</span>
