@@ -24,6 +24,9 @@ export default async function BookingsPage() {
       .from('rooms')
       .select('id, room_number, name, price_per_night, max_adults, max_children, capacity, room_type:room_types(name)')
       .eq('hotel_id', tenantId)
+      // Same order as the Rooms page drag-and-drop, so staff see one consistent
+      // room layout everywhere. room_number only breaks ties.
+      .order('sort_order', { ascending: true })
       .order('room_number'),
   ])
 

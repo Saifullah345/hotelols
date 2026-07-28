@@ -21,6 +21,7 @@ type Booking = {
   check_out: string
   status: string
   source: string
+  room_ids: string[] | null
   room: { room_number: string; room_type: { name: string } | null } | null
   user: { full_name: string; email: string } | null
   payments: { id: string; status: string; payment_method: string; amount: number }[]
@@ -96,7 +97,7 @@ export default function CollectPaymentPage() {
       supabase
         .from('bookings')
         .select(`
-          id, guest_name, guest_phone, total_amount, check_in, check_out, status, source,
+          id, guest_name, guest_phone, total_amount, check_in, check_out, status, source, room_ids,
           room:rooms(room_number, room_type:room_types(name)),
           user:profiles(full_name, email),
           payments(id, status, payment_method, amount)
@@ -228,6 +229,9 @@ export default function CollectPaymentPage() {
                             <span className="flex items-center gap-1">
                               <BedDouble className="h-3 w-3" />
                               Room {b.room?.room_number}
+                              {(b.room_ids?.length ?? 0) > 1 && (
+                                <span className="text-blue-600 font-medium">+{b.room_ids!.length - 1}</span>
+                              )}
                             </span>
                             <span className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
@@ -279,8 +283,13 @@ export default function CollectPaymentPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <p className="text-gray-500 text-xs">Room</p>
-                    <p className="font-medium">Room {selected.room?.room_number} · {selected.room?.room_type?.name ?? 'Standard'}</p>
+                    <p className="text-gray-500 text-xs">{(selected.room_ids?.length ?? 0) > 1 ? 'Rooms' : 'Room'}</p>
+                    <p className="font-medium">
+                      Room {selected.room?.room_number} · {selected.room?.room_type?.name ?? 'Standard'}
+                      {(selected.room_ids?.length ?? 0) > 1 && (
+                        <span className="text-gray-500"> +{selected.room_ids!.length - 1} more</span>
+                      )}
+                    </p>
                   </div>
                   <div>
                     <p className="text-gray-500 text-xs">Dates</p>

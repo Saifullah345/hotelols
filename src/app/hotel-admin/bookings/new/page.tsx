@@ -412,6 +412,8 @@ export default function NewBookingPage() {
           .from('rooms')
           .select('id, room_number, name, floor, price_per_night, max_adults, max_children, capacity, room_type:room_types(name)')
           .eq('hotel_id', profile.tenant_id)
+          // Matches the drag order set on the Rooms page.
+          .order('sort_order', { ascending: true })
           .order('room_number'),
         supabase.from('hotels').select('currency').eq('id', profile.tenant_id).single(),
       ])

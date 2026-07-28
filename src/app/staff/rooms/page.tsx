@@ -29,6 +29,8 @@ export default async function StaffRoomsPage({
     .from('rooms')
     .select('*, room_type:room_types(name)')
     .eq('hotel_id', tenantId)
+    // Matches the drag order set on the Rooms page.
+    .order('sort_order', { ascending: true })
     .order('room_number')
 
   if (status) query = query.eq('status', status)

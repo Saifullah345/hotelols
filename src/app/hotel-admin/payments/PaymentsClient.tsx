@@ -25,6 +25,7 @@ export type PaymentRow = {
     guest_name: string | null
     guest_phone: string | null
     total_amount: number
+    room_ids: string[] | null
     room: { room_number: string } | null
     user: { full_name: string; email: string } | null
   } | null
@@ -245,6 +246,10 @@ export default function PaymentsClient({
                     {p.booking?.room && (
                       <span className="flex items-center gap-1 flex-shrink-0">
                         <BedDouble className="h-3 w-3" /> Room {p.booking.room.room_number}
+                        {/* Multi-room booking — the receipt itemises them all. */}
+                        {(p.booking.room_ids?.length ?? 0) > 1 && (
+                          <span className="text-blue-600 font-medium">+{p.booking.room_ids!.length - 1}</span>
+                        )}
                       </span>
                     )}
                     {p.booking && (

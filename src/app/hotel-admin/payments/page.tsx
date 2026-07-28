@@ -23,7 +23,7 @@ export default async function PaymentsPage() {
       id, booking_id, amount, currency, status, payment_method,
       invoice_number, paid_at, created_at,
       booking:bookings(
-        check_in, check_out, guest_name, guest_phone, total_amount,
+        check_in, check_out, guest_name, guest_phone, total_amount, room_ids,
         room:rooms(room_number),
         user:profiles(full_name, email)
       )

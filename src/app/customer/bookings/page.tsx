@@ -27,6 +27,7 @@ type Booking = {
   adults: number
   children: number
   total_amount: number
+  room_ids: string[] | null
   created_at: string
   hotel: Hotel
   room: Room
@@ -168,7 +169,7 @@ function BookingCard({
   onComment: (id: string, c: string) => void
   onSubmitReview: (id: string) => void
 }) {
-  const { id, status, check_in, check_out, adults, children, total_amount, hotel, room, payment } = booking
+  const { id, status, check_in, check_out, adults, children, total_amount, room_ids, hotel, room, payment } = booking
   const n          = nights(check_in, check_out)
   const pay        = resolvePayment(payment)
   const payStatus  = pay?.status ?? 'pending'
@@ -217,10 +218,11 @@ function BookingCard({
       <div className="mx-5 mb-3 grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-xl bg-gray-50 px-4 py-3">
         <div>
           <p className="text-gray-400 text-[10px] uppercase tracking-wide mb-0.5 flex items-center gap-1">
-            <BedDouble className="h-3 w-3" /> Room
+            <BedDouble className="h-3 w-3" /> {(room_ids?.length ?? 0) > 1 ? `Rooms (${room_ids!.length})` : 'Room'}
           </p>
           <p className="text-sm font-medium text-gray-800 truncate">
             {room?.room_number ?? '—'}{room?.room_type?.name ? ` · ${room.room_type.name}` : ''}
+            {(room_ids?.length ?? 0) > 1 && ` +${room_ids!.length - 1} more`}
           </p>
         </div>
         <div>

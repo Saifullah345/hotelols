@@ -87,22 +87,25 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
   const booking = payment.booking as unknown as BookingInfo
 
   // A booking can hold several rooms (`room_ids`); `room` is only the primary
-  // one, so the rest are fetched here — a receipt has to account for every room
-  // the guest is being charged for.
+  // one, so all of them are fetched here — a receipt has to account for every
+  // room the guest is being charged for. Ordered by `sort_order` so the list
+  // matches the room order staff arranged on the Rooms page.
   const bookedRoomIds = booking?.room_ids?.length
     ? booking.room_ids
     : booking?.room ? [booking.room.id] : []
-  const extraRoomIds = bookedRoomIds.filter(rid => rid !== booking?.room?.id)
-  const { data: extraRoomRows } = extraRoomIds.length
+  const { data: roomRows } = bookedRoomIds.length
     ? await supabase
         .from('rooms')
         .select('id, room_number, name, price_per_night, room_type:room_types(name)')
-        .in('id', extraRoomIds)
+        .in('id', bookedRoomIds)
+        .order('sort_order', { ascending: true })
+        .order('room_number')
     : { data: [] }
-  const rooms: RoomInfo[] = [
-    ...(booking?.room ? [booking.room] : []),
-    ...((extraRoomRows ?? []) as unknown as RoomInfo[]),
-  ]
+  // Fall back to the joined primary room if the lookup returns nothing (e.g. a
+  // room deleted after the stay) so the receipt never renders room-less.
+  const rooms: RoomInfo[] = (roomRows as unknown as RoomInfo[] | null)?.length
+    ? (roomRows as unknown as RoomInfo[])
+    : booking?.room ? [booking.room] : []
 
   const guestName = booking?.user?.full_name || booking?.guest_name || 'Guest'
   const guestContact = booking?.user?.email || booking?.guest_phone || ''

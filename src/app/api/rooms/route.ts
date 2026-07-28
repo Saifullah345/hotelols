@@ -21,6 +21,8 @@ export async function GET(request: Request) {
     .from('rooms')
     .select('*, room_type:room_types(name)')
     .eq('hotel_id', hotelId)
+    // Matches the drag order set on the Rooms page.
+    .order('sort_order', { ascending: true })
     .order('room_number')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
