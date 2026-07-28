@@ -97,36 +97,35 @@ export function Sidebar({ role, hotelName, isOpen = false, onClose }: SidebarPro
       <aside className={cn(
         'w-64 flex-col flex-shrink-0 print:hidden',
         'bg-gradient-to-b from-indigo-950 to-indigo-900',
-        // Desktop: always visible as a sticky sidebar
         'md:flex md:relative md:h-screen md:top-0 md:z-auto',
-        // Mobile: fixed drawer when open, hidden otherwise
         isOpen ? 'flex fixed inset-y-0 left-0 z-50 h-screen' : 'hidden',
       )}>
 
         {/* Logo */}
-        <div className="h-16 px-4 flex items-center border-b border-white/10">
-          {/* Mobile close button */}
-          <button
-            onClick={onClose}
-            className="md:hidden mr-2 p-1 rounded-lg hover:bg-white/10 text-indigo-300"
-          >
-            <X className="h-5 w-5" />
-          </button>
-          <div className="flex items-center gap-2 min-w-0">
-            <LogoMark svgSize={32} />
-            <div className="min-w-0">
-              <p className="font-black text-white text-sm truncate">
+        <div className="px-5 py-5 border-b border-white/10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <LogoMark svgSize={30} />
+              <span className="font-black text-[17px] text-white tracking-tight">
                 Book<span className="text-amber-400">Qayam</span>
-              </p>
-              {(hotelName || titleMap[role]) && (
-                <p className="text-xs text-indigo-300 truncate">{hotelName || titleMap[role]}</p>
-              )}
+              </span>
             </div>
+            <button
+              onClick={onClose}
+              className="md:hidden p-1 rounded-lg hover:bg-white/10 text-indigo-300"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
+          {(hotelName || titleMap[role]) && (
+            <p className="text-xs text-indigo-400 mt-2 truncate pl-0.5">
+              {hotelName || titleMap[role]}
+            </p>
+          )}
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 pt-3 pb-4 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           {navItems.map(item => {
             const Icon = item.icon
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
@@ -134,15 +133,22 @@ export function Sidebar({ role, hotelName, isOpen = false, onClose }: SidebarPro
               <Link
                 key={item.href}
                 href={item.href}
-                className={cn(
-                  'flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-all',
-                  isActive
-                    ? 'bg-white/15 text-white shadow-sm'
-                    : 'text-indigo-200 hover:text-white hover:bg-white/10'
-                )}
                 onClick={onClose}
+                className={cn(
+                  'relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] transition-all duration-150',
+                  isActive
+                    ? 'bg-white/15 text-white font-semibold'
+                    : 'text-indigo-300 hover:text-white hover:bg-white/8 font-medium'
+                )}
               >
-                <Icon className="h-4 w-4 flex-shrink-0" />
+                {/* Active left indicator */}
+                {isActive && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-amber-400 rounded-r-full" />
+                )}
+                <Icon className={cn(
+                  'h-[17px] w-[17px] flex-shrink-0 transition-colors',
+                  isActive ? 'text-white' : 'text-indigo-400 group-hover:text-white'
+                )} />
                 {item.label}
               </Link>
             )
@@ -150,12 +156,12 @@ export function Sidebar({ role, hotelName, isOpen = false, onClose }: SidebarPro
         </nav>
 
         {/* Logout */}
-        <div className="p-4 border-t border-white/10">
+        <div className="px-3 pb-5 pt-3 border-t border-white/10">
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-all text-red-300 hover:text-red-200 hover:bg-red-500/20 w-full"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all text-indigo-300 hover:text-red-300 hover:bg-red-500/15"
           >
-            <LogOut className="h-4 w-4 flex-shrink-0" />
+            <LogOut className="h-[17px] w-[17px] flex-shrink-0" />
             Sign Out
           </button>
         </div>
