@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { Sidebar } from '@/components/layout/Sidebar'
-import { Header } from '@/components/layout/Header'
+import { AdminShell } from '@/components/layout/AdminShell'
 import { noIndexMetadata } from '@/lib/seo'
 
 export const metadata = noIndexMetadata
@@ -14,15 +13,9 @@ export default async function CustomerLayout({ children }: { children: React.Rea
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
   if (profile?.role !== 'customer') redirect('/login')
 
-  // The "complete your profile" nudge now lives in the notification bell
-  // (see Header → NotificationBell), so no separate toast is needed here.
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar role="customer" />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header title="My Account" profile={profile} />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
-      </div>
-    </div>
+    <AdminShell role="customer" title="My Account" profile={profile}>
+      {children}
+    </AdminShell>
   )
 }

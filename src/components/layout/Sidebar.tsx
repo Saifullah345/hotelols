@@ -90,69 +90,78 @@ export function Sidebar({ role, hotelName, isOpen = false, onClose }: SidebarPro
       {/* Mobile backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm"
           onClick={onClose}
         />
       )}
       <aside className={cn(
-        'w-64 bg-white border-r border-gray-200 flex-col flex-shrink-0 print:hidden',
-        // Desktop: always visible as a sticky sidebar
+        'w-64 flex-col flex-shrink-0 print:hidden',
+        'bg-gradient-to-b from-indigo-950 to-indigo-900',
         'md:flex md:relative md:h-screen md:top-0 md:z-auto',
-        // Mobile: fixed drawer when open, hidden otherwise
         isOpen ? 'flex fixed inset-y-0 left-0 z-50 h-screen' : 'hidden',
       )}>
-      {/* Logo */}
-      <div className="h-16 px-4 flex items-center border-b border-gray-200">
-        {/* Mobile close button */}
-        <button
-          onClick={onClose}
-          className="md:hidden mr-2 p-1 rounded-lg hover:bg-gray-100 text-gray-500"
-        >
-          <X className="h-5 w-5" />
-        </button>
-        <div className="flex items-center gap-1 min-w-0">
+
+        {/* Logo */}
+        <div className="h-16 px-4 flex items-center border-b border-white/10 gap-2">
+          <button
+            onClick={onClose}
+            className="md:hidden p-1 rounded-lg hover:bg-white/10 text-indigo-300 mr-1"
+          >
+            <X className="h-4 w-4" />
+          </button>
           <LogoMark svgSize={32} />
           <div className="min-w-0">
-            <p className="font-black text-gray-900 text-sm truncate">
-              Book<span className="text-indigo-600">Qayam</span>
-              {(hotelName || titleMap[role]) && (
-                <span className="font-normal text-gray-400 ml-1">· {hotelName || titleMap[role]}</span>
-              )}
+            <p className="font-black text-white text-sm truncate">
+              Book<span className="text-amber-400">Qayam</span>
             </p>
+            {(hotelName || titleMap[role]) && (
+              <p className="text-xs text-indigo-300 truncate">{hotelName || titleMap[role]}</p>
+            )}
           </div>
         </div>
-      </div>
 
-      {/* Nav */}
-      <nav className="flex-1 px-3 pt-2 pb-4 space-y-1 overflow-y-auto">
-        {navItems.map(item => {
-          const Icon = item.icon
-          const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn('sidebar-link', isActive && 'active')}
-              onClick={onClose}
-            >
-              <Icon className="h-4 w-4 flex-shrink-0" />
-              {item.label}
-            </Link>
-          )
-        })}
-      </nav>
+        {/* Nav */}
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+          {navItems.map(item => {
+            const Icon = item.icon
+            const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onClose}
+                className={cn(
+                  'relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] transition-all duration-150',
+                  isActive
+                    ? 'bg-white/15 text-white font-semibold'
+                    : 'text-indigo-300 hover:text-white hover:bg-white/8 font-medium'
+                )}
+              >
+                {/* Active left indicator */}
+                {isActive && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-amber-400 rounded-r-full" />
+                )}
+                <Icon className={cn(
+                  'h-[17px] w-[17px] flex-shrink-0 transition-colors',
+                  isActive ? 'text-white' : 'text-indigo-400 group-hover:text-white'
+                )} />
+                {item.label}
+              </Link>
+            )
+          })}
+        </nav>
 
-      {/* Logout */}
-      <div className="p-4 border-t border-gray-200">
-        <button
-          onClick={handleLogout}
-          className="sidebar-link w-full text-red-600 hover:text-red-700 hover:bg-red-50"
-        >
-          <LogOut className="h-4 w-4" />
-          Sign Out
-        </button>
-      </div>
-    </aside>
+        {/* Logout */}
+        <div className="px-3 pb-5 pt-3 border-t border-white/10">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all text-indigo-300 hover:text-red-300 hover:bg-red-500/15"
+          >
+            <LogOut className="h-[17px] w-[17px] flex-shrink-0" />
+            Sign Out
+          </button>
+        </div>
+      </aside>
     </>
   )
 }

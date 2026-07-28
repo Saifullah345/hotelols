@@ -1,16 +1,16 @@
 import type { Metadata } from 'next'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
-  Star, Clock, Phone, Mail, BedDouble, ShieldCheck, ArrowLeft,
-  Wifi, Waves, Car, Coffee, Dumbbell, Sparkles, Tv, Wind, PawPrint, CheckCircle2, Users,
+  Star, Clock, Phone, Mail, ShieldCheck, ArrowLeft,
+  Wifi, Waves, Car, Coffee, Dumbbell, Sparkles, Tv, Wind, PawPrint, CheckCircle2,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import PublicNavbar from '@/components/layout/PublicNavbar'
 import PublicFooter from '@/components/layout/PublicFooter'
-import PublicBookRoomButton from './PublicBookRoomButton'
 import HotelImageGallery from './HotelImageGallery'
+import RoomsSection from './RoomsSection'
 import SaveHotelButton from '@/components/SaveHotelButton'
 import JsonLd from '@/components/seo/JsonLd'
 import { pageMetadata, absoluteUrl, SITE_URL, SITE_NAME } from '@/lib/seo'
@@ -101,9 +101,17 @@ export default async function PublicHotelDetailPage({
   const childrenCount = Math.max(0, Number(childrenParam) || 0)
   const guests = adults + childrenCount
 
-  // Check if user is logged in (no redirect — public page)
   const authSupabase = await createClient()
   const { data: { user } } = await authSupabase.auth.getUser()
+
+  // Non-customer accounts have their own dashboards — redirect them away.
+  if (user) {
+    const { data: profile } = await authSupabase
+      .from('profiles').select('role').eq('id', user.id).single()
+    if (profile?.role === 'hotel_admin') redirect('/hotel-admin/dashboard')
+    if (profile?.role === 'super_admin') redirect('/super-admin/dashboard')
+    if (profile?.role === 'staff') redirect('/staff/dashboard')
+  }
 
   const supabase = await createAdminClient()
 
@@ -333,72 +341,20 @@ export default async function PublicHotelDetailPage({
                 </div>
               )}
 
-              <div className="space-y-4">
-                {rooms.map(room => {
-                  const roomImages = (room.images as string[] | null) ?? []
-                  const thumb = roomImages[0]
-                  const type = room.room_type as { name?: string; description?: string } | null
-                  return (
-                    <div key={room.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5 hover:shadow-md transition-shadow">
-                      <div className="flex items-center gap-4">
-                        {thumb ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={thumb} alt={type?.name ?? 'Room'} className="h-14 w-14 shrink-0 rounded-xl object-cover" />
-                        ) : (
-                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-primary-50">
-                            <BedDouble className="h-7 w-7 text-primary-600" />
-                          </div>
-                        )}
-                        <div>
-                          <h3 className="font-semibold text-gray-900">
-                            {room.name ?? `Room ${room.room_number}`}
-                            {type?.name ? <span className="ml-1 text-gray-500 font-normal">({type.name})</span> : null}
-                          </h3>
-                          <div className="flex items-center gap-2 mt-0.5 text-sm text-gray-500">
-                            <span>Floor {room.floor}</span>
-                            {room.max_adults && (
-                              <>
-                                <span>·</span>
-                                <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {room.max_adults} adults{room.max_children ? `, ${room.max_children} children` : ''}</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between gap-4 border-t border-gray-100 pt-4 sm:flex-col sm:items-end sm:border-0 sm:pt-0 sm:text-right">
-                        <div>
-                          <p className="text-2xl font-bold text-gray-900">{formatCurrency(room.price_per_night, currency)}</p>
-                          <p className="text-sm text-gray-500">per night</p>
-                          {nights > 0 && (
-                            <p className="text-xs text-gray-400">
-                              {formatCurrency(room.price_per_night * nights, currency)} for {nights} night{nights === 1 ? '' : 's'}
-                            </p>
-                          )}
-                        </div>
-                        <PublicBookRoomButton
-                          roomId={room.id}
-                          hotelId={id}
-                          hotelSlug={id}
-                          pricePerNight={room.price_per_night}
-                          currency={currency}
-                          isLoggedIn={!!user}
-                          defaultCheckIn={datesApplied ? check_in : undefined}
-                          defaultCheckOut={datesApplied ? check_out : undefined}
-                          defaultGuests={guests || undefined}
-                          maxGuests={room.capacity ?? undefined}
-                        />
-                      </div>
-                    </div>
-                  )
-                })}
-                {!rooms.length && (
-                  <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-gray-500">
-                    {datesApplied
-                      ? 'No rooms free for those dates — try a different range.'
-                      : 'No rooms available at this time — check back soon.'}
-                  </div>
-                )}
-              </div>
+              <RoomsSection
+                rooms={rooms}
+                hotelId={id}
+                isLoggedIn={!!user}
+                currency={currency}
+                defaultCheckIn={datesApplied ? check_in : undefined}
+                defaultCheckOut={datesApplied ? check_out : undefined}
+                defaultAdults={adults || undefined}
+                emptyMessage={
+                  datesApplied
+                    ? 'No rooms free for those dates — try a different range.'
+                    : undefined
+                }
+              />
             </div>
 
             {/* Reviews */}

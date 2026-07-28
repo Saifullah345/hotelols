@@ -4,9 +4,11 @@ import { type ChangeEvent, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Loader2, Save, MessageCircle, Copy, ExternalLink, ImagePlus, Trash2, AlertTriangle } from 'lucide-react'
+import { Loader2, Save, MessageCircle, Copy, ExternalLink, ImagePlus, Trash2, AlertTriangle, Plus, X as XIcon, ShoppingBag } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { CURRENCIES } from '@/lib/currency'
+import PhoneInput from '@/components/ui/PhoneInput'
+import { CountrySelect, CitySelect } from '@/components/ui/CountryCitySelect'
 
 export default function HotelSettingsPage() {
   const router = useRouter()
@@ -18,6 +20,10 @@ export default function HotelSettingsPage() {
   const [uploadingImage, setUploadingImage] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [countryCode,    setCountryCode]    = useState('')
+  const [extraServices,  setExtraServices]  = useState<{ id: string; name: string; description: string; price: number; per: 'flat' | 'per_night' | 'per_person' }[]>([])
+  const [newSvc,         setNewSvc]         = useState({ name: '', description: '', price: '', per: 'flat' as 'flat' | 'per_night' | 'per_person' })
+  const [savingSvc,      setSavingSvc]      = useState(false)
 
   const hotelForm = useForm()
   const waForm = useForm()
@@ -39,6 +45,12 @@ export default function HotelSettingsPage() {
         whatsapp_phone_number_id: data?.whatsapp_phone_number_id ?? '',
         whatsapp_access_token: data?.whatsapp_access_token ?? '',
       })
+      if (data?.country) {
+        const { Country } = await import('country-state-city')
+        const match = Country.getAllCountries().find(c => c.name === data.country)
+        if (match) setCountryCode(match.isoCode as string)
+      }
+      setExtraServices((data?.extra_services as typeof extraServices) ?? [])
       setLoading(false)
     })
   }, [hotelForm, waForm])
@@ -122,6 +134,30 @@ export default function HotelSettingsPage() {
     router.push('/login')
   }
 
+  const addService = () => {
+    const name = newSvc.name.trim()
+    const price = parseFloat(newSvc.price)
+    if (!name)         { toast.error('Enter a service name'); return }
+    if (isNaN(price) || price <= 0) { toast.error('Enter a valid price'); return }
+    setExtraServices(prev => [
+      ...prev,
+      { id: crypto.randomUUID(), name, description: newSvc.description.trim(), price, per: newSvc.per },
+    ])
+    setNewSvc({ name: '', description: '', price: '', per: 'flat' })
+  }
+
+  const removeService = (id: string) => setExtraServices(prev => prev.filter(s => s.id !== id))
+
+  const saveExtraServices = async () => {
+    if (!tenantId) return
+    setSavingSvc(true)
+    const supabase = createClient()
+    const { error } = await supabase.from('hotels').update({ extra_services: extraServices }).eq('id', tenantId)
+    setSavingSvc(false)
+    if (error) { toast.error(error.message); return }
+    toast.success('Extra services saved')
+  }
+
   const webhookUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/api/webhooks/whatsapp`
     : '/api/webhooks/whatsapp'
@@ -139,9 +175,16 @@ export default function HotelSettingsPage() {
 
   return (
     <div className="max-w-3xl space-y-8">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">Hotel Settings</h2>
-        <p className="text-gray-500 text-sm mt-1">Manage your hotel information, visuals and integrations</p>
+      {/* Header banner */}
+      <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-indigo-950 via-indigo-900 to-indigo-800 px-6 py-5 sm:px-8">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-indigo-600/20 blur-3xl" />
+          <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full bg-violet-600/20 blur-3xl" />
+        </div>
+        <div className="relative">
+          <h2 className="text-2xl font-extrabold text-white leading-tight">Hotel Settings</h2>
+          <p className="text-indigo-300 text-sm mt-0.5">Manage your hotel information, visuals and integrations</p>
+        </div>
       </div>
 
       <section className="space-y-4">
@@ -199,19 +242,33 @@ export default function HotelSettingsPage() {
             </div>
             <div>
               <label className="label">Phone</label>
-              <input {...hotelForm.register('phone')} className="input" />
+              <PhoneInput
+                value={(hotelForm.watch('phone') as string) ?? ''}
+                onChange={v => hotelForm.setValue('phone', v)}
+              />
             </div>
             <div className="md:col-span-2">
               <label className="label">Address</label>
               <input {...hotelForm.register('address')} className="input" />
             </div>
             <div>
-              <label className="label">City</label>
-              <input {...hotelForm.register('city')} className="input" />
+              <label className="label">Country</label>
+              <CountrySelect
+                value={countryCode}
+                onChange={(isoCode, name) => {
+                  setCountryCode(isoCode)
+                  hotelForm.setValue('country', name)
+                  hotelForm.setValue('city', '')
+                }}
+              />
             </div>
             <div>
-              <label className="label">Country</label>
-              <input {...hotelForm.register('country')} className="input" />
+              <label className="label">City</label>
+              <CitySelect
+                countryCode={countryCode}
+                value={(hotelForm.watch('city') as string) ?? ''}
+                onChange={name => hotelForm.setValue('city', name)}
+              />
             </div>
             <div>
               <label className="label">Check-in Time</label>
@@ -339,6 +396,110 @@ export default function HotelSettingsPage() {
           </div>
         </form>
       </section>
+      {/* ── Extra Services ───────────────────────────────────────── */}
+      <section className="space-y-4">
+        <h3 className="text-base font-semibold text-gray-800 border-b border-gray-200 pb-2 flex items-center gap-2">
+          <ShoppingBag className="h-4 w-4 text-indigo-500" /> Extra Services
+        </h3>
+        <p className="text-sm text-gray-500">
+          Add optional paid services that guests can select when booking a room (e.g. Breakfast, Airport Transfer, Extra Bed).
+        </p>
+
+        {/* Existing services */}
+        {extraServices.length > 0 && (
+          <div className="card divide-y divide-gray-100">
+            {extraServices.map(s => (
+              <div key={s.id} className="flex items-center gap-3 px-4 py-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">{s.name}</p>
+                  {s.description && <p className="text-xs text-gray-400 mt-0.5">{s.description}</p>}
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-sm font-bold text-gray-900">Rs {s.price.toLocaleString()}</p>
+                  <p className="text-xs text-gray-400">
+                    {s.per === 'flat' ? 'per stay' : s.per === 'per_night' ? 'per night' : 'per person'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeService(s.id)}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors ml-1"
+                >
+                  <XIcon className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Add new service form */}
+        <div className="card p-4 space-y-3">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Add a Service</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="label">Name</label>
+              <input
+                value={newSvc.name}
+                onChange={e => setNewSvc(p => ({ ...p, name: e.target.value }))}
+                className="input"
+                placeholder="e.g. Breakfast, Airport Transfer"
+              />
+            </div>
+            <div>
+              <label className="label">Description <span className="text-gray-400 font-normal">(optional)</span></label>
+              <input
+                value={newSvc.description}
+                onChange={e => setNewSvc(p => ({ ...p, description: e.target.value }))}
+                className="input"
+                placeholder="Short description shown to guests"
+              />
+            </div>
+            <div>
+              <label className="label">Price (Rs)</label>
+              <input
+                type="number"
+                min={0}
+                value={newSvc.price}
+                onChange={e => setNewSvc(p => ({ ...p, price: e.target.value }))}
+                className="input"
+                placeholder="500"
+              />
+            </div>
+            <div>
+              <label className="label">Charge per</label>
+              <select
+                value={newSvc.per}
+                onChange={e => setNewSvc(p => ({ ...p, per: e.target.value as typeof newSvc.per }))}
+                className="input"
+              >
+                <option value="flat">Per Stay (flat fee)</option>
+                <option value="per_night">Per Night</option>
+                <option value="per_person">Per Person</option>
+              </select>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={addService}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold transition-colors"
+          >
+            <Plus className="h-4 w-4" /> Add to List
+          </button>
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={saveExtraServices}
+            disabled={savingSvc}
+            className="btn-primary flex items-center gap-2"
+          >
+            {savingSvc ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Save Extra Services
+          </button>
+        </div>
+      </section>
+
       {/* ── Danger Zone ──────────────────────────────────────────── */}
       <section className="space-y-4">
         <h3 className="text-base font-semibold text-red-600 border-b border-red-100 pb-2 flex items-center gap-2">

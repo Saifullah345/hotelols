@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
+import Link from 'next/link'
 import {
   Plus, Pencil, Trash2, Loader2, X, Tag,
-  Users, Baby, AlertTriangle, BedDouble,
+  Users, Baby, AlertTriangle, BedDouble, ArrowLeft,
 } from 'lucide-react'
 
 export type RoomType = {
@@ -353,9 +354,14 @@ export default function RoomTypesClient({ initial }: { initial: RoomType[] }) {
     <>
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Room Types</h2>
-          <p className="text-sm text-gray-500 mt-1">{types.length} type{types.length !== 1 ? 's' : ''} defined</p>
+        <div className="flex items-center gap-3">
+          <Link href="/hotel-admin/rooms" className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-500">
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Room Types</h2>
+            <p className="text-sm text-gray-500 mt-0.5">{types.length} type{types.length !== 1 ? 's' : ''} defined</p>
+          </div>
         </div>
         <button
           onClick={() => setShowCreate(true)}

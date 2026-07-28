@@ -10,9 +10,12 @@ import {
   Loader2, Eye, EyeOff, MailCheck,
   User, Building2, ArrowRight, ArrowLeft,
 } from 'lucide-react'
+import { nameSchema } from '@/lib/validation'
+import PhoneInput from '@/components/ui/PhoneInput'
+import { CountrySelect, CitySelect } from '@/components/ui/CountryCitySelect'
 
 const schema = z.object({
-  full_name:       z.string().min(2,  'Full name is required'),
+  full_name:       nameSchema,
   email:           z.string().email('Invalid email address'),
   password:        z.string().min(8,  'Password must be at least 8 characters'),
   confirm_password: z.string(),
@@ -35,16 +38,20 @@ export default function RegisterHotelPage() {
   const [step, setStep]           = useState<1 | 2>(1)
   const [showPass, setShowPass]   = useState(false)
   const [done, setDone]           = useState(false)
+  const [countryCode, setCountryCode] = useState('PK')
 
   const {
     register,
     handleSubmit,
     trigger,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { country: 'Pakistan' },
   })
+  const fullNameField = register('full_name')
 
   const goToStep2 = async () => {
     const ok = await trigger(STEP_1_FIELDS)
@@ -146,7 +153,15 @@ export default function RegisterHotelPage() {
           <>
             <div>
               <label className="label">Full Name</label>
-              <input {...register('full_name')} className="input" placeholder="Ahmed Khan" />
+              <input
+                {...fullNameField}
+                onChange={e => {
+                  e.target.value = e.target.value.replace(/[^a-zA-ZÀ-ɏ\s'-]/g, '')
+                  fullNameField.onChange(e)
+                }}
+                className="input"
+                placeholder="Ahmed Khan"
+              />
               {errors.full_name && <p className="text-red-500 text-xs mt-1">{errors.full_name.message}</p>}
             </div>
 
@@ -203,14 +218,25 @@ export default function RegisterHotelPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">City</label>
-                <input {...register('city')} className="input" placeholder="Islamabad" />
-                {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city.message}</p>}
+                <label className="label">Country</label>
+                <CountrySelect
+                  value={countryCode}
+                  onChange={(isoCode, name) => {
+                    setCountryCode(isoCode)
+                    setValue('country', name, { shouldValidate: true })
+                    setValue('city', '', { shouldValidate: false })
+                  }}
+                />
+                {errors.country && <p className="text-red-500 text-xs mt-1">{errors.country.message}</p>}
               </div>
               <div>
-                <label className="label">Country</label>
-                <input {...register('country')} className="input" placeholder="Pakistan" />
-                {errors.country && <p className="text-red-500 text-xs mt-1">{errors.country.message}</p>}
+                <label className="label">City</label>
+                <CitySelect
+                  countryCode={countryCode}
+                  value={watch('city') ?? ''}
+                  onChange={name => setValue('city', name, { shouldValidate: true })}
+                />
+                {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city.message}</p>}
               </div>
             </div>
 
@@ -222,7 +248,10 @@ export default function RegisterHotelPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="label">Hotel Phone <span className="text-gray-400 font-normal">(optional)</span></label>
-                <input {...register('hotel_phone')} className="input" placeholder="+92 300 0000000" />
+                <PhoneInput
+                  value={watch('hotel_phone') ?? ''}
+                  onChange={v => setValue('hotel_phone', v)}
+                />
               </div>
               <div>
                 <label className="label">Hotel Email <span className="text-gray-400 font-normal">(optional)</span></label>

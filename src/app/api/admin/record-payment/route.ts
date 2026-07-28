@@ -34,7 +34,7 @@ export async function POST(request: Request) {
   // Verify booking belongs to this hotel
   const { data: booking } = await admin
     .from('bookings')
-    .select('id, hotel_id, user_id, total_amount')
+    .select('id, hotel_id, user_id, total_amount, status')
     .eq('id', booking_id)
     .single()
 
@@ -108,6 +108,12 @@ export async function POST(request: Request) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
     paymentId = created?.id
+  }
+
+  // If the booking was still pending, confirming a payment means the advance
+  // has been received — automatically move it to confirmed.
+  if ((booking as { status: string }).status === 'pending') {
+    await admin.from('bookings').update({ status: 'confirmed' }).eq('id', booking_id)
   }
 
   return NextResponse.json({ success: true, paymentId })

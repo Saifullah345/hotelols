@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
+import { redirect } from 'next/navigation'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
 import PublicNavbar from '@/components/layout/PublicNavbar'
 import PublicFooter from '@/components/layout/PublicFooter'
@@ -41,6 +42,16 @@ export default async function LandingPage({
   const authSupabase = await createClient()
   const { data: { user } } = await authSupabase.auth.getUser()
   const isLoggedIn = !!user
+
+  // Admins and staff have their own dashboards — redirect them away from the
+  // customer-facing landing page so they can't accidentally book rooms.
+  if (user) {
+    const { data: profile } = await authSupabase
+      .from('profiles').select('role').eq('id', user.id).single()
+    if (profile?.role === 'hotel_admin') redirect('/hotel-admin/dashboard')
+    if (profile?.role === 'super_admin') redirect('/super-admin/dashboard')
+    if (profile?.role === 'staff') redirect('/staff/dashboard')
+  }
 
   const supabase = await createAdminClient()
 

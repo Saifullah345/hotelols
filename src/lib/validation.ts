@@ -1,16 +1,73 @@
 import { z } from 'zod'
 
-// Accepts digits with common formatting characters (+, spaces, dashes, dots,
-// parens) in any grouping, then checks the digit count against the E.164
-// range — rather than a fixed group pattern, which rejected valid numbers
-// like "+1 555 000 0000".
+// Expected local digit count (after the dial code) for each country prefix.
+// Sorted longest-first so +880 matches before +88, etc.
+const COUNTRY_DIGIT_RULES: { dial: string; digits: number }[] = [
+  { dial: '+92',  digits: 10 }, // Pakistan
+  { dial: '+971', digits: 9  }, // UAE
+  { dial: '+966', digits: 9  }, // Saudi Arabia
+  { dial: '+974', digits: 8  }, // Qatar
+  { dial: '+965', digits: 8  }, // Kuwait
+  { dial: '+973', digits: 8  }, // Bahrain
+  { dial: '+968', digits: 8  }, // Oman
+  { dial: '+91',  digits: 10 }, // India
+  { dial: '+880', digits: 10 }, // Bangladesh
+  { dial: '+94',  digits: 9  }, // Sri Lanka
+  { dial: '+977', digits: 10 }, // Nepal
+  { dial: '+44',  digits: 10 }, // UK
+  { dial: '+1',   digits: 10 }, // US / Canada
+  { dial: '+33',  digits: 9  }, // France
+  { dial: '+34',  digits: 9  }, // Spain
+  { dial: '+31',  digits: 9  }, // Netherlands
+  { dial: '+32',  digits: 9  }, // Belgium
+  { dial: '+41',  digits: 9  }, // Switzerland
+  { dial: '+61',  digits: 9  }, // Australia
+  { dial: '+64',  digits: 9  }, // New Zealand
+  { dial: '+65',  digits: 8  }, // Singapore
+  { dial: '+60',  digits: 9  }, // Malaysia
+  { dial: '+63',  digits: 10 }, // Philippines
+  { dial: '+66',  digits: 9  }, // Thailand
+  { dial: '+84',  digits: 9  }, // Vietnam
+  { dial: '+86',  digits: 11 }, // China
+  { dial: '+81',  digits: 10 }, // Japan
+  { dial: '+82',  digits: 10 }, // South Korea
+  { dial: '+90',  digits: 10 }, // Turkey
+  { dial: '+20',  digits: 10 }, // Egypt
+  { dial: '+234', digits: 10 }, // Nigeria
+  { dial: '+254', digits: 9  }, // Kenya
+  { dial: '+27',  digits: 9  }, // South Africa
+  { dial: '+233', digits: 9  }, // Ghana
+  { dial: '+251', digits: 9  }, // Ethiopia
+  { dial: '+256', digits: 9  }, // Uganda
+  { dial: '+55',  digits: 11 }, // Brazil
+  { dial: '+52',  digits: 10 }, // Mexico
+  { dial: '+54',  digits: 10 }, // Argentina
+  { dial: '+7',   digits: 10 }, // Russia
+  { dial: '+93',  digits: 9  }, // Afghanistan
+  { dial: '+98',  digits: 10 }, // Iran
+  { dial: '+964', digits: 10 }, // Iraq
+  { dial: '+962', digits: 9  }, // Jordan
+  { dial: '+961', digits: 8  }, // Lebanon
+  { dial: '+963', digits: 9  }, // Syria
+].sort((a, b) => b.dial.length - a.dial.length)
+
+function validatePhoneDigits(v: string): boolean {
+  const trimmed = v.trim()
+  const rule = COUNTRY_DIGIT_RULES.find(r => trimmed.startsWith(r.dial))
+  const localDigits = trimmed
+    .slice(rule ? rule.dial.length : 0)
+    .replace(/\D/g, '')
+    .length
+  if (rule) return localDigits === rule.digits
+  // Unknown country code or no prefix: accept E.164 range (7–15 total digits)
+  const totalDigits = trimmed.replace(/\D/g, '').length
+  return totalDigits >= 7 && totalDigits <= 15
+}
+
 export const phoneSchema = z.string()
   .min(1, 'Phone number is required')
   .refine(v => /^[+]?[0-9()\-.\s]+$/.test(v), 'Phone number can only contain digits and formatting characters')
-  .refine(v => {
-    const digits = v.replace(/\D/g, '')
-    return digits.length >= 7 && digits.length <= 15
-  }, 'Phone number must be between 7 and 15 digits')
+  .refine(validatePhoneDigits, 'Phone number length is invalid for the selected country')
 
 // ── Human name ──────────────────────────────────────────────────────
 // Must start with a letter, then letters (any script), spaces and the

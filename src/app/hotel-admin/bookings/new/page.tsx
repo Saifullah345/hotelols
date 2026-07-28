@@ -10,7 +10,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   Loader2, ArrowLeft, Search, User, BedDouble,
   MessageCircle, Phone, DoorOpen, Globe,
-  Banknote, CreditCard, Building2, FileText, HelpCircle, CheckCircle, Users, Check, CalendarDays,
+  Banknote, CreditCard, Building2, FileText, HelpCircle, CheckCircle, Users, Check, CalendarDays, AlertTriangle,
 } from 'lucide-react'
 import Link from 'next/link'
 import PhoneInput from '@/components/ui/PhoneInput'
@@ -76,14 +76,14 @@ const PAY_METHODS: { value: string; label: string; icon: React.ElementType }[] =
 
 // ── Payment Block (must be outside parent to keep input focus) ──────────
 function PaymentBlock({
-  totalAmount, currency, nights,
+  totalAmount, currency, nights, source,
   payMethod, setPayMethod,
   payNow, setPayNow,
   isAdvance, setIsAdvance,
   advanceAmount, setAdvanceAmount,
   payNotes, setPayNotes,
 }: {
-  totalAmount: number; currency: string; nights: number
+  totalAmount: number; currency: string; nights: number; source: string
   payMethod: string; setPayMethod: (v: string) => void
   payNow: boolean; setPayNow: (v: boolean) => void
   isAdvance: boolean; setIsAdvance: (v: boolean) => void
@@ -174,10 +174,22 @@ function PaymentBlock({
           </span>
         </div>
       )}
-      {!payNow && (
-        <div className="flex items-center gap-2 p-3 bg-orange-50 border border-orange-200 rounded-lg text-sm text-orange-700">
-          <Loader2 className="h-4 w-4 flex-shrink-0" />
-          Payment pending — guest will pay later.
+      {!payNow && source === 'walk_in' && (
+        <div className="flex items-start gap-2.5 p-3.5 bg-red-50 border border-red-300 rounded-lg">
+          <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-red-700">Advance payment is required for walk-in bookings</p>
+            <p className="text-xs text-red-600 mt-0.5">The guest is present — collect an advance now to confirm the booking.</p>
+          </div>
+        </div>
+      )}
+      {!payNow && source !== 'walk_in' && (
+        <div className="flex items-start gap-2.5 p-3.5 bg-amber-50 border border-amber-200 rounded-lg">
+          <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-amber-700">Booking will be Pending</p>
+            <p className="text-xs text-amber-600 mt-0.5">No advance collected yet. Use <strong>Collect Payment</strong> once the guest transfers the advance to confirm this booking.</p>
+          </div>
         </div>
       )}
     </div>
@@ -186,7 +198,7 @@ function PaymentBlock({
 
 // ── Standalone Room Picker (must be outside parent to keep input focus) ──
 function RoomPicker({
-  rooms, selectedRoomIds, unavailableRoomIds, datesChosen, currency, nights, totalAmount, onToggle,
+  rooms, selectedRoomIds, unavailableRoomIds, datesChosen, currency, nights, totalAmount, onToggle, checkingAvailability,
 }: {
   rooms: Room[]
   selectedRoomIds: string[]
@@ -196,6 +208,7 @@ function RoomPicker({
   nights: number
   totalAmount: number
   onToggle: (id: string) => void
+  checkingAvailability: boolean
 }) {
   const [q, setQ] = useState('')
   const lq = q.toLowerCase()
@@ -207,16 +220,30 @@ function RoomPicker({
       )
     : rooms
 
+  const availableCount = rooms.filter(r => !unavailableRoomIds.has(r.id)).length
+
   return (
     <div className="card p-5 space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-gray-700">Rooms</p>
-        {selectedRoomIds.length > 0 && (
-          <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-            <Check className="h-3 w-3" />
-            {selectedRoomIds.length} selected
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {checkingAvailability ? (
+            <span className="inline-flex items-center gap-1.5 text-xs text-gray-400">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Checking availability…
+            </span>
+          ) : unavailableRoomIds.size > 0 ? (
+            <span className="text-xs text-emerald-600 font-medium">
+              {availableCount} of {rooms.length} available
+            </span>
+          ) : null}
+          {selectedRoomIds.length > 0 && (
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+              <Check className="h-3 w-3" />
+              {selectedRoomIds.length} selected
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Availability is derived from the dates above, so say so plainly rather
@@ -338,6 +365,7 @@ export default function NewBookingPage() {
   const [currency, setCurrency]           = useState('USD')
   const [tenantId, setTenantId]           = useState<string | null>(null)
   const [unavailableRoomIds, setUnavailableRoomIds] = useState<Set<string>>(new Set())
+  const [checkingAvailability, setCheckingAvailability] = useState(false)
 
   // Payment state (offline only)
   const [payMethod, setPayMethod]         = useState('cash')
@@ -360,6 +388,7 @@ export default function NewBookingPage() {
     resolver: zodResolver(offlineSchema),
     defaultValues: { adults: 1, children: 0, status: 'confirmed' },
   })
+  const guestNameField = offlineForm.register('guest_name')
 
   const [checkIn, checkOut]       = onlineForm.watch(['check_in', 'check_out'])
   const [checkInOff, checkOutOff] = offlineForm.watch(['check_in', 'check_out'])
@@ -411,8 +440,9 @@ export default function NewBookingPage() {
   useEffect(() => {
     const check = async () => {
       if (!tenantId || !activeCheckIn || !activeCheckOut || new Date(activeCheckOut) <= new Date(activeCheckIn)) {
-        setUnavailableRoomIds(new Set()); return
+        setUnavailableRoomIds(new Set()); setCheckingAvailability(false); return
       }
+      setCheckingAvailability(true)
       const { data } = await createClient()
         .from('bookings')
         .select('room_id, room_ids')
@@ -429,6 +459,7 @@ export default function NewBookingPage() {
       setUnavailableRoomIds(ids)
       // Deselect any rooms that became unavailable
       setSelectedRoomIds(prev => prev.filter(id => !ids.has(id)))
+      setCheckingAvailability(false)
     }
     check()
   }, [tenantId, activeCheckIn, activeCheckOut])
@@ -517,6 +548,10 @@ export default function NewBookingPage() {
   }
 
   const submitOffline = async (data: OfflineForm) => {
+    if (!payNow && source === 'walk_in') {
+      toast.error('Advance payment is required for walk-in bookings')
+      return
+    }
     if (advanceInvalid) {
       toast.error(`Advance amount must be greater than 0 and no more than ${formatCurrency(totalAmount, currency)}`)
       return
@@ -546,6 +581,13 @@ export default function NewBookingPage() {
     })
   }
 
+  // When payment is collected, status must be confirmed — pending makes no sense.
+  useEffect(() => {
+    if (payNow && isOffline) {
+      offlineForm.setValue('status', 'confirmed')
+    }
+  }, [payNow, isOffline]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const today = new Date().toISOString().split('T')[0]
 
   // ── Dates block ───────────────────────────────────────────────
@@ -572,33 +614,31 @@ export default function NewBookingPage() {
 
   // ── Details block ─────────────────────────────────────────────
   const DetailsBlock = (reg: Parameters<typeof onlineForm.register>[0] extends string ? any : any, errs: Record<string, { message?: string }>) => (
-    <>
-      <div className="card p-5 space-y-4">
-        <p className="text-sm font-semibold text-gray-700">Details</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="label">Adults</label>
-            <input {...reg('adults')} type="number" min={1} max={20} className="input" />
-            {errs.adults && <p className="text-red-500 text-xs mt-1">{errs.adults.message}</p>}
-          </div>
-          <div>
-            <label className="label">Children</label>
-            <input {...reg('children')} type="number" min={0} max={20} className="input" />
-          </div>
-          <div>
-            <label className="label">Status</label>
-            <select {...reg('status')} className="input">
-              <option value="confirmed">Confirmed</option>
-              <option value="pending">Pending</option>
-            </select>
-          </div>
-          <div className="md:col-span-2">
-            <label className="label">Special Requests <span className="text-gray-400 font-normal">(optional)</span></label>
-            <textarea {...reg('special_requests')} className="input resize-none" rows={3} placeholder="Any special requests..." />
-          </div>
+    <div className="card p-5 space-y-4">
+      <p className="text-sm font-semibold text-gray-700">Details</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="label">Adults</label>
+          <input {...reg('adults')} type="number" min={1} max={20} className="input" />
+          {errs.adults && <p className="text-red-500 text-xs mt-1">{errs.adults.message}</p>}
+        </div>
+        <div>
+          <label className="label">Children</label>
+          <input {...reg('children')} type="number" min={0} max={20} className="input" />
+        </div>
+        <div>
+          <label className="label">Status</label>
+          <select {...reg('status')} className="input">
+            <option value="confirmed">Confirmed</option>
+            <option value="pending">Pending</option>
+          </select>
+        </div>
+        <div className="md:col-span-2">
+          <label className="label">Special Requests <span className="text-gray-400 font-normal">(optional)</span></label>
+          <textarea {...reg('special_requests')} className="input resize-none" rows={3} placeholder="Any special requests..." />
         </div>
       </div>
-    </>
+    </div>
   )
 
   // ── Payment block ─────────────────────────────────────────────
@@ -651,19 +691,27 @@ export default function NewBookingPage() {
             <p className="text-sm font-semibold text-gray-700">Guest Info</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
-                <label className="label">Full Name</label>
-                <input {...offlineForm.register('guest_name')} className="input" placeholder="John Smith" />
+                <label className="label">Full Name <span className="text-red-500">*</span></label>
+                <input
+                  {...guestNameField}
+                  onChange={e => {
+                    e.target.value = e.target.value.replace(/[^a-zA-ZÀ-ɏ\s'-]/g, '')
+                    guestNameField.onChange(e)
+                  }}
+                  className="input"
+                  placeholder="John Smith"
+                />
                 {offlineForm.formState.errors.guest_name && (
                   <p className="text-red-500 text-xs mt-1">{offlineForm.formState.errors.guest_name.message}</p>
                 )}
               </div>
               <div className="md:col-span-2">
-                <label className="label">Phone Number</label>
+                <label className="label">Phone Number <span className="text-red-500">*</span></label>
                 <PhoneInput
                   value={offlineForm.watch('guest_phone') ?? ''}
-                  onChange={v => offlineForm.setValue('guest_phone', v, { shouldValidate: true })}
+                  onChange={v => offlineForm.setValue('guest_phone', v, { shouldValidate: offlineForm.formState.isSubmitted })}
                 />
-                {offlineForm.formState.errors.guest_phone && (
+                {offlineForm.formState.isSubmitted && offlineForm.formState.errors.guest_phone && (
                   <p className="text-red-500 text-xs mt-1">{offlineForm.formState.errors.guest_phone.message}</p>
                 )}
               </div>
@@ -680,12 +728,14 @@ export default function NewBookingPage() {
             nights={nights}
             totalAmount={totalAmount}
             onToggle={toggleRoom}
+            checkingAvailability={checkingAvailability}
           />
           {DetailsBlock(offlineForm.register, offlineForm.formState.errors as Record<string, { message?: string }>)}
           <PaymentBlock
             totalAmount={totalAmount}
             currency={currency}
             nights={nights}
+            source={source}
             payMethod={payMethod}    setPayMethod={setPayMethod}
             payNow={payNow}          setPayNow={setPayNow}
             isAdvance={isAdvance}    setIsAdvance={setIsAdvance}
@@ -695,7 +745,7 @@ export default function NewBookingPage() {
 
           <div className="flex justify-end gap-3">
             <Link href="/hotel-admin/bookings" className="btn-secondary">Cancel</Link>
-            <button type="submit" disabled={submitting || advanceInvalid || selectedRoomIds.length === 0}
+            <button type="submit" disabled={submitting || (!payNow && source === 'walk_in') || advanceInvalid || selectedRoomIds.length === 0}
               className="btn-primary flex items-center gap-2">
               {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
               {submitting ? 'Creating…' : 'Create Booking'}
@@ -752,6 +802,7 @@ export default function NewBookingPage() {
             nights={nights}
             totalAmount={totalAmount}
             onToggle={toggleRoom}
+            checkingAvailability={checkingAvailability}
           />
           {DetailsBlock(onlineForm.register, onlineForm.formState.errors as Record<string, { message?: string }>)}
 

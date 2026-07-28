@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { Plus, BedDouble, Search, Pencil, Users, X, ChevronLeft, ChevronRight, GripVertical } from 'lucide-react'
+import { Plus, BedDouble, Search, Pencil, Users, X, ChevronLeft, ChevronRight, GripVertical, Wrench, BookOpen } from 'lucide-react'
 import RoomStatusToggle from './RoomStatusToggle'
 import DeleteRoomButton from './DeleteRoomButton'
 import { RoomRow, ActionsCell } from './RoomRow'
@@ -140,49 +140,65 @@ export default function RoomsClient({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Rooms</h2>
-          <p className="text-gray-500 text-sm mt-1">
-            {rooms.length} total
-            {filtered.length !== rooms.length && ` · ${filtered.length} shown`}
-            {saving && <span className="ml-2 text-indigo-500">Saving…</span>}
-          </p>
+      {/* Page header */}
+      <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-indigo-950 via-indigo-900 to-indigo-800 px-6 py-5 sm:px-8">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-indigo-600/20 blur-3xl" />
+          <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full bg-violet-600/20 blur-3xl" />
         </div>
-        <Link href="/hotel-admin/rooms/new" className="btn-primary flex items-center gap-2 text-sm">
-          <Plus className="h-4 w-4" /> Add Room
-        </Link>
-      </div>
-
-      {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          { label: 'Available',   count: available,   color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-          { label: 'Occupied',    count: booked,      color: 'bg-blue-50 text-blue-700 border-blue-200'          },
-          { label: 'Maintenance', count: maintenance, color: 'bg-red-50 text-red-700 border-red-200'             },
-        ].map(s => (
-          <div key={s.label} className={`rounded-xl border p-4 text-center ${s.color}`}>
-            <p className="text-2xl font-bold">{s.count}</p>
-            <p className="text-sm font-medium">{s.label}</p>
+        <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-extrabold text-white leading-tight">Rooms</h2>
+            <p className="text-indigo-300 text-sm mt-0.5">
+              {rooms.length} total
+              {filtered.length !== rooms.length && ` · ${filtered.length} shown`}
+              {saving && <span className="ml-2 text-amber-400 animate-pulse">Saving…</span>}
+            </p>
           </div>
-        ))}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3.5 py-2 rounded-xl text-sm">
+              <BedDouble className="h-4 w-4 text-emerald-400" />
+              <div>
+                <p className="text-white font-bold leading-none">{available}</p>
+                <p className="text-indigo-300 text-xs leading-none mt-0.5">Available</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3.5 py-2 rounded-xl text-sm">
+              <BookOpen className="h-4 w-4 text-blue-400" />
+              <div>
+                <p className="text-white font-bold leading-none">{booked}</p>
+                <p className="text-indigo-300 text-xs leading-none mt-0.5">Occupied</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3.5 py-2 rounded-xl text-sm">
+              <Wrench className="h-4 w-4 text-red-400" />
+              <div>
+                <p className="text-white font-bold leading-none">{maintenance}</p>
+                <p className="text-indigo-300 text-xs leading-none mt-0.5">Maintenance</p>
+              </div>
+            </div>
+            <Link href="/hotel-admin/rooms/new" className="flex items-center gap-2 bg-white text-indigo-700 font-semibold text-sm px-4 py-2 rounded-xl hover:bg-indigo-50 transition-colors shadow-sm">
+              <Plus className="h-4 w-4" /> Add Room
+            </Link>
+          </div>
+        </div>
       </div>
 
       {/* Filter bar */}
-      <div className="flex flex-wrap items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3">
+      <div className="card flex flex-wrap items-center gap-3 px-4 py-3">
         <div className="relative flex-1 min-w-[160px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
           <input
             value={q}
             onChange={e => setQ(e.target.value)}
             placeholder="Search name or number…"
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400"
           />
         </div>
         <select
           value={typeId}
           onChange={e => setTypeId(e.target.value)}
-          className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+          className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white text-gray-700"
         >
           <option value="">All Types</option>
           {roomTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -190,29 +206,35 @@ export default function RoomsClient({
         <select
           value={status}
           onChange={e => setStatus(e.target.value)}
-          className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+          className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white text-gray-700"
         >
           <option value="">All Statuses</option>
           {STATUSES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
         </select>
         {hasFilter && (
-          <button onClick={clearAll} className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-700 transition-colors">
+          <button onClick={clearAll} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors px-2 py-1">
             <X className="h-3.5 w-3.5" /> Clear
           </button>
         )}
       </div>
 
       {!hasFilter && rooms.length > 1 && (
-        <p className="text-xs text-gray-400 flex items-center gap-1.5">
+        <p className="text-xs text-gray-400 flex items-center gap-1.5 -mt-2">
           <GripVertical className="h-3.5 w-3.5" /> Drag rows to reorder — order is shown to customers.
         </p>
       )}
 
       {/* Table */}
       <div className="card overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
+          <div className="w-1.5 h-4 bg-indigo-500 rounded-full" />
+          <h3 className="font-semibold text-gray-900 text-sm">
+            {hasFilter ? `${filtered.length} room${filtered.length !== 1 ? 's' : ''} found` : 'All Rooms'}
+          </h3>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px]">
-            <thead className="bg-gray-50 border-b border-gray-100">
+            <thead className="bg-gray-50/80 border-b border-gray-100">
               <tr>
                 {!hasFilter && <th className="table-header w-8" />}
                 <th className="table-header">Room</th>
@@ -226,7 +248,22 @@ export default function RoomsClient({
             </thead>
             <tbody className="divide-y divide-gray-100">
               {paged.map(room => (
-                <RoomRow key={room.id} href={`/hotel-admin/rooms/${room.id}`}>
+                <RoomRow
+                  key={room.id}
+                  href={`/hotel-admin/rooms/${room.id}`}
+                  draggable={!hasFilter}
+                  isDragOver={dragOverId === room.id}
+                  onDragStart={handleDragStart(room.id)}
+                  onDragOver={handleDragOver(room.id)}
+                  onDrop={handleDrop(room.id)}
+                  onDragEnd={handleDragEnd}
+                >
+                  {/* Drag handle */}
+                  {!hasFilter && (
+                    <td className="pl-3 pr-0 py-3 w-8" onClick={e => e.stopPropagation()}>
+                      <GripVertical className="h-4 w-4 text-gray-300 cursor-grab" />
+                    </td>
+                  )}
 
                   {/* Room */}
                   <td className="table-cell">
@@ -365,7 +402,7 @@ export default function RoomsClient({
                         aria-current={p === safePage ? 'page' : undefined}
                         className={`inline-flex items-center justify-center min-w-[1.75rem] h-7 px-2 rounded-lg text-xs font-semibold transition-colors ${
                           p === safePage
-                            ? 'bg-primary-600 text-white'
+                            ? 'bg-indigo-600 text-white'
                             : 'border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                         }`}
                       >

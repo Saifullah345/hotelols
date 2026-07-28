@@ -33,6 +33,16 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // Only customer accounts can create bookings
+  const { data: callerProfile } = await supabase
+    .from('profiles').select('role').eq('id', user.id).single()
+  if (callerProfile?.role && callerProfile.role !== 'customer') {
+    return NextResponse.json(
+      { error: 'Admin and staff accounts cannot make bookings. Please use a customer account.' },
+      { status: 403 },
+    )
+  }
+
   const body = await request.json()
   const { check_in, check_out, room_id, hotel_id, guests, adults, children } = body
 
