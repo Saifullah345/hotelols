@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Search, Users, UserCheck, UserX } from 'lucide-react'
+import { Search, Users, UserCheck, UserMinus } from 'lucide-react'
 import AutoFilterForm from '@/components/ui/AutoFilterForm'
 import { DEPARTMENTS } from '@/lib/staff-constants'
 import StaffClient, { type StaffMember } from './StaffClient'
@@ -28,30 +28,37 @@ export default async function StaffPage({
 
   let query = supabase
     .from('staff')
-    .select('id, user_id, department, position, permissions, is_active, user:profiles(full_name, email, phone)')
+    .select('id, user_id, name, email, phone, department, position, is_active, status, shift, salary, user:profiles(full_name, email, phone)')
     .eq('hotel_id', tenantId)
     // Newest member first.
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
 
   if (department) query = query.eq('department', department)
-  if (status === 'active')   query = query.eq('is_active', true)
-  if (status === 'inactive') query = query.eq('is_active', false)
+  if (status === 'active')   query = query.eq('status', 'active')
+  if (status === 'on_leave') query = query.eq('status', 'on_leave')
+  if (status === 'inactive') query = query.eq('status', 'inactive')
 
   const { data: staff } = await query
 
   const filtered = q
-    ? staff?.filter(s =>
-        (s.user as { full_name?: string })?.full_name?.toLowerCase().includes(q.toLowerCase()) ||
-        (s.user as { email?: string })?.email?.toLowerCase().includes(q.toLowerCase())
-      )
+    ? staff?.filter(s => {
+        const u = s.user as { full_name?: string; email?: string } | null
+        const qLow = q.toLowerCase()
+        return (
+          s.name?.toLowerCase().includes(qLow) ||
+          s.email?.toLowerCase().includes(qLow) ||
+          u?.full_name?.toLowerCase().includes(qLow) ||
+          u?.email?.toLowerCase().includes(qLow)
+        )
+      })
     : staff
 
   const hasFilter = !!(department || status || q)
 
-  const totalCount  = staff?.length ?? 0
-  const activeCount = staff?.filter(s => s.is_active).length ?? 0
-  const inactiveCount = totalCount - activeCount
+  const totalCount   = staff?.length ?? 0
+  const activeCount  = staff?.filter(s => (s.status ?? (s.is_active ? 'active' : 'inactive')) === 'active').length ?? 0
+  const onLeaveCount = staff?.filter(s => s.status === 'on_leave').length ?? 0
 
   return (
     <div className="space-y-6">
@@ -63,8 +70,10 @@ export default async function StaffPage({
         </div>
         <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-extrabold text-white leading-tight">Staff Management</h2>
-            <p className="text-indigo-300 text-sm mt-0.5">{totalCount} total members</p>
+            <h2 className="text-2xl font-extrabold text-white leading-tight">Team Members</h2>
+            <p className="text-indigo-300 text-sm mt-0.5">
+              {totalCount} staff · {activeCount} on duty
+            </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3.5 py-2 rounded-xl text-sm">
@@ -82,15 +91,12 @@ export default async function StaffPage({
               </div>
             </div>
             <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3.5 py-2 rounded-xl text-sm">
-              <UserX className="h-4 w-4 text-rose-400" />
+              <UserMinus className="h-4 w-4 text-amber-400" />
               <div>
-                <p className="text-white font-bold leading-none">{inactiveCount}</p>
-                <p className="text-indigo-300 text-xs leading-none mt-0.5">Inactive</p>
+                <p className="text-white font-bold leading-none">{onLeaveCount}</p>
+                <p className="text-indigo-300 text-xs leading-none mt-0.5">On Leave</p>
               </div>
             </div>
-            <Link href="/hotel-admin/staff/invite" className="flex items-center gap-2 bg-white text-indigo-700 font-semibold text-sm px-4 py-2 rounded-xl hover:bg-indigo-50 transition-colors shadow-sm">
-              <Plus className="h-4 w-4" /> Invite Staff
-            </Link>
           </div>
         </div>
       </div>
@@ -121,6 +127,7 @@ export default async function StaffPage({
         >
           <option value="">All Status</option>
           <option value="active">Active</option>
+          <option value="on_leave">On Leave</option>
           <option value="inactive">Inactive</option>
         </select>
         {hasFilter && (

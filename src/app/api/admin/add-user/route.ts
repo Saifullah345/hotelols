@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { full_name, role, hotel_id, department, position, permissions, country, city, address } = body
+  const { full_name, role, hotel_id, department, position, permissions, country, city, address, shift, salary } = body
   const password = body.password
   // Normalise so duplicate detection is case-insensitive and matches how
   // Supabase Auth stores emails.
@@ -128,12 +128,15 @@ export async function POST(request: Request) {
   // Create staff record when role is staff
   if (role === 'staff' && effectiveHotelId) {
     const { error: staffError } = await adminClient.from('staff').insert({
-      hotel_id: effectiveHotelId,
-      user_id: createdUserId,
-      department: department || 'General',
-      position: position || 'Staff',
+      hotel_id:    effectiveHotelId,
+      user_id:     createdUserId,
+      department:  department  || 'General',
+      position:    position    || 'Staff',
       permissions: permissions || [],
-      is_active: true,
+      is_active:   true,
+      status:      'active',
+      shift:       shift  || null,
+      salary:      parseFloat(salary) || 0,
     })
     if (staffError) return NextResponse.json({ error: staffError.message }, { status: 400 })
   }
