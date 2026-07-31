@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { Plus, BedDouble, Search, Pencil, Users, X, ChevronLeft, ChevronRight, GripVertical, Wrench, BookOpen, CalendarSearch, Loader2, CheckCircle2, XCircle, ArrowRight } from 'lucide-react'
+import { Plus, BedDouble, Search, Pencil, Users, X, ChevronLeft, ChevronRight, GripVertical, Wrench, BookOpen, CalendarSearch, Loader2, CheckCircle2, XCircle, ArrowRight, LayoutGrid, LayoutList } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { addDays, todayISO } from '@/lib/date'
 import RoomStatusToggle from './RoomStatusToggle'
@@ -44,6 +44,105 @@ const fmtShort = (d: string) =>
 /** Who is occupying a room over the checked dates. */
 type Occupancy = { guest: string; checkIn: string; checkOut: string }
 
+type RoomGridCardProps = {
+  room: Room
+  rangeActive: boolean
+  occupancy: Map<string, Occupancy>
+  availFrom: string
+  availTo: string
+  currency: string
+}
+
+function RoomGridCard({ room, rangeActive, occupancy, availFrom, availTo, currency }: RoomGridCardProps) {
+  const taken = occupancy.get(room.id)
+  const statusConfig = {
+    available:   { badge: 'bg-emerald-500', label: 'Available'   },
+    booked:      { badge: 'bg-blue-500',    label: 'Occupied'    },
+    maintenance: { badge: 'bg-red-500',     label: 'Maintenance' },
+    cleaning:    { badge: 'bg-amber-500',   label: 'Cleaning'    },
+  }
+  const sc      = statusConfig[room.status as keyof typeof statusConfig] ?? { badge: 'bg-gray-500', label: room.status }
+  const imgBg   = { available: 'from-emerald-50 to-teal-50', booked: 'from-blue-50 to-indigo-50', maintenance: 'from-red-50 to-orange-50', cleaning: 'from-amber-50 to-yellow-50' }[room.status] ?? 'from-gray-50 to-gray-100'
+  const iconClr = { available: 'text-emerald-200', booked: 'text-blue-200', maintenance: 'text-red-200', cleaning: 'text-amber-200' }[room.status] ?? 'text-gray-200'
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden group hover:shadow-md transition-shadow flex flex-col">
+      <div className="relative h-44 shrink-0">
+        {room.images?.[0] ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={room.images[0]} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <div className={`w-full h-full bg-gradient-to-br ${imgBg} flex items-center justify-center`}>
+            <BedDouble className={`h-14 w-14 ${iconClr}`} />
+          </div>
+        )}
+        <span className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide text-white shadow ${sc.badge}`}>
+          {sc.label}
+        </span>
+        {(room.images?.length ?? 0) > 1 && (
+          <span className="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full backdrop-blur-sm">
+            {room.images!.length} photos
+          </span>
+        )}
+      </div>
+
+      <div className="p-4 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h3 className="font-bold text-gray-900 text-sm leading-tight truncate">
+              {room.name ?? `Room ${room.room_number}`}
+            </h3>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {room.room_type?.name ?? '—'} · {room.floor === 0 ? 'Ground floor' : `Floor ${room.floor}`}
+            </p>
+          </div>
+          <div className="text-right shrink-0">
+            <p className="font-bold text-gray-900 text-sm">{formatCurrency(room.price_per_night, currency)}</p>
+            <p className="text-[11px] text-gray-400">/night</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 mt-2.5 text-xs text-gray-500">
+          <Users className="h-3.5 w-3.5 text-gray-400" />
+          Sleeps {room.room_type?.capacity ?? room.capacity}
+        </div>
+
+        {rangeActive && (
+          taken ? (
+            <div className="mt-2.5 px-3 py-2 rounded-lg bg-red-50 border border-red-100 flex items-center gap-1.5">
+              <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
+              <span className="text-xs text-red-700 font-medium truncate">
+                {taken.guest} · {fmtShort(taken.checkIn)}–{fmtShort(taken.checkOut)}
+              </span>
+            </div>
+          ) : room.status === 'available' ? (
+            <div className="mt-2.5 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+              <span className="text-xs text-emerald-700 font-medium">
+                Free · {fmtShort(availFrom)}–{fmtShort(availTo)}
+              </span>
+            </div>
+          ) : null
+        )}
+      </div>
+
+      <div className="flex items-center border-t border-gray-100 divide-x divide-gray-100">
+        <Link
+          href={`/hotel-admin/rooms/${room.id}/edit`}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors font-medium"
+        >
+          <Pencil className="h-3.5 w-3.5" /> Edit
+        </Link>
+        <div className="flex items-center justify-center px-4 py-2.5">
+          <RoomStatusToggle roomId={room.id} currentStatus={room.status} />
+        </div>
+        <div className="flex items-center justify-center px-4 py-2.5">
+          <DeleteRoomButton roomId={room.id} roomNumber={room.room_number} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function RoomsClient({
   rooms: initialRooms,
   roomTypes,
@@ -57,6 +156,7 @@ export default function RoomsClient({
 }) {
   const [rooms, setRooms]       = useState<Room[]>(initialRooms)
   const [saving, setSaving]     = useState(false)
+  const [view, setView]         = useState<'list' | 'grid'>('grid')
   const [dragId, setDragId]     = useState<string | null>(null)
   const [dragOverId, setDragOverId] = useState<string | null>(null)
   const [q, setQ]               = useState('')
@@ -398,245 +498,352 @@ export default function RoomsClient({
             <X className="h-3.5 w-3.5" /> Clear
           </button>
         )}
+        <div className="ml-auto flex items-center gap-1 p-1 bg-gray-100 rounded-xl">
+          <button
+            onClick={() => setView('list')}
+            title="List view"
+            aria-label="List view"
+            className={`p-1.5 rounded-lg transition-colors ${view === 'list' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+          >
+            <LayoutList className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => setView('grid')}
+            title="Grid view"
+            aria-label="Grid view"
+            className={`p-1.5 rounded-lg transition-colors ${view === 'grid' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
-      {!hasFilter && rooms.length > 1 && (
+      {!hasFilter && rooms.length > 1 && view === 'list' && (
         <p className="text-xs text-gray-400 flex items-center gap-1.5 -mt-2">
           <GripVertical className="h-3.5 w-3.5" /> Drag rows to reorder — order is shown to customers.
         </p>
       )}
 
-      {/* Table */}
-      <div className="card overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
-          <div className="w-1.5 h-4 bg-indigo-500 rounded-full" />
-          <h3 className="font-semibold text-gray-900 text-sm">
-            {hasFilter ? `${filtered.length} room${filtered.length !== 1 ? 's' : ''} found` : 'All Rooms'}
-          </h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px]">
-            <thead className="bg-gray-50/80 border-b border-gray-100">
-              <tr>
-                {!hasFilter && <th className="table-header w-8" />}
-                <th className="table-header">Room</th>
-                <th className="table-header">Type</th>
-                <th className="table-header">Floor</th>
-                <th className="table-header">Capacity</th>
-                <th className="table-header">Price / Night</th>
-                {rangeActive && <th className="table-header">On these dates</th>}
-                <th className="table-header">Status</th>
-                <th className="table-header text-right pr-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {paged.map(room => (
-                <RoomRow
-                  key={room.id}
-                  href={`/hotel-admin/rooms/${room.id}`}
-                  draggable={!hasFilter}
-                  isDragOver={dragOverId === room.id}
-                  onDragStart={handleDragStart(room.id)}
-                  onDragOver={handleDragOver(room.id)}
-                  onDrop={handleDrop(room.id)}
-                  onDragEnd={handleDragEnd}
-                >
-                  {/* Drag handle */}
-                  {!hasFilter && (
-                    <td className="pl-3 pr-0 py-3 w-8" onClick={e => e.stopPropagation()}>
-                      <GripVertical className="h-4 w-4 text-gray-300 cursor-grab" />
-                    </td>
-                  )}
-
-                  {/* Room */}
-                  <td className="table-cell">
-                    <div className="flex items-center gap-3">
-                      {room.images?.[0] ? (
-                        <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border border-gray-100">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={room.images[0]} alt="" className="w-full h-full object-cover" />
-                        </div>
-                      ) : (
-                        <div className={`w-10 h-10 rounded-lg flex-shrink-0 flex items-center justify-center ${
-                          room.status === 'available'   ? 'bg-emerald-50' :
-                          room.status === 'booked'      ? 'bg-blue-50'    :
-                          room.status === 'maintenance' ? 'bg-red-50'     : 'bg-amber-50'
-                        }`}>
-                          <BedDouble className={`h-4 w-4 ${
-                            room.status === 'available'   ? 'text-emerald-400' :
-                            room.status === 'booked'      ? 'text-blue-400'    :
-                            room.status === 'maintenance' ? 'text-red-400'     : 'text-amber-400'
-                          }`} />
-                        </div>
-                      )}
-                      <div>
-                        <p className="font-semibold text-gray-900 text-sm leading-snug">
-                          {room.name ?? `Room ${room.room_number}`}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-0.5">#{room.room_number}</p>
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* Type */}
-                  <td className="table-cell">
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                      {room.room_type?.name ?? '—'}
-                    </span>
-                  </td>
-
-                  {/* Floor */}
-                  <td className="table-cell text-sm text-gray-500">
-                    {room.floor === 0 ? 'Ground' : `Floor ${room.floor}`}
-                  </td>
-
-                  {/* Capacity */}
-                  <td className="table-cell">
-                    <span className="flex items-center gap-1.5 text-sm text-gray-600">
-                      <Users className="h-3.5 w-3.5 text-gray-400" />
-                      {room.room_type?.capacity ?? room.capacity}
-                    </span>
-                  </td>
-
-                  {/* Price */}
-                  <td className="table-cell font-semibold text-gray-900 text-sm">
-                    {formatCurrency(room.price_per_night, currency)}
-                  </td>
-
-                  {/* Availability for the checked dates */}
-                  {rangeActive && (() => {
-                    const taken = occupancy.get(room.id)
-                    return (
-                      <td className="table-cell">
-                        {taken ? (
-                          <>
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200">
-                              <XCircle className="h-3 w-3" /> Booked
-                            </span>
-                            <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[150px]">
-                              {taken.guest} · {fmtShort(taken.checkIn)}–{fmtShort(taken.checkOut)}
-                            </p>
-                          </>
-                        ) : room.status === 'available' ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            <CheckCircle2 className="h-3 w-3" /> Free
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-500 border border-gray-200 capitalize">
-                            {room.status}
-                          </span>
-                        )}
-                      </td>
-                    )
-                  })()}
-
-                  {/* Status */}
-                  <td className="table-cell">
-                    <span className={`${statusBadge[room.status] ?? 'badge-gray'} capitalize`}>
-                      {room.status}
-                    </span>
-                  </td>
-
-                  {/* Actions */}
-                  <ActionsCell>
-                    <RoomStatusToggle roomId={room.id} currentStatus={room.status} />
-                    <Link
-                      href={`/hotel-admin/rooms/${room.id}/edit`}
-                      title="Edit room"
-                      aria-label="Edit room"
-                      className="row-action hover:text-blue-600"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Link>
-                    <DeleteRoomButton roomId={room.id} roomNumber={room.room_number} />
-                  </ActionsCell>
-                </RoomRow>
-              ))}
-
-              {!filtered.length && (
-                <tr>
-                  <td colSpan={(hasFilter ? 7 : 8) + (rangeActive ? 1 : 0)} className="px-4 py-14 text-center">
-                    <BedDouble className="h-9 w-9 text-gray-200 mx-auto mb-3" />
-                    <p className="text-gray-400 text-sm">
-                      {rangeActive && freeOnly
-                        ? `No rooms free for ${fmtShort(availFrom)} – ${fmtShort(availTo)}.`
-                        : hasFilter ? 'No rooms match your filters.' : 'No rooms yet.'}
-                    </p>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {filtered.length > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-4 py-3">
-            <p className="text-xs text-gray-500">
-              Showing{' '}
-              <span className="font-semibold text-gray-700">
-                {start + 1}–{Math.min(start + perPage, filtered.length)}
-              </span>{' '}
-              of <span className="font-semibold text-gray-700">{filtered.length}</span> room
-              {filtered.length !== 1 ? 's' : ''}
-            </p>
-
-            <div className="flex items-center gap-3">
-              <select
-                value={perPage}
-                onChange={e => setPerPage(Number(e.target.value))}
-                aria-label="Rooms per page"
-                className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              >
-                {PER_PAGE_OPTIONS.map(n => (
-                  <option key={n} value={n}>{n} / page</option>
-                ))}
-              </select>
-
-              {totalPages > 1 && (
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setPage(safePage - 1)}
-                    disabled={safePage === 1}
-                    aria-label="Previous page"
-                    className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors disabled:opacity-40 disabled:hover:bg-white"
-                  >
-                    <ChevronLeft className="h-3.5 w-3.5" />
-                  </button>
-
-                  {pageNumbers.map((p, i) =>
-                    p === '…' ? (
-                      <span key={`gap-${i}`} className="px-1 text-xs text-gray-400 select-none">…</span>
-                    ) : (
-                      <button
-                        key={p}
-                        onClick={() => setPage(p)}
-                        aria-current={p === safePage ? 'page' : undefined}
-                        className={`inline-flex items-center justify-center min-w-[1.75rem] h-7 px-2 rounded-lg text-xs font-semibold transition-colors ${
-                          p === safePage
-                            ? 'bg-indigo-600 text-white'
-                            : 'border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                        }`}
-                      >
-                        {p}
-                      </button>
-                    )
-                  )}
-
-                  <button
-                    onClick={() => setPage(safePage + 1)}
-                    disabled={safePage === totalPages}
-                    aria-label="Next page"
-                    className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors disabled:opacity-40 disabled:hover:bg-white"
-                  >
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              )}
-            </div>
+      {/* Rooms: grid or list */}
+      {view === 'grid' ? (
+        <div className="space-y-4">
+          <div className="card px-5 py-3.5 flex items-center gap-2">
+            <div className="w-1.5 h-4 bg-indigo-500 rounded-full" />
+            <h3 className="font-semibold text-gray-900 text-sm">
+              {hasFilter ? `${filtered.length} room${filtered.length !== 1 ? 's' : ''} found` : 'All Rooms'}
+            </h3>
           </div>
-        )}
-      </div>
+
+          {filtered.length === 0 ? (
+            <div className="card py-14 text-center">
+              <BedDouble className="h-9 w-9 text-gray-200 mx-auto mb-3" />
+              <p className="text-gray-400 text-sm">
+                {rangeActive && freeOnly
+                  ? `No rooms free for ${fmtShort(availFrom)} – ${fmtShort(availTo)}.`
+                  : hasFilter ? 'No rooms match your filters.' : 'No rooms yet.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {paged.map(room => (
+                <RoomGridCard
+                  key={room.id}
+                  room={room}
+                  rangeActive={rangeActive}
+                  occupancy={occupancy}
+                  availFrom={availFrom}
+                  availTo={availTo}
+                  currency={currency}
+                />
+              ))}
+            </div>
+          )}
+
+          {filtered.length > 0 && (
+            <div className="card flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+              <p className="text-xs text-gray-500">
+                Showing{' '}
+                <span className="font-semibold text-gray-700">
+                  {start + 1}–{Math.min(start + perPage, filtered.length)}
+                </span>{' '}
+                of <span className="font-semibold text-gray-700">{filtered.length}</span> room
+                {filtered.length !== 1 ? 's' : ''}
+              </p>
+              <div className="flex items-center gap-3">
+                <select
+                  value={perPage}
+                  onChange={e => setPerPage(Number(e.target.value))}
+                  aria-label="Rooms per page"
+                  className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  {PER_PAGE_OPTIONS.map(n => (
+                    <option key={n} value={n}>{n} / page</option>
+                  ))}
+                </select>
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setPage(safePage - 1)}
+                      disabled={safePage === 1}
+                      aria-label="Previous page"
+                      className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors disabled:opacity-40 disabled:hover:bg-white"
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </button>
+                    {pageNumbers.map((p, i) =>
+                      p === '…' ? (
+                        <span key={`gap-${i}`} className="px-1 text-xs text-gray-400 select-none">…</span>
+                      ) : (
+                        <button
+                          key={p}
+                          onClick={() => setPage(p)}
+                          aria-current={p === safePage ? 'page' : undefined}
+                          className={`inline-flex items-center justify-center min-w-[1.75rem] h-7 px-2 rounded-lg text-xs font-semibold transition-colors ${
+                            p === safePage
+                              ? 'bg-indigo-600 text-white'
+                              : 'border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      )
+                    )}
+                    <button
+                      onClick={() => setPage(safePage + 1)}
+                      disabled={safePage === totalPages}
+                      aria-label="Next page"
+                      className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors disabled:opacity-40 disabled:hover:bg-white"
+                    >
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="card overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
+            <div className="w-1.5 h-4 bg-indigo-500 rounded-full" />
+            <h3 className="font-semibold text-gray-900 text-sm">
+              {hasFilter ? `${filtered.length} room${filtered.length !== 1 ? 's' : ''} found` : 'All Rooms'}
+            </h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px]">
+              <thead className="bg-gray-50/80 border-b border-gray-100">
+                <tr>
+                  {!hasFilter && <th className="table-header w-8" />}
+                  <th className="table-header">Room</th>
+                  <th className="table-header">Type</th>
+                  <th className="table-header">Floor</th>
+                  <th className="table-header">Capacity</th>
+                  <th className="table-header">Price / Night</th>
+                  {rangeActive && <th className="table-header">On these dates</th>}
+                  <th className="table-header">Status</th>
+                  <th className="table-header text-right pr-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {paged.map(room => (
+                  <RoomRow
+                    key={room.id}
+                    href={`/hotel-admin/rooms/${room.id}`}
+                    draggable={!hasFilter}
+                    isDragOver={dragOverId === room.id}
+                    onDragStart={handleDragStart(room.id)}
+                    onDragOver={handleDragOver(room.id)}
+                    onDrop={handleDrop(room.id)}
+                    onDragEnd={handleDragEnd}
+                  >
+                    {!hasFilter && (
+                      <td className="pl-3 pr-0 py-3 w-8" onClick={e => e.stopPropagation()}>
+                        <GripVertical className="h-4 w-4 text-gray-300 cursor-grab" />
+                      </td>
+                    )}
+
+                    <td className="table-cell">
+                      <div className="flex items-center gap-3">
+                        {room.images?.[0] ? (
+                          <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border border-gray-100">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={room.images[0]} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className={`w-10 h-10 rounded-lg flex-shrink-0 flex items-center justify-center ${
+                            room.status === 'available'   ? 'bg-emerald-50' :
+                            room.status === 'booked'      ? 'bg-blue-50'    :
+                            room.status === 'maintenance' ? 'bg-red-50'     : 'bg-amber-50'
+                          }`}>
+                            <BedDouble className={`h-4 w-4 ${
+                              room.status === 'available'   ? 'text-emerald-400' :
+                              room.status === 'booked'      ? 'text-blue-400'    :
+                              room.status === 'maintenance' ? 'text-red-400'     : 'text-amber-400'
+                            }`} />
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-semibold text-gray-900 text-sm leading-snug">
+                            {room.name ?? `Room ${room.room_number}`}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-0.5">#{room.room_number}</p>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="table-cell">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                        {room.room_type?.name ?? '—'}
+                      </span>
+                    </td>
+
+                    <td className="table-cell text-sm text-gray-500">
+                      {room.floor === 0 ? 'Ground' : `Floor ${room.floor}`}
+                    </td>
+
+                    <td className="table-cell">
+                      <span className="flex items-center gap-1.5 text-sm text-gray-600">
+                        <Users className="h-3.5 w-3.5 text-gray-400" />
+                        {room.room_type?.capacity ?? room.capacity}
+                      </span>
+                    </td>
+
+                    <td className="table-cell font-semibold text-gray-900 text-sm">
+                      {formatCurrency(room.price_per_night, currency)}
+                    </td>
+
+                    {rangeActive && (() => {
+                      const taken = occupancy.get(room.id)
+                      return (
+                        <td className="table-cell">
+                          {taken ? (
+                            <>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200">
+                                <XCircle className="h-3 w-3" /> Booked
+                              </span>
+                              <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[150px]">
+                                {taken.guest} · {fmtShort(taken.checkIn)}–{fmtShort(taken.checkOut)}
+                              </p>
+                            </>
+                          ) : room.status === 'available' ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              <CheckCircle2 className="h-3 w-3" /> Free
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-500 border border-gray-200 capitalize">
+                              {room.status}
+                            </span>
+                          )}
+                        </td>
+                      )
+                    })()}
+
+                    <td className="table-cell">
+                      <span className={`${statusBadge[room.status] ?? 'badge-gray'} capitalize`}>
+                        {room.status}
+                      </span>
+                    </td>
+
+                    <ActionsCell>
+                      <RoomStatusToggle roomId={room.id} currentStatus={room.status} />
+                      <Link
+                        href={`/hotel-admin/rooms/${room.id}/edit`}
+                        title="Edit room"
+                        aria-label="Edit room"
+                        className="row-action hover:text-blue-600"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Link>
+                      <DeleteRoomButton roomId={room.id} roomNumber={room.room_number} />
+                    </ActionsCell>
+                  </RoomRow>
+                ))}
+
+                {!filtered.length && (
+                  <tr>
+                    <td colSpan={(hasFilter ? 7 : 8) + (rangeActive ? 1 : 0)} className="px-4 py-14 text-center">
+                      <BedDouble className="h-9 w-9 text-gray-200 mx-auto mb-3" />
+                      <p className="text-gray-400 text-sm">
+                        {rangeActive && freeOnly
+                          ? `No rooms free for ${fmtShort(availFrom)} – ${fmtShort(availTo)}.`
+                          : hasFilter ? 'No rooms match your filters.' : 'No rooms yet.'}
+                      </p>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {filtered.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-4 py-3">
+              <p className="text-xs text-gray-500">
+                Showing{' '}
+                <span className="font-semibold text-gray-700">
+                  {start + 1}–{Math.min(start + perPage, filtered.length)}
+                </span>{' '}
+                of <span className="font-semibold text-gray-700">{filtered.length}</span> room
+                {filtered.length !== 1 ? 's' : ''}
+              </p>
+
+              <div className="flex items-center gap-3">
+                <select
+                  value={perPage}
+                  onChange={e => setPerPage(Number(e.target.value))}
+                  aria-label="Rooms per page"
+                  className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  {PER_PAGE_OPTIONS.map(n => (
+                    <option key={n} value={n}>{n} / page</option>
+                  ))}
+                </select>
+
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setPage(safePage - 1)}
+                      disabled={safePage === 1}
+                      aria-label="Previous page"
+                      className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors disabled:opacity-40 disabled:hover:bg-white"
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </button>
+
+                    {pageNumbers.map((p, i) =>
+                      p === '…' ? (
+                        <span key={`gap-${i}`} className="px-1 text-xs text-gray-400 select-none">…</span>
+                      ) : (
+                        <button
+                          key={p}
+                          onClick={() => setPage(p)}
+                          aria-current={p === safePage ? 'page' : undefined}
+                          className={`inline-flex items-center justify-center min-w-[1.75rem] h-7 px-2 rounded-lg text-xs font-semibold transition-colors ${
+                            p === safePage
+                              ? 'bg-indigo-600 text-white'
+                              : 'border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      )
+                    )}
+
+                    <button
+                      onClick={() => setPage(safePage + 1)}
+                      disabled={safePage === totalPages}
+                      aria-label="Next page"
+                      className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors disabled:opacity-40 disabled:hover:bg-white"
+                    >
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
