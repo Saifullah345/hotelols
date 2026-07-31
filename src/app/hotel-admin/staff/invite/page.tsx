@@ -56,6 +56,8 @@ export default function InviteStaffPage() {
     toast.success('Staff member added successfully')
     if (json.emailWarning) toast.warning(json.emailWarning)
     router.push('/hotel-admin/staff')
+    // The list is a server component; refresh it so the new member is there.
+    router.refresh()
   }
 
   return (

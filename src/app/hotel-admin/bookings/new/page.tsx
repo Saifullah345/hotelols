@@ -592,12 +592,17 @@ export default function NewBookingPage() {
     })
   }
 
+  
+  // Payment is only actually taken on the offline flow; an online booking is
+  // paid by the guest afterwards, so it can still be left pending.
+  const paymentTaken = payNow && isOffline
+
   // When payment is collected, status must be confirmed — pending makes no sense.
   useEffect(() => {
-    if (payNow && isOffline) {
+    if (paymentTaken) {
       offlineForm.setValue('status', 'confirmed')
     }
-  }, [payNow, isOffline]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [paymentTaken]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -657,10 +662,15 @@ export default function NewBookingPage() {
         </div>
         <div>
           <label className="label">Status</label>
-          <select {...reg('status')} className="input">
+          {/* Money already taken means the booking is confirmed. Offering
+              "Pending" here let the two contradict each other. */}
+          <select {...reg('status')} className="input" disabled={paymentTaken}>
             <option value="confirmed">Confirmed</option>
-            <option value="pending">Pending</option>
+            {!paymentTaken && <option value="pending">Pending</option>}
           </select>
+          {paymentTaken && (
+            <p className="text-xs text-gray-400 mt-1">Confirmed automatically — payment is being collected now.</p>
+          )}
         </div>
         <div className="md:col-span-2">
           <label className="label">Special Requests <span className="text-gray-400 font-normal">(optional)</span></label>

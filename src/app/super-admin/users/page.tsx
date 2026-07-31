@@ -9,6 +9,10 @@ import AutoFilterForm from '@/components/ui/AutoFilterForm'
 
 export const metadata = { title: 'Users' }
 
+// Read through to the database on every visit — a user added a moment ago has
+// to be on the list, not whatever the last render happened to contain.
+export const dynamic = 'force-dynamic'
+
 const roleBadge: Record<UserRole, string> = {
   super_admin: 'badge-red',
   hotel_admin: 'badge-blue',
@@ -27,10 +31,12 @@ export default async function UsersPage({
   const pageSize = 10
   const currentPage = Math.max(1, parseInt(page ?? '1'))
 
+  // Newest account first, so someone just added is at the top of page 1.
   const { data: allUsers } = await supabase
     .from('profiles')
-    .select('id, full_name, email, role, created_at, tenant_id, city, country')
+    .select('id, full_name, email, role, created_at, tenant_id, city, country, avatar_url')
     .order('created_at', { ascending: false })
+    .order('id', { ascending: false })   // stable tiebreak for identical timestamps
 
   const query = q?.trim().toLowerCase()
   const users = query
@@ -123,11 +129,25 @@ export default async function UsersPage({
               <tr key={user.id} className="hover:bg-gray-50">
                 <td className="table-cell">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 text-sm font-semibold">
-                      {user.full_name?.[0]?.toUpperCase() ?? <User className="h-4 w-4" />}
-                    </div>
+                    {/* Their own photo when they've uploaded one; otherwise an
+                        initial from the name, falling back to the email — a
+                        profile starts life with an empty name. */}
+                    {user.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={user.avatar_url}
+                        alt=""
+                        className="w-8 h-8 shrink-0 rounded-full border border-gray-200 object-cover"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 shrink-0 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 text-sm font-semibold">
+                        {user.full_name?.trim()?.[0]?.toUpperCase()
+                          ?? user.email?.trim()?.[0]?.toUpperCase()
+                          ?? <User className="h-4 w-4" />}
+                      </div>
+                    )}
                     <div>
-                      <p className="font-medium text-gray-900">{user.full_name}</p>
+                      <p className="font-medium text-gray-900">{user.full_name?.trim() || user.email}</p>
                       <p className="text-xs text-gray-500">{user.email}</p>
                       {(user.city || user.country) && (
                         <p className="text-xs text-gray-400">{[user.city, user.country].filter(Boolean).join(', ')}</p>
