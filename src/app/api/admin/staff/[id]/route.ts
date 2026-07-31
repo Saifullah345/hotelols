@@ -1,14 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { nameSchema, phoneSchema } from '@/lib/validation'
 
 type Ctx = { params: Promise<{ id: string }> }
 
-const ALLOWED_PERMISSIONS = [
-  'rooms:read', 'rooms:write',
-  'bookings:read', 'bookings:write',
-  'payments:read', 'checkin:manage',
-]
+const ALLOWED_SHIFTS   = ['Morning', 'Evening', 'Night']
+const ALLOWED_STATUSES = ['active', 'on_leave', 'inactive']
 
 /** The caller must be an admin of the hotel the staff member belongs to. */
 async function authorise(staffId: string) {
@@ -41,66 +37,48 @@ export async function PATCH(request: Request, { params }: Ctx) {
   const { admin, member } = auth
 
   const body = await request.json().catch(() => ({}))
-  const { full_name, phone, department, position, permissions, is_active } = body
+  const { name, email, phone, department, position, shift, salary, status } = body
 
-  // ── Staff record ──────────────────────────────────────────────────
-  const staffUpdates: Record<string, unknown> = {}
+  const updates: Record<string, unknown> = {}
+
+  if (name !== undefined)
+    updates.name = typeof name === 'string' ? name.trim() || null : null
+
+  if (email !== undefined)
+    updates.email = typeof email === 'string' && email.trim() ? email.trim() : null
+
+  if (phone !== undefined)
+    updates.phone = typeof phone === 'string' && phone.trim() ? phone.trim() : null
 
   if (department !== undefined) {
-    if (typeof department !== 'string' || !department.trim()) {
+    if (typeof department !== 'string' || !department.trim())
       return NextResponse.json({ error: 'Department is required' }, { status: 400 })
-    }
-    staffUpdates.department = department.trim()
+    updates.department = department.trim()
   }
 
   if (position !== undefined) {
     const trimmed = typeof position === 'string' ? position.trim() : ''
-    if (!trimmed || !/[A-Za-z]/.test(trimmed)) {
-      return NextResponse.json({ error: 'Position must be a descriptive name' }, { status: 400 })
-    }
-    staffUpdates.position = trimmed
+    if (!trimmed) return NextResponse.json({ error: 'Position is required' }, { status: 400 })
+    updates.position = trimmed
   }
 
-  if (permissions !== undefined) {
-    if (!Array.isArray(permissions)) {
-      return NextResponse.json({ error: 'Permissions must be a list' }, { status: 400 })
-    }
-    const cleaned = Array.from(new Set(permissions.filter(
-      (p: unknown): p is string => typeof p === 'string' && ALLOWED_PERMISSIONS.includes(p),
-    )))
-    if (!cleaned.length) {
-      return NextResponse.json({ error: 'Give the staff member at least one permission' }, { status: 400 })
-    }
-    staffUpdates.permissions = cleaned
+  if (shift !== undefined)
+    updates.shift = ALLOWED_SHIFTS.includes(shift) ? shift : null
+
+  if (salary !== undefined) {
+    const n = parseFloat(salary)
+    updates.salary = isNaN(n) || n < 0 ? 0 : n
   }
 
-  if (is_active !== undefined) staffUpdates.is_active = !!is_active
-
-  if (Object.keys(staffUpdates).length) {
-    const { error } = await admin.from('staff').update(staffUpdates).eq('id', id)
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  if (status !== undefined) {
+    if (!ALLOWED_STATUSES.includes(status))
+      return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+    updates.status    = status
+    updates.is_active = status !== 'inactive'
   }
 
-  // ── Their profile ─────────────────────────────────────────────────
-  // Hotel admins can read but not write another user's profile under RLS, so
-  // the name and phone are updated here with the service-role client.
-  const profileUpdates: Record<string, unknown> = {}
-
-  if (full_name !== undefined) {
-    const check = nameSchema.safeParse(full_name)
-    if (!check.success) return NextResponse.json({ error: check.error.issues[0].message }, { status: 400 })
-    profileUpdates.full_name = check.data
-  }
-  if (phone !== undefined && phone !== null && phone !== '') {
-    const check = phoneSchema.safeParse(phone)
-    if (!check.success) return NextResponse.json({ error: check.error.issues[0].message }, { status: 400 })
-    profileUpdates.phone = check.data
-  } else if (phone === '' || phone === null) {
-    profileUpdates.phone = null
-  }
-
-  if (Object.keys(profileUpdates).length) {
-    const { error } = await admin.from('profiles').update(profileUpdates).eq('id', member.user_id)
+  if (Object.keys(updates).length) {
+    const { error } = await admin.from('staff').update(updates).eq('id', id)
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   }
 
@@ -113,17 +91,12 @@ export async function DELETE(_request: Request, { params }: Ctx) {
   if (auth.error) return auth.error
   const { admin, member, user } = auth
 
-  // An admin removing themselves would lock the hotel out of its own dashboard.
   if (member.user_id === user.id) {
     return NextResponse.json({ error: 'You cannot remove your own account' }, { status: 400 })
   }
 
-  // Deleting the login cascades to the profile and the staff row, so the
-  // account can't linger with a dashboard it no longer belongs to. If that
-  // fails (a record still references them), nothing has changed yet.
   const { error: authError } = await admin.auth.admin.deleteUser(member.user_id)
   if (authError) {
-    // Fall back to taking them off the roster and switching the login off.
     const { error: staffError } = await admin.from('staff').delete().eq('id', id)
     if (staffError) return NextResponse.json({ error: staffError.message }, { status: 400 })
     return NextResponse.json({
