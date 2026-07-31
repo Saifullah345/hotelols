@@ -12,6 +12,10 @@ import {
 import BookingActions from './BookingActions'
 import { formatCurrency } from '@/lib/currency'
 import { todayISO } from '@/lib/date'
+import { groupByStay, stayKey, distributeGuests, assignRoomsToRows, roomSetChanged } from '@/lib/booking'
+import { guestLabel, guestContact } from '@/lib/guest'
+import GuestAvatar from '@/components/admin/GuestAvatar'
+import RoomPicker from '@/components/admin/RoomPicker'
 import { DATE_RANGES, resolveDateWindow, inWindow } from '@/lib/dateRange'
 import DateRangeChips from '@/components/admin/DateRangeChips'
 import Pagination from '@/components/admin/Pagination'
@@ -43,9 +47,41 @@ type Booking = {
   special_requests: string | null
   guest_name: string | null
   guest_phone: string | null
+  user_id: string | null
   room_ids: string[] | null
-  user: { full_name?: string; email?: string } | null
+  user: { full_name?: string; email?: string; avatar_url?: string | null } | null
   room: BookingRoom | null
+}
+
+/**
+ * One row per stay, not per room. Rooms booked together share a single booking
+ * row now, but older reservations put each room on its own row — the same guest,
+ * hotel, dates and status is one booking as far as the desk is concerned.
+ */
+type Stay = {
+  key: string
+  bookings: Booking[]
+  primary: Booking
+  roomCount: number
+  roomNames: string[]
+  total: number
+  adults: number
+  children: number
+}
+
+function toStays(list: Booking[]): Stay[] {
+  return groupByStay(list).map(bookings => ({
+    key:       stayKey(bookings[0]),
+    bookings,
+    primary:   bookings[0],
+    // A row can itself hold several rooms; only its primary room is embedded,
+    // so the names are what we can show and the count is what's really booked.
+    roomCount: bookings.reduce((s, b) => s + Math.max(1, b.room_ids?.length ?? 1), 0),
+    roomNames: bookings.map(b => b.room?.name ?? `Room ${b.room?.room_number ?? '—'}`),
+    total:     bookings.reduce((s, b) => s + Number(b.total_amount ?? 0), 0),
+    adults:    bookings.reduce((s, b) => s + (b.adults ?? 0), 0),
+    children:  bookings.reduce((s, b) => s + (b.children ?? 0), 0),
+  }))
 }
 
 // ── Config ─────────────────────────────────────────────────────────
@@ -63,10 +99,6 @@ const SOURCES = [
   { value: 'online',   label: 'Online',   icon: Globe,         cls: 'text-purple-600 bg-purple-50 border-purple-200' },
 ]
 
-const avatarColor = (name: string) => {
-  const colors = ['bg-blue-500','bg-violet-500','bg-emerald-500','bg-orange-500','bg-pink-500','bg-cyan-500']
-  return colors[(name.charCodeAt(0) ?? 0) % colors.length]
-}
 
 const calcNights = (ci: string, co: string) =>
   Math.max(1, Math.ceil((new Date(co).getTime() - new Date(ci).getTime()) / 86_400_000))
@@ -75,51 +107,134 @@ const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 
 // ── Edit Modal ─────────────────────────────────────────────────────
-function EditBookingModal({ booking, currency, onClose, onSaved }: {
-  booking: Booking
+function EditBookingModal({ stay, currency, rooms, allBookings, onClose, onSaved }: {
+  stay: Stay
   currency: string
+  rooms: RoomOption[]
+  allBookings: Booking[]
   onClose: () => void
   onSaved: () => void
 }) {
+  const booking = stay.primary
   const isOffline = !booking.user
+
+  // Every room across the stay, in booking order. A row can hold several rooms
+  // while embedding only its primary one, so the ids come from `room_ids`.
+  const originalRoomIds = useMemo(
+    () => stay.bookings.flatMap(b => (b.room_ids?.length ? b.room_ids : b.room ? [b.room.id] : [])),
+    [stay],
+  )
 
   const [checkIn,    setCheckIn]    = useState(booking.check_in.slice(0, 10))
   const [checkOut,   setCheckOut]   = useState(booking.check_out.slice(0, 10))
-  const [adults,     setAdults]     = useState(booking.adults)
-  const [children,   setChildren]   = useState(booking.children)
+  const [roomIds,    setRoomIds]    = useState<string[]>(originalRoomIds)
+  const [adults,     setAdults]     = useState(stay.adults)
+  const [children,   setChildren]   = useState(stay.children)
   const [source,     setSource]     = useState(booking.source ?? 'walk_in')
   const [guestName,  setGuestName]  = useState(booking.guest_name ?? '')
   const [guestPhone, setGuestPhone] = useState(booking.guest_phone ?? '')
   const [notes,      setNotes]      = useState(booking.special_requests ?? '')
   const [saving,     setSaving]     = useState(false)
 
-  const pricePerNight = booking.room?.price_per_night ?? 0
+  const roomById = useMemo(() => new Map(rooms.map(r => [r.id, r])), [rooms])
+  const chosen   = roomIds.map(id => roomById.get(id)).filter(Boolean) as RoomOption[]
+
+  // Rooms held by someone else over the chosen nights can't be offered. The API
+  // re-checks this, so a stale list here can only be conservative.
+  const stayIds  = useMemo(() => new Set(stay.bookings.map(b => b.id)), [stay])
+  const takenIds = useMemo(() => {
+    const taken = new Set<string>()
+    if (!checkIn || !checkOut) return taken
+    for (const b of allBookings) {
+      if (stayIds.has(b.id)) continue
+      if (!['pending', 'confirmed', 'checked_in'].includes(b.status)) continue
+      if (!(b.check_in < checkOut && b.check_out > checkIn)) continue
+      for (const rid of (b.room_ids?.length ? b.room_ids : b.room ? [b.room.id] : [])) taken.add(rid)
+    }
+    return taken
+  }, [allBookings, stayIds, checkIn, checkOut])
+
+  // Priced off what's actually selected, so swaps and removals show immediately.
+  const pricePerNight = chosen.reduce((s, r) => s + Number(r.price_per_night ?? 0), 0)
   const n = checkIn && checkOut && new Date(checkOut) > new Date(checkIn)
     ? calcNights(checkIn, checkOut) : 0
   const newTotal = n * pricePerNight
 
+  const roomsChanged = roomSetChanged(roomIds, originalRoomIds)
+
   const save = async () => {
     if (!checkIn || !checkOut) { toast.error('Please set both check-in and check-out dates'); return }
     if (new Date(checkOut) <= new Date(checkIn)) { toast.error('Check-out must be after check-in'); return }
+    if (!roomIds.length) { toast.error('Keep at least one room, or delete the booking'); return }
+
+    // Rooms are edited as one pool, then mapped back onto the rows they came from.
+    const ownRoomsOf = (b: Booking) => b.room_ids?.length ? b.room_ids : b.room ? [b.room.id] : []
+    const rowRooms   = assignRoomsToRows(stay.bookings.map(ownRoomsOf), roomIds)
+
+    if (!rowRooms.some(list => list.length)) {
+      toast.error('Keep at least one room, or delete the booking'); return
+    }
+
+    // Guest counts are per row. Only redistribute them when the desk actually
+    // changed the total — otherwise each room keeps the party it was booked for.
+    const adultsTouched   = adults   !== stay.adults
+    const childrenTouched = children !== stay.children
+    const surviving = stay.bookings.filter((_, i) => rowRooms[i].length > 0)
+    const caps = surviving.map((_, i) => {
+      const list = rowRooms[stay.bookings.indexOf(surviving[i])]
+      const cap = list.reduce((s, id) => s + (roomById.get(id)?.capacity ?? 0), 0)
+      return cap > 0 ? cap : Number.MAX_SAFE_INTEGER
+    })
+    const adultSplit = adultsTouched   ? distributeGuests(adults, caps, 1)   : []
+    const childSplit = childrenTouched ? distributeGuests(children, caps, 0) : []
 
     setSaving(true)
-    const res = await fetch(`/api/bookings/${booking.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        check_in: checkIn,
-        check_out: checkOut,
-        adults,
-        children,
-        source,
-        special_requests: notes || null,
-        ...(isOffline ? { guest_name: guestName || null, guest_phone: guestPhone || null } : {}),
-      }),
-    })
-    const json = await res.json()
+    let saved = 0
+    let survivorIndex = 0
+
+    for (const [i, b] of stay.bookings.entries()) {
+      // A row that lost every room has nothing left to hold.
+      if (!rowRooms[i].length) {
+        const res = await fetch(`/api/bookings/${b.id}`, { method: 'DELETE' })
+        const json = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          setSaving(false)
+          toast.error(json.error ?? 'Failed to remove the room')
+          if (saved) onSaved()
+          return
+        }
+        saved++
+        continue
+      }
+
+      const j = survivorIndex++
+      const ownChanged = roomSetChanged(rowRooms[i], ownRoomsOf(b))
+
+      const res = await fetch(`/api/bookings/${b.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          check_in: checkIn,
+          check_out: checkOut,
+          ...(ownChanged      ? { room_ids: rowRooms[i] } : {}),
+          ...(adultsTouched   ? { adults:   adultSplit[j] } : {}),
+          ...(childrenTouched ? { children: childSplit[j] } : {}),
+          source,
+          special_requests: notes || null,
+          ...(isOffline ? { guest_name: guestName || null, guest_phone: guestPhone || null } : {}),
+        }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setSaving(false)
+        toast.error(json.error ?? 'Failed to update booking')
+        if (saved) onSaved()   // keep whatever already saved on screen
+        return
+      }
+      saved++
+    }
     setSaving(false)
-    if (!res.ok) { toast.error(json.error ?? 'Failed to update booking'); return }
-    toast.success('Booking updated')
+    toast.success(roomIds.length > 1 ? `Booking updated · ${roomIds.length} rooms` : 'Booking updated')
     onSaved()
   }
 
@@ -133,12 +248,12 @@ function EditBookingModal({ booking, currency, onClose, onSaved }: {
           <div>
             <h3 className="text-base font-bold text-gray-900">Edit Booking</h3>
             <p className="text-xs text-gray-500 mt-0.5">
-              {booking.user?.full_name ?? booking.guest_name ?? 'Guest'}
-              {booking.room && (
-                <span className="ml-1.5 text-gray-400">
-                  · {booking.room.name ?? `Room ${booking.room.room_number}`}
-                </span>
-              )}
+              {guestLabel(booking)}
+              <span className="ml-1.5 text-gray-400">
+                · {stay.roomCount > 1
+                    ? `${stay.roomCount} rooms`
+                    : (booking.room?.name ?? `Room ${booking.room?.room_number ?? '—'}`)}
+              </span>
             </p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors">
@@ -190,6 +305,16 @@ function EditBookingModal({ booking, currency, onClose, onSaved }: {
               </div>
             )}
           </div>
+
+          {/* Rooms — remove, swap or add */}
+          <RoomPicker
+            rooms={rooms}
+            selected={roomIds}
+            taken={takenIds}
+            currency={currency}
+            onChange={setRoomIds}
+            changed={roomsChanged}
+          />
 
           {/* Guests */}
           <div className="space-y-2">
@@ -259,22 +384,31 @@ function EditBookingModal({ booking, currency, onClose, onSaved }: {
 }
 
 // ── Delete Confirm ─────────────────────────────────────────────────
-function DeleteConfirmModal({ booking, onClose, onDeleted }: {
-  booking: Booking; onClose: () => void; onDeleted: () => void
+function DeleteConfirmModal({ stay, onClose, onDeleted }: {
+  stay: Stay; onClose: () => void; onDeleted: () => void
 }) {
+  const booking = stay.primary
   const [deleting, setDeleting] = useState(false)
 
   const del = async () => {
     setDeleting(true)
-    const res = await fetch(`/api/bookings/${booking.id}`, { method: 'DELETE' })
-    const json = await res.json()
+    // A stay spread over several rows is deleted as a whole — leaving one row
+    // behind would resurrect it as a phantom one-room booking.
+    for (const b of stay.bookings) {
+      const res = await fetch(`/api/bookings/${b.id}`, { method: 'DELETE' })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setDeleting(false)
+        toast.error(json.error ?? 'Failed to delete booking')
+        return
+      }
+    }
     setDeleting(false)
-    if (!res.ok) { toast.error(json.error ?? 'Failed to delete booking'); return }
-    toast.success('Booking deleted')
+    toast.success(stay.bookings.length > 1 ? `Booking deleted · ${stay.roomCount} rooms` : 'Booking deleted')
     onDeleted()
   }
 
-  const guest = booking.user?.full_name ?? booking.guest_name ?? 'Guest'
+  const guest = guestLabel(booking)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -293,6 +427,12 @@ function DeleteConfirmModal({ booking, onClose, onDeleted }: {
         <p className="text-sm text-gray-500 text-center mb-6">
           {fmtDate(booking.check_in)} → {fmtDate(booking.check_out)}
           <br />
+          {stay.roomCount > 1 && (
+            <span className="text-xs font-medium text-gray-600">
+              All {stay.roomCount} rooms on this booking will be deleted.
+              <br />
+            </span>
+          )}
           <span className="text-xs">This cannot be undone.</span>
         </p>
         <div className="flex gap-3">
@@ -336,8 +476,8 @@ export default function BookingsClient({
   // click away on the range chips.
   const [dateRange, setDateRange] = useState('today')
   const [q, setQ]                 = useState('')
-  const [editing, setEditing]     = useState<Booking | null>(null)
-  const [deleting, setDeleting]   = useState<Booking | null>(null)
+  const [editingKey, setEditingKey]   = useState<string | null>(null)
+  const [deletingKey, setDeletingKey] = useState<string | null>(null)
 
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo]     = useState('')
@@ -358,8 +498,8 @@ export default function BookingsClient({
         if (statusTab !== 'all' && b.status !== statusTab) return false
         if (!inWindow(b.created_at, bookedWindow)) return false
         if (lq) {
-          const guest = (b.user?.full_name ?? b.guest_name ?? '').toLowerCase()
-          const phone = (b.user?.email ?? b.guest_phone ?? '').toLowerCase()
+          const guest = guestLabel(b).toLowerCase()
+          const phone = `${b.user?.email ?? ''} ${b.guest_phone ?? ''}`.toLowerCase()
           const room  = (b.room?.room_number ?? '').toLowerCase()
           if (!guest.includes(lq) && !phone.includes(lq) && !room.includes(lq)) return false
         }
@@ -370,6 +510,10 @@ export default function BookingsClient({
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
   }, [bookings, statusTab, bookedWindow, q])
 
+  // Rooms booked for the same guest, dates and status are one reservation on
+  // the list — grouped after filtering so a filter can't split a stay in half.
+  const stays = useMemo(() => toStays(filtered), [filtered])
+
   // ── Pagination ────────────────────────────────────────────────────
   const [page, setPage]       = useState(1)
   const [perPage, setPerPage] = useState(10)
@@ -378,38 +522,47 @@ export default function BookingsClient({
   useEffect(() => { setPage(1) }, [q, statusTab, dateRange, customFrom, customTo, perPage])
 
   // Clamp instead of storing — the list can shrink under us (delete + refresh)
-  const safePage = Math.min(page, Math.max(1, Math.ceil(filtered.length / perPage)))
-  const paged    = filtered.slice((safePage - 1) * perPage, (safePage - 1) * perPage + perPage)
+  const safePage = Math.min(page, Math.max(1, Math.ceil(stays.length / perPage)))
+  const paged    = stays.slice((safePage - 1) * perPage, (safePage - 1) * perPage + perPage)
+
+  const editingStay  = stays.find(s => s.key === editingKey)  ?? null
+  const deletingStay = stays.find(s => s.key === deletingKey) ?? null
+
+  // Every count on screen is in stays too, so the chips agree with the rows.
+  const allStays = useMemo(() => toStays(bookings), [bookings])
 
   // Counts shown on each range chip, so the volume is visible before clicking.
   const rangeCounts = useMemo(() => {
     const out: Record<string, number> = {}
     for (const r of DATE_RANGES) {
       const w = resolveDateWindow(r.key, today)
-      out[r.key] = bookings.filter(b => inWindow(b.created_at, w)).length
+      out[r.key] = allStays.filter(s => inWindow(s.primary.created_at, w)).length
     }
     return out
-  }, [bookings, today])
+  }, [allStays, today])
 
   const startOfToday = useMemo(() => new Date(`${today}T00:00:00`).getTime(), [today])
 
   const counts = useMemo(() => ({
-    pending:    bookings.filter(b => b.status === 'pending').length,
-    confirmed:  bookings.filter(b => b.status === 'confirmed').length,
-    checked_in: bookings.filter(b => b.status === 'checked_in').length,
-    today:      bookings.filter(b => bookedOnOrAfter(b, startOfToday)).length,
-  }), [bookings, startOfToday])
+    pending:    allStays.filter(s => s.primary.status === 'pending').length,
+    confirmed:  allStays.filter(s => s.primary.status === 'confirmed').length,
+    checked_in: allStays.filter(s => s.primary.status === 'checked_in').length,
+    today:      allStays.filter(s => bookedOnOrAfter(s.primary, startOfToday)).length,
+  }), [allStays, startOfToday])
 
   const refresh = () => router.refresh()
 
   const onSaved = () => {
-    setEditing(null)
+    setEditingKey(null)
     refresh()
   }
 
   const onDeleted = () => {
-    if (deleting) setBookings(bs => bs.filter(b => b.id !== deleting.id))
-    setDeleting(null)
+    if (deletingStay) {
+      const gone = new Set(deletingStay.bookings.map(b => b.id))
+      setBookings(bs => bs.filter(b => !gone.has(b.id)))
+    }
+    setDeletingKey(null)
   }
 
   return (
@@ -425,7 +578,7 @@ export default function BookingsClient({
           <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h2 className="text-2xl font-extrabold text-white leading-tight">Bookings</h2>
-              <p className="text-indigo-300 text-sm mt-0.5">{bookings.length} total reservations</p>
+              <p className="text-indigo-300 text-sm mt-0.5">{allStays.length} total reservations</p>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
               {/* Booked today — clicking it jumps straight to that filter. */}
@@ -517,7 +670,7 @@ export default function BookingsClient({
 
           {/* What the table is currently showing */}
           <p className="text-xs text-gray-400">
-            {filtered.length} of {bookings.length} booking{bookings.length === 1 ? '' : 's'} match · newest first
+            {stays.length} of {allStays.length} booking{allStays.length === 1 ? '' : 's'} match · newest first
             {dateRange === 'custom'
               ? (customFrom || customTo) && ` · booked ${customFrom || 'any'} → ${customTo || 'today'}`
               : dateRange !== 'all' && ` · ${DATE_RANGES.find(r => r.key === dateRange)?.label.toLowerCase()}`}
@@ -541,20 +694,24 @@ export default function BookingsClient({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {paged.map(b => {
-                  const guest    = b.user?.full_name ?? b.guest_name ?? 'Guest'
-                  const contact  = b.user?.email ?? b.guest_phone ?? ''
-                  const initial  = guest.charAt(0).toUpperCase()
+                {paged.map(stay => {
+                  const b        = stay.primary
+                  const guest    = guestLabel(b)
+                  const contact  = guestContact(b)
                   const n        = calcNights(b.check_in, b.check_out)
                   const srcObj   = SOURCES.find(s => s.value === b.source) ?? SOURCES[0]
                   const SrcIcon  = srcObj.icon
+                  const multi    = stay.roomCount > 1
                   const roomName = b.room?.name ?? `Room ${b.room?.room_number}`
                   const typeName = (b.room?.room_type as { name?: string } | null)?.name
+                  // Rows show their own room; rooms sharing a row aren't embedded.
+                  const namedRooms  = stay.roomNames.join(', ')
+                  const unnamedCount = stay.roomCount - stay.roomNames.length
                   const bookedToday = bookedOnOrAfter(b, startOfToday)
 
                   return (
                     <tr
-                      key={b.id}
+                      key={stay.key}
                       onClick={() => router.push(`/hotel-admin/bookings/${b.id}`)}
                       className="hover:bg-blue-50/30 cursor-pointer transition-colors"
                     >
@@ -562,9 +719,7 @@ export default function BookingsClient({
                       {/* Guest */}
                       <td className="table-cell">
                         <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ${avatarColor(guest)}`}>
-                            {initial}
-                          </div>
+                          <GuestAvatar guest={b} />
                           <div>
                             <p className="font-semibold text-gray-900 text-sm">{guest}</p>
                             {contact && <p className="text-xs text-gray-400 mt-0.5">{contact}</p>}
@@ -572,20 +727,21 @@ export default function BookingsClient({
                         </div>
                       </td>
 
-                      {/* Room */}
-                      <td className="table-cell">
-                        <p className="text-sm font-medium text-gray-900">{roomName}</p>
+                      {/* Room(s) */}
+                      <td className="table-cell max-w-[220px]">
+                        <p className="text-sm font-medium text-gray-900">
+                          {multi ? `${stay.roomCount} rooms` : roomName}
+                        </p>
                         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                          {typeName && (
+                          {multi ? (
+                            <span className="text-[11px] text-gray-500 truncate" title={namedRooms}>
+                              {namedRooms}{unnamedCount > 0 ? ` +${unnamedCount}` : ''}
+                            </span>
+                          ) : typeName ? (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-500">
                               {typeName}
                             </span>
-                          )}
-                          {b.room_ids && b.room_ids.length > 1 && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-100 text-blue-600">
-                              +{b.room_ids.length - 1} more
-                            </span>
-                          )}
+                          ) : null}
                         </div>
                       </td>
 
@@ -625,10 +781,10 @@ export default function BookingsClient({
 
                       {/* Amount */}
                       <td className="table-cell">
-                        <p className="font-bold text-gray-900 text-sm">{formatCurrency(b.total_amount, currency)}</p>
+                        <p className="font-bold text-gray-900 text-sm">{formatCurrency(stay.total, currency)}</p>
                         <p className="text-xs text-gray-400 mt-0.5">
                           <Users className="h-2.5 w-2.5 inline mr-0.5" />
-                          {b.adults + b.children} guest{b.adults + b.children !== 1 ? 's' : ''}
+                          {stay.adults + stay.children} guest{stay.adults + stay.children !== 1 ? 's' : ''}
                         </p>
                       </td>
 
@@ -650,26 +806,27 @@ export default function BookingsClient({
                             <Eye className="h-3.5 w-3.5" />
                           </Link>
                           <button
-                            onClick={() => setEditing(b)}
-                            title="Edit booking"
+                            onClick={() => setEditingKey(stay.key)}
+                            title={multi ? `Edit all ${stay.roomCount} rooms` : 'Edit booking'}
                             className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
                           <button
-                            onClick={() => setDeleting(b)}
-                            title="Delete booking"
+                            onClick={() => setDeletingKey(stay.key)}
+                            title={multi ? `Delete all ${stay.roomCount} rooms` : 'Delete booking'}
                             className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                           <BookingActions
-                            bookingId={b.id}
+                            bookingIds={stay.bookings.map(bk => bk.id)}
                             currentStatus={b.status}
                             onStatusChange={newStatus =>
-                              setBookings(bs =>
-                                bs.map(bk => bk.id === b.id ? { ...bk, status: newStatus } : bk)
-                              )
+                              setBookings(bs => {
+                                const ids = new Set(stay.bookings.map(bk => bk.id))
+                                return bs.map(bk => ids.has(bk.id) ? { ...bk, status: newStatus } : bk)
+                              })
                             }
                           />
                         </div>
@@ -678,7 +835,7 @@ export default function BookingsClient({
                   )
                 })}
 
-                {!filtered.length && (
+                {!stays.length && (
                   <tr>
                     <td colSpan={8} className="px-4 py-16 text-center">
                       <Calendar className="h-9 w-9 text-gray-200 mx-auto mb-3" />
@@ -709,25 +866,27 @@ export default function BookingsClient({
             onPage={setPage}
             perPage={perPage}
             onPerPage={setPerPage}
-            total={filtered.length}
+            total={stays.length}
             noun="booking"
           />
         </div>
       </div>
 
-      {editing && (
+      {editingStay && (
         <EditBookingModal
-          booking={editing}
+          stay={editingStay}
           currency={currency}
-          onClose={() => setEditing(null)}
+          rooms={rooms}
+          allBookings={bookings}
+          onClose={() => setEditingKey(null)}
           onSaved={onSaved}
         />
       )}
 
-      {deleting && (
+      {deletingStay && (
         <DeleteConfirmModal
-          booking={deleting}
-          onClose={() => setDeleting(null)}
+          stay={deletingStay}
+          onClose={() => setDeletingKey(null)}
           onDeleted={onDeleted}
         />
       )}

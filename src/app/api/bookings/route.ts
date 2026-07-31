@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { isProfileComplete, missingProfileFields, PROFILE_INCOMPLETE } from '@/lib/profile'
 
 export async function GET(request: Request) {
   const supabase = await createClient()
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
 
   // Only customer accounts can create bookings
   const { data: callerProfile } = await supabase
-    .from('profiles').select('role').eq('id', user.id).single()
+    .from('profiles').select('role, full_name, phone').eq('id', user.id).single()
   if (callerProfile?.role && callerProfile.role !== 'customer') {
     return NextResponse.json(
       { error: 'Admin and staff accounts cannot make bookings. Please use a customer account.' },
@@ -43,46 +44,103 @@ export async function POST(request: Request) {
     )
   }
 
-  const body = await request.json()
-  const { check_in, check_out, room_id, hotel_id, guests, adults, children } = body
+  // The hotel has to be able to reach the guest. Enforced here as well as in the
+  // UI, so the rule holds however the booking was submitted.
+  if (!isProfileComplete(callerProfile)) {
+    return NextResponse.json(
+      {
+        error: `Add your ${missingProfileFields(callerProfile).join(' and ')} to your profile before booking.`,
+        code: PROFILE_INCOMPLETE,
+      },
+      { status: 422 },
+    )
+  }
 
+  const body = await request.json()
+  const { check_in, check_out, room_id, room_ids, hotel_id, guests, adults, children, special_requests } = body
+
+  // Several rooms booked in one go stay ONE reservation — `room_ids` carries
+  // them all and the `booking_room_ids_sync` trigger keeps `room_id` in step.
+  const roomIds: string[] = Array.from(
+    new Set<string>(
+      (Array.isArray(room_ids) && room_ids.length ? room_ids : [room_id]).filter(
+        (r: unknown): r is string => typeof r === 'string' && r.length > 0,
+      ),
+    ),
+  )
+
+  if (!roomIds.length || !hotel_id || !check_in || !check_out) {
+    return NextResponse.json(
+      { error: 'At least one room, hotel, check-in and check-out are required' },
+      { status: 400 },
+    )
+  }
+  if (new Date(check_out) <= new Date(check_in)) {
+    return NextResponse.json({ error: 'Check-out must be after check-in' }, { status: 400 })
+  }
+
+  // `overlaps` matches a room wherever it appears on another booking, not just
+  // as that booking's primary room.
   const { data: conflicting } = await supabase
     .from('bookings')
     .select('id')
-    .eq('room_id', room_id)
+    .overlaps('room_ids', roomIds)
     .in('status', ['confirmed', 'checked_in'])
     .lt('check_in', check_out)
     .gt('check_out', check_in)
 
   if (conflicting && conflicting.length > 0) {
-    return NextResponse.json({ error: 'Room is not available for selected dates' }, { status: 409 })
+    return NextResponse.json(
+      { error: `${roomIds.length > 1 ? 'One or more rooms are' : 'Room is'} not available for selected dates` },
+      { status: 409 },
+    )
   }
 
-  const { data: room } = await supabase
+  const { data: rooms } = await supabase
     .from('rooms')
-    .select('price_per_night, room_number, capacity, max_adults, max_children')
-    .eq('id', room_id)
-    .single()
+    .select('id, hotel_id, status, price_per_night, room_number, capacity, max_adults, max_children')
+    .in('id', roomIds)
 
-  if (!room) return NextResponse.json({ error: 'Room not found' }, { status: 404 })
+  if (!rooms || rooms.length !== roomIds.length) {
+    return NextResponse.json({ error: 'One or more rooms not found' }, { status: 404 })
+  }
+  if (rooms.some(r => r.hotel_id !== hotel_id)) {
+    return NextResponse.json({ error: 'One or more rooms not found' }, { status: 404 })
+  }
+  if (rooms.some(r => r.status !== 'available')) {
+    return NextResponse.json({ error: 'One or more rooms are no longer bookable' }, { status: 409 })
+  }
 
-  // Capacity guard — the party must fit within this room's capacity
-  const partySize = (adults ?? guests ?? 1) + (children ?? 0)
-  const roomCapacity = room.capacity ?? ((room.max_adults ?? 0) + (room.max_children ?? 0))
-  if (roomCapacity > 0 && partySize > roomCapacity) {
+  // Capacity guard — the party must fit within the booked rooms' combined capacity
+  const adultCount = Math.max(1, Number(adults ?? guests ?? 1))
+  const childCount = Math.max(0, Number(children ?? 0))
+  const partySize  = adultCount + childCount
+  const totalCapacity = rooms.reduce(
+    (sum, r) => sum + (r.capacity ?? ((r.max_adults ?? 0) + (r.max_children ?? 0))), 0,
+  )
+  if (totalCapacity > 0 && partySize > totalCapacity) {
     return NextResponse.json(
-      { error: `This room accommodates up to ${roomCapacity} guest(s).` },
+      { error: `${roomIds.length > 1 ? 'These rooms accommodate' : 'This room accommodates'} up to ${totalCapacity} guest(s).` },
       { status: 400 },
     )
   }
 
   const nights = Math.ceil((new Date(check_out).getTime() - new Date(check_in).getTime()) / 86400000)
-  const total_amount = nights * (room?.price_per_night ?? 0)
+  const total_amount = nights * rooms.reduce((sum, r) => sum + Number(r.price_per_night ?? 0), 0)
 
+  // Built field by field rather than spreading the request body — a guest must
+  // not be able to post their own `status` or `total_amount`.
   const { data: booking, error } = await supabase.from('bookings').insert({
-    ...body,
-    user_id: user.id,
+    user_id:  user.id,
     hotel_id,
+    room_id:  roomIds[0],
+    room_ids: roomIds,
+    check_in,
+    check_out,
+    adults:   adultCount,
+    children: childCount,
+    guests:   partySize,
+    special_requests: special_requests ?? null,
     total_amount,
     status: 'pending',
   }).select().single()
@@ -115,8 +173,10 @@ export async function POST(request: Request) {
     if (admins && admins.length > 0) {
       const { data: guest } = await admin.from('profiles').select('full_name').eq('id', user.id).single()
       const guestName = guest?.full_name?.trim() || 'A guest'
-      const roomNumber = (room as { room_number?: string } | null)?.room_number
-      const message = `${guestName} booked ${roomNumber ? `Room ${roomNumber}` : 'a room'} for ${nights} night${nights === 1 ? '' : 's'} (${check_in} → ${check_out}).`
+      const roomLabel = rooms.length > 1
+        ? `${rooms.length} rooms (${rooms.map(r => r.room_number).join(', ')})`
+        : `Room ${rooms[0].room_number}`
+      const message = `${guestName} booked ${roomLabel} for ${nights} night${nights === 1 ? '' : 's'} (${check_in} → ${check_out}).`
 
       await admin.from('notifications').insert(
         admins.map(a => ({

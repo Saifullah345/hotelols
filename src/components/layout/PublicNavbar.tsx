@@ -7,7 +7,45 @@ import Logo from '@/components/layout/Logo'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
-type UserInfo = { name: string; email: string }
+type UserInfo = { name: string; email: string; avatarUrl: string | null }
+
+/** Initials for the fallback avatar. Never returns an empty string — an unnamed
+ *  profile would otherwise render a blank coloured circle. */
+function initialsOf(name: string, email: string) {
+  const fromName = name
+    .trim()
+    .split(/\s+/)
+    .map(w => w[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+  if (fromName) return fromName.toUpperCase()
+  return (email.trim()[0] ?? '').toUpperCase()
+}
+
+/** Profile picture when the account has one, initials otherwise. */
+function Avatar({ user, size }: { user: UserInfo; size: 'sm' | 'md' }) {
+  const box = size === 'sm' ? 'w-7 h-7 text-xs' : 'w-8 h-8 text-xs'
+  const initials = initialsOf(user.name, user.email)
+
+  if (user.avatarUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={user.avatarUrl}
+        alt={user.name}
+        referrerPolicy="no-referrer"
+        className={`${box} rounded-full object-cover border border-gray-200 shrink-0`}
+      />
+    )
+  }
+
+  return (
+    <div className={`${box} rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold shrink-0`}>
+      {initials || <User className="h-3.5 w-3.5" />}
+    </div>
+  )
+}
 
 export default function PublicNavbar() {
   const [open, setOpen]         = useState(false)
@@ -23,12 +61,21 @@ export default function PublicNavbar() {
       if (u) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('full_name, role')
+          .select('full_name, role, avatar_url')
           .eq('id', u.id)
           .single()
         // Only show customer menu on public pages — admins are redirected away anyway
         if (profile?.role === 'customer') {
-          setUser({ name: profile.full_name ?? u.email ?? 'Guest', email: u.email ?? '' })
+          const meta = (u.user_metadata ?? {}) as { full_name?: string; avatar_url?: string; picture?: string }
+          const email = u.email ?? ''
+          setUser({
+            // A profile row created by the signup trigger starts with an empty
+            // name, so fall back through the auth metadata to the email handle.
+            name: profile.full_name?.trim() || meta.full_name?.trim() || email.split('@')[0] || 'Guest',
+            email,
+            // Social logins carry their picture in the auth metadata.
+            avatarUrl: profile.avatar_url || meta.avatar_url || meta.picture || null,
+          })
         }
       }
       setLoading(false)
@@ -55,8 +102,6 @@ export default function PublicNavbar() {
     router.refresh()
   }
 
-  const initials = user?.name?.trim().split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() ?? '?'
-
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-gray-100">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -82,9 +127,7 @@ export default function PublicNavbar() {
                 onClick={() => setUserMenuOpen(v => !v)}
                 className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-xl hover:bg-gray-50 border border-gray-200 transition-colors"
               >
-                <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold">
-                  {initials}
-                </div>
+                <Avatar user={user} size="sm" />
                 <span className="text-sm font-medium text-gray-700 max-w-[120px] truncate">{user.name.split(' ')[0]}</span>
                 <ChevronDown className={`h-3.5 w-3.5 text-gray-400 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
               </button>
@@ -161,9 +204,7 @@ export default function PublicNavbar() {
             {!loading && user ? (
               <div className="space-y-1">
                 <div className="flex items-center gap-2.5 px-3 py-2">
-                  <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-                    {initials}
-                  </div>
+                  <Avatar user={user} size="md" />
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
                     <p className="text-xs text-gray-500 truncate">{user.email}</p>

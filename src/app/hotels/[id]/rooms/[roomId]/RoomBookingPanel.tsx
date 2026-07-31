@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
@@ -8,6 +8,9 @@ import {
   Calendar, CheckCircle2, ShieldCheck,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/currency'
+import { addDays, todayISO } from '@/lib/date'
+import { createClient } from '@/lib/supabase/client'
+import { isProfileComplete, missingProfileFields } from '@/lib/profile'
 
 export type ExtraService = {
   id: string
@@ -43,14 +46,29 @@ export default function RoomBookingPanel({
 }: Props) {
   const fmt = (n: number) => formatCurrency(n, currency)
   const router  = useRouter()
+
+  // Occupancy is whatever the hotel set for this room — never a generic default.
+  const adultLimit = Math.max(1, maxAdults || 1)
+  const childLimit = Math.max(0, maxChildren || 0)
+
   const [checkIn,  setCheckIn]  = useState(defaultCheckIn)
-  const [checkOut, setCheckOut] = useState(defaultCheckOut)
-  const [adults,   setAdults]   = useState(Math.max(1, defaultAdults ?? 1))
-  const [children, setChildren] = useState(Math.max(0, defaultChildren ?? 0))
+  // A same-day (or reversed) range carried over from the search is zero nights
+  // and can't be booked — round it up to one night instead.
+  const [checkOut, setCheckOut] = useState(
+    defaultCheckIn && (!defaultCheckOut || defaultCheckOut <= defaultCheckIn)
+      ? addDays(defaultCheckIn, 1)
+      : defaultCheckOut,
+  )
+  const [adults,   setAdults]   = useState(Math.min(Math.max(1, defaultAdults ?? 1), adultLimit))
+  const [children, setChildren] = useState(Math.min(Math.max(0, defaultChildren ?? 0), childLimit))
   const [selected, setSelected] = useState<Record<string, boolean>>({})
   const [loading,  setLoading]  = useState(false)
 
-  const today = new Date().toISOString().split('T')[0]
+  // Resolved after mount — "today" depends on the viewer's timezone, and
+  // rendering it during SSR would make the markup disagree on hydration.
+  const [today, setToday] = useState('')
+  useEffect(() => { setToday(todayISO()) }, [])
+
   const nights = checkIn && checkOut
     ? Math.max(0, Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86_400_000))
     : 0
@@ -70,9 +88,38 @@ export default function RoomBookingPanel({
 
   const toggle = (id: string) => setSelected(p => ({ ...p, [id]: !p[id] }))
 
+  // Picking a check-in fills in a check-out rather than leaving an unusable
+  // same-day range behind.
+  const onCheckInChange = (value: string) => {
+    setCheckIn(value)
+    if (value && (!checkOut || checkOut <= value)) setCheckOut(addDays(value, 1))
+  }
+
   const handleBook = async () => {
     if (!checkIn || !checkOut)  { toast.error('Select check-in and check-out dates'); return }
-    if (nights <= 0)            { toast.error('Check-out must be after check-in');    return }
+    if (nights <= 0)            { toast.error('Check-out must be at least one night after check-in'); return }
+    if (adults > adultLimit)    { toast.error(`This room takes up to ${adultLimit} adult${adultLimit === 1 ? '' : 's'}`); return }
+    if (children > childLimit)  { toast.error(`This room takes up to ${childLimit} child${childLimit === 1 ? '' : 'ren'}`); return }
+
+    // The hotel needs a name and phone to confirm the stay. Send the guest to
+    // fill those in, then straight back here with the dates still filled in.
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles').select('full_name, phone').eq('id', user.id).single()
+      if (!isProfileComplete(profile)) {
+        const back = new URLSearchParams({
+          check_in: checkIn, check_out: checkOut,
+          adults: String(adults), children: String(children),
+        })
+        toast.info(`Add your ${missingProfileFields(profile).join(' and ')} to finish this booking`)
+        router.push(
+          `/customer/profile?next=${encodeURIComponent(`/hotels/${hotelId}/rooms/${roomId}?${back}`)}`,
+        )
+        return
+      }
+    }
 
     let specialRequests: string | null = null
     if (selectedList.length) {
@@ -150,12 +197,9 @@ export default function RoomBookingPanel({
             <label className="label">Check-in</label>
             <input
               type="date"
-              min={today}
+              min={today || undefined}
               value={checkIn}
-              onChange={e => {
-                setCheckIn(e.target.value)
-                if (checkOut && checkOut <= e.target.value) setCheckOut('')
-              }}
+              onChange={e => onCheckInChange(e.target.value)}
               className="input text-sm"
             />
           </div>
@@ -163,13 +207,16 @@ export default function RoomBookingPanel({
             <label className="label">Check-out</label>
             <input
               type="date"
-              min={checkIn || today}
+              min={checkIn ? addDays(checkIn, 1) : (today || undefined)}
               value={checkOut}
               onChange={e => setCheckOut(e.target.value)}
               className="input text-sm"
             />
           </div>
         </div>
+        {checkIn && checkOut && nights <= 0 && (
+          <p className="text-xs text-amber-600">Check-out must be at least one night after check-in.</p>
+        )}
         {nights > 0 && (
           <div className="rounded-xl bg-indigo-50 border border-indigo-100 px-4 py-2.5 flex items-center justify-between text-sm">
             <span className="text-indigo-700 font-medium">{nights} night{nights !== 1 ? 's' : ''}</span>
@@ -186,30 +233,36 @@ export default function RoomBookingPanel({
             <p className="text-xs text-gray-500 mb-2">Adults</p>
             <div className="flex items-center gap-3">
               <button type="button" onClick={() => setAdults(v => Math.max(1, v - 1))}
-                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 transition-colors">
+                disabled={adults <= 1}
+                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-transparent transition-colors">
                 <Minus className="h-3.5 w-3.5" />
               </button>
               <span className="text-base font-bold text-gray-900 w-4 text-center">{adults}</span>
-              <button type="button" onClick={() => setAdults(v => Math.min(maxAdults || 10, v + 1))}
-                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 transition-colors">
+              <button type="button" onClick={() => setAdults(v => Math.min(adultLimit, v + 1))}
+                disabled={adults >= adultLimit}
+                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-transparent transition-colors">
                 <Plus className="h-3.5 w-3.5" />
               </button>
             </div>
+            <p className="mt-1.5 text-[11px] text-gray-400">Max {adultLimit}</p>
           </div>
-          {maxChildren > 0 && (
+          {childLimit > 0 && (
             <div>
               <p className="text-xs text-gray-500 mb-2">Children</p>
               <div className="flex items-center gap-3">
                 <button type="button" onClick={() => setChildren(v => Math.max(0, v - 1))}
-                  className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 transition-colors">
+                  disabled={children <= 0}
+                  className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-transparent transition-colors">
                   <Minus className="h-3.5 w-3.5" />
                 </button>
                 <span className="text-base font-bold text-gray-900 w-4 text-center">{children}</span>
-                <button type="button" onClick={() => setChildren(v => Math.min(maxChildren, v + 1))}
-                  className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 transition-colors">
+                <button type="button" onClick={() => setChildren(v => Math.min(childLimit, v + 1))}
+                  disabled={children >= childLimit}
+                  className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-transparent transition-colors">
                   <Plus className="h-3.5 w-3.5" />
                 </button>
               </div>
+              <p className="mt-1.5 text-[11px] text-gray-400">Max {childLimit}</p>
             </div>
           )}
         </div>
@@ -288,9 +341,11 @@ export default function RoomBookingPanel({
 
       {/* CTA */}
       <div className="p-5 space-y-3">
+        {/* Stays clickable with an incomplete stay — the click explains what's
+            missing instead of the button going dead silently. */}
         <button
           onClick={handleBook}
-          disabled={loading || !checkIn || !checkOut || nights <= 0}
+          disabled={loading}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading

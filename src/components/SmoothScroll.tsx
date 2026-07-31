@@ -19,7 +19,13 @@ export default function SmoothScroll() {
     }
     frame = requestAnimationFrame(raf)
 
+    // Images finish loading after mount and make the page taller; without a
+    // re-measure the scroll stops at whatever the height was at first paint.
+    const remeasure = () => lenis.resize()
+    window.addEventListener('load', remeasure)
+
     return () => {
+      window.removeEventListener('load', remeasure)
       cancelAnimationFrame(frame)
       lenis.destroy()
     }

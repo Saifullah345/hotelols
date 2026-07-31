@@ -21,7 +21,9 @@ const roomStatusForBooking: Record<string, string> = {
   checked_out: 'cleaning',
 }
 
-function CancelConfirmModal({ onConfirm, onClose }: { onConfirm: () => Promise<void>; onClose: () => void }) {
+function CancelConfirmModal({ onConfirm, onClose, roomCount = 1 }: {
+  onConfirm: () => Promise<void>; onClose: () => void; roomCount?: number
+}) {
   const [loading, setLoading] = useState(false)
 
   const handleConfirm = async () => {
@@ -42,7 +44,9 @@ function CancelConfirmModal({ onConfirm, onClose }: { onConfirm: () => Promise<v
         </div>
         <h3 className="text-lg font-bold text-gray-900 text-center mb-2">Cancel Booking?</h3>
         <p className="text-sm text-gray-500 text-center mb-6">
-          This will mark the booking as cancelled. The action cannot be undone.
+          {roomCount > 1
+            ? `This will cancel all ${roomCount} rooms on this booking. The action cannot be undone.`
+            : 'This will mark the booking as cancelled. The action cannot be undone.'}
         </p>
         <div className="flex gap-3">
           <button
@@ -68,16 +72,24 @@ function CancelConfirmModal({ onConfirm, onClose }: { onConfirm: () => Promise<v
 
 export default function BookingActions({
   bookingId,
+  bookingIds,
   currentStatus,
   onStatusChange,
 }: {
-  bookingId: string
+  /** Single booking. Ignored when `bookingIds` is given. */
+  bookingId?: string
+  /** Every row of one stay — a status change applies to all of them. */
+  bookingIds?: string[]
   currentStatus: string
   onStatusChange?: (newStatus: string) => void
 }) {
   const router = useRouter()
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [closeMenu, setCloseMenu] = useState<(() => void) | null>(null)
+
+  const ids = bookingIds?.length ? bookingIds : bookingId ? [bookingId] : []
+  const many = ids.length > 1
+  const suffix = many ? ` · ${ids.length} rooms` : ''
 
   const updateStatus = async (status: string, close: () => void) => {
     // Cancellation requires confirmation — open modal instead of acting immediately
@@ -90,14 +102,18 @@ export default function BookingActions({
     // Confirming goes through the server so we can email the guest a branded
     // confirmation with a PDF invoice attached.
     if (status === 'confirmed') {
-      const res = await fetch('/api/bookings/confirm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookingId }),
-      })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) { toast.error(json.error ?? 'Failed to confirm booking'); return }
-      toast.success(json.emailed ? 'Booking confirmed — invoice emailed to guest' : 'Booking confirmed')
+      let emailed = false
+      for (const id of ids) {
+        const res = await fetch('/api/bookings/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookingId: id }),
+        })
+        const json = await res.json().catch(() => ({}))
+        if (!res.ok) { toast.error(json.error ?? 'Failed to confirm booking'); return }
+        emailed = emailed || !!json.emailed
+      }
+      toast.success(emailed ? `Booking confirmed — invoice emailed to guest${suffix}` : `Booking confirmed${suffix}`)
       close()
       onStatusChange?.('confirmed')
       router.refresh()
@@ -106,17 +122,23 @@ export default function BookingActions({
 
     const supabase = createClient()
 
+    // Checking in/out flips the physical rooms too — every room on every row.
     const roomStatus = roomStatusForBooking[status]
     if (roomStatus) {
-      const { data } = await supabase.from('bookings').select('room_id').eq('id', bookingId).single()
-      if (data?.room_id) {
-        await supabase.from('rooms').update({ status: roomStatus }).eq('id', data.room_id)
+      const { data } = await supabase.from('bookings').select('room_id, room_ids').in('id', ids)
+      const roomIds = Array.from(new Set(
+        (data ?? []).flatMap((b: { room_id: string; room_ids: string[] | null }) =>
+          b.room_ids?.length ? b.room_ids : [b.room_id],
+        ).filter(Boolean),
+      ))
+      if (roomIds.length) {
+        await supabase.from('rooms').update({ status: roomStatus }).in('id', roomIds)
       }
     }
 
-    const { error } = await supabase.from('bookings').update({ status }).eq('id', bookingId)
+    const { error } = await supabase.from('bookings').update({ status }).in('id', ids)
     if (error) { toast.error(error.message); return }
-    toast.success(`Booking ${status.replace('_', ' ')}`)
+    toast.success(`Booking ${status.replace('_', ' ')}${suffix}`)
     close()
     onStatusChange?.(status)
     router.refresh()
@@ -124,9 +146,9 @@ export default function BookingActions({
 
   const confirmCancel = async () => {
     const supabase = createClient()
-    const { error } = await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', bookingId)
+    const { error } = await supabase.from('bookings').update({ status: 'cancelled' }).in('id', ids)
     if (error) { toast.error(error.message); return }
-    toast.success('Booking cancelled')
+    toast.success(`Booking cancelled${suffix}`)
     setShowCancelModal(false)
     closeMenu?.()
     onStatusChange?.('cancelled')
@@ -184,6 +206,7 @@ export default function BookingActions({
         <CancelConfirmModal
           onConfirm={confirmCancel}
           onClose={() => setShowCancelModal(false)}
+          roomCount={ids.length}
         />
       )}
     </>

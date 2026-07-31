@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { formatCurrency } from '@/lib/currency'
+import { guestLabel, guestContact as guestContactOf } from '@/lib/guest'
 
 type Booking = {
   id: string
@@ -45,11 +46,11 @@ const statusBadge: Record<string, string> = {
 }
 
 function guestName(b: Booking) {
-  return b.user?.full_name ?? b.guest_name ?? '—'
+  return guestLabel(b)
 }
 
 function guestContact(b: Booking) {
-  return b.user?.email ?? b.guest_phone ?? ''
+  return guestContactOf(b)
 }
 
 function totalCollected(b: Booking) {

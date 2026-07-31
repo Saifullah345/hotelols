@@ -3,7 +3,7 @@ import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
-  Star, Clock, Phone, Mail, ShieldCheck, ArrowLeft,
+  Star, Clock, Phone, Mail, ShieldCheck, ArrowLeft, MapPin,
   Wifi, Waves, Car, Coffee, Dumbbell, Sparkles, Tv, Wind, PawPrint, CheckCircle2,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -248,7 +248,7 @@ export default async function PublicHotelDetailPage({
           <ArrowLeft className="h-4 w-4" /> Back to hotels
         </Link>
 
-        {/* Hero image + info */}
+        {/* Gallery — scrolls away; the identity card below stays. */}
         <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
           <HotelImageGallery
             images={uniqueImages}
@@ -256,70 +256,100 @@ export default async function PublicHotelDetailPage({
             location={[hotel.address, hotel.city, hotel.country].filter(Boolean).join(', ')}
             rating={hotel.rating}
             reviewCount={hotel.review_count}
+            showHeader={false}
           />
+        </div>
 
-          {/* Info strip */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 border-t border-gray-100 p-5">
-            <div className="flex items-start gap-2">
-              <Clock className="mt-0.5 h-4 w-4 shrink-0 text-primary-600" />
-              <div>
-                <p className="text-xs text-gray-500">Check-in / out</p>
-                <p className="text-sm font-medium text-gray-900">
-                  {to12h(hotel.check_in_time)} – {to12h(hotel.check_out_time)}
-                </p>
-              </div>
+        {/* Hotel information — sticks under the navbar for the whole room list.
+            The grey band spans the container padding so rooms scrolling beneath
+            it stay hidden instead of peeking around the card's corners. */}
+        <div className="sticky top-16 z-30 -mx-4 bg-gray-50 px-4 py-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-2xl border border-gray-100 bg-white px-5 py-3 shadow-sm">
+            <div className="min-w-0">
+              <h1 className="truncate text-xl font-bold leading-tight text-gray-900 sm:text-2xl">{hotel.name}</h1>
+              <p className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-500">
+                <MapPin className="h-3.5 w-3.5 shrink-0 text-primary-600" />
+                <span className="truncate">{[hotel.address, hotel.city, hotel.country].filter(Boolean).join(', ')}</span>
+                {Number(hotel.rating) > 0 && (
+                  <span className="ml-1 flex shrink-0 items-center gap-1 font-semibold text-gray-700">
+                    <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                    {Number(hotel.rating).toFixed(1)}
+                    {hotel.review_count ? <span className="font-normal text-gray-400">({hotel.review_count})</span> : null}
+                  </span>
+                )}
+              </p>
             </div>
-            <div className="flex items-start gap-2">
-              <Phone className="mt-0.5 h-4 w-4 shrink-0 text-primary-600" />
-              <div>
-                <p className="text-xs text-gray-500">Phone</p>
-                <p className="text-sm font-medium text-gray-900 truncate">{hotel.phone || '—'}</p>
+
+            {/* Hidden on the narrowest screens so the sticky bar stays shallow */}
+            <div className="hidden flex-wrap items-center gap-x-6 gap-y-2 sm:flex">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 shrink-0 text-primary-600" />
+                <div>
+                  <p className="text-[10px] uppercase tracking-wide text-gray-400">Check-in / out</p>
+                  <p className="text-xs font-medium text-gray-900">
+                    {to12h(hotel.check_in_time)} – {to12h(hotel.check_out_time)}
+                  </p>
+                </div>
               </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <Mail className="mt-0.5 h-4 w-4 shrink-0 text-primary-600" />
-              <div>
-                <p className="text-xs text-gray-500">Email</p>
-                <p className="text-sm font-medium text-gray-900 truncate">{hotel.email || '—'}</p>
+              <div className="hidden items-center gap-2 lg:flex">
+                <Phone className="h-4 w-4 shrink-0 text-primary-600" />
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-wide text-gray-400">Phone</p>
+                  <p className="truncate text-xs font-medium text-gray-900">{hotel.phone || '—'}</p>
+                </div>
               </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary-600" />
-              <div>
-                <p className="text-xs text-gray-500">Status</p>
-                <p className="text-sm font-medium text-gray-900">Verified property</p>
+              <div className="hidden items-center gap-2 xl:flex">
+                <Mail className="h-4 w-4 shrink-0 text-primary-600" />
+                <div className="min-w-0 max-w-[180px]">
+                  <p className="text-[10px] uppercase tracking-wide text-gray-400">Email</p>
+                  <p className="truncate text-xs font-medium text-gray-900">{hotel.email || '—'}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">
+                <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+                Verified
               </div>
             </div>
           </div>
-
-          {hotel.description && (
-            <div className="border-t border-gray-100 px-5 py-4">
-              <p className="text-sm leading-6 text-gray-600">{hotel.description}</p>
-            </div>
-          )}
-
-          {(hotel.amenities as string[] | null)?.length ? (
-            <div className="border-t border-gray-100 p-5">
-              <p className="mb-3 text-sm font-semibold text-gray-900">Amenities</p>
-              <div className="flex flex-wrap gap-2">
-                {(hotel.amenities as string[]).map(a => {
-                  const Icon = getAmenityIcon(a)
-                  return (
-                    <span key={a} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700">
-                      <Icon className="h-3.5 w-3.5 text-primary-600" /> {a}
-                    </span>
-                  )
-                })}
-              </div>
-            </div>
-          ) : null}
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
+        {/* Description + amenities */}
+        {(hotel.description || (hotel.amenities as string[] | null)?.length) ? (
+          <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+            {hotel.description && (
+              <div className="px-5 py-4">
+                <p className="text-sm leading-6 text-gray-600">{hotel.description}</p>
+              </div>
+            )}
+
+            {(hotel.amenities as string[] | null)?.length ? (
+              <div className={`p-5 ${hotel.description ? 'border-t border-gray-100' : ''}`}>
+                <p className="mb-3 text-sm font-semibold text-gray-900">Amenities</p>
+                <div className="flex flex-wrap gap-2">
+                  {(hotel.amenities as string[]).map(a => {
+                    const Icon = getAmenityIcon(a)
+                    return (
+                      <span key={a} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700">
+                        <Icon className="h-3.5 w-3.5 text-primary-600" /> {a}
+                      </span>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {/* No `items-start`: it shrinks each column to its own content, which
+            leaves the sticky sidebar no room to travel and it scrolls away with
+            the first room. Stretched, it stays put for the whole room list. */}
+        <div className="grid gap-6 lg:grid-cols-3">
           {/* Main column */}
           <div className="order-2 space-y-6 lg:order-1 lg:col-span-2">
             {/* Rooms */}
-            <div id="rooms">
+            {/* scroll-mt clears the navbar + sticky information bar when the
+                page is opened on the #rooms anchor. */}
+            <div id="rooms" className="scroll-mt-36">
               <div className="mb-4 flex items-baseline justify-between">
                 <h2 className="text-xl font-bold text-gray-900">Available Rooms</h2>
                 <span className="text-sm text-gray-500">{rooms.length} room{rooms.length === 1 ? '' : 's'}</span>
@@ -394,7 +424,8 @@ export default async function PublicHotelDetailPage({
 
           {/* Sticky sidebar */}
           <div className="order-1 lg:order-2 lg:col-span-1">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4 lg:sticky lg:top-6">
+            {/* Sits below the sticky information bar rather than under it. */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4 lg:sticky lg:top-36">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="text-xs uppercase tracking-wide text-gray-500">Starting from</p>

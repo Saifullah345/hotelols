@@ -136,7 +136,9 @@ export default async function RoomDetailPage({
         <RoomGallery images={images} roomName={room.name ?? `Room ${room.room_number}`} />
 
         {/* Content grid */}
-        <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
+        {/* Stretched columns (no `items-start`) so the sticky booking panel has
+            room to travel alongside the room details. */}
+        <div className="grid gap-6 lg:grid-cols-3">
 
           {/* ── Left column ──────────────────────────────────────────── */}
           <div className="space-y-5 lg:col-span-2 order-2 lg:order-1">

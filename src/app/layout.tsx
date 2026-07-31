@@ -92,8 +92,10 @@ const websiteSchema = {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // No `h-full` on <html>: pinning it to the viewport height is what stops Lenis
+  // measuring how far a long page can actually scroll.
   return (
-    <html lang="en" className="h-full" data-scroll-behavior="smooth">
+    <html lang="en" data-scroll-behavior="smooth">
       <body className="min-h-screen bg-gray-50">
         <JsonLd data={[organizationSchema, websiteSchema]} />
         <NextTopLoader color="#2563eb" height={3} showSpinner={false} />

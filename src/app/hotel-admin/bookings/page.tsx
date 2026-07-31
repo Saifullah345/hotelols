@@ -16,7 +16,7 @@ export default async function BookingsPage() {
   const [{ data: bookings }, { data: hotelInfo }, { data: rooms }] = await Promise.all([
     supabase
       .from('bookings')
-      .select('*, user:profiles(full_name, email), room:rooms(id, room_number, name, price_per_night, capacity, room_type:room_types(name))')
+      .select('*, user:profiles(full_name, email, avatar_url), room:rooms(id, room_number, name, price_per_night, capacity, room_type:room_types(name))')
       .eq('hotel_id', tenantId)
       .order('created_at', { ascending: false }),
     supabase.from('hotels').select('currency').eq('id', tenantId).single(),

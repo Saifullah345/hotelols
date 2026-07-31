@@ -423,6 +423,15 @@ export default function NewBookingPage() {
     init()
   }, [])
 
+  // Combined occupancy the hotel set for the picked rooms — the guest inputs
+  // are bounded by this rather than by a generic number.
+  const selectedAdultCapacity = selectedRoomIds.reduce(
+    (sum, id) => sum + (rooms.find(r => r.id === id)?.max_adults ?? 0), 0,
+  )
+  const selectedChildCapacity = selectedRoomIds.reduce(
+    (sum, id) => sum + (rooms.find(r => r.id === id)?.max_children ?? 0), 0,
+  )
+
   // Recalculate total when rooms or dates change
   useEffect(() => {
     if (!activeCheckIn || !activeCheckOut || selectedRoomIds.length === 0) {
@@ -621,12 +630,30 @@ export default function NewBookingPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="label">Adults</label>
-          <input {...reg('adults')} type="number" min={1} max={20} className="input" />
+          <input
+            {...reg('adults')}
+            type="number"
+            min={1}
+            max={selectedAdultCapacity || undefined}
+            className="input"
+          />
+          {selectedAdultCapacity > 0 && (
+            <p className="text-xs text-gray-400 mt-1">Selected room{selectedRoomIds.length > 1 ? 's' : ''} take up to {selectedAdultCapacity} adult{selectedAdultCapacity === 1 ? '' : 's'}</p>
+          )}
           {errs.adults && <p className="text-red-500 text-xs mt-1">{errs.adults.message}</p>}
         </div>
         <div>
           <label className="label">Children</label>
-          <input {...reg('children')} type="number" min={0} max={20} className="input" />
+          <input
+            {...reg('children')}
+            type="number"
+            min={0}
+            max={selectedChildCapacity || undefined}
+            className="input"
+          />
+          {selectedChildCapacity > 0 && (
+            <p className="text-xs text-gray-400 mt-1">Up to {selectedChildCapacity} child{selectedChildCapacity === 1 ? '' : 'ren'}</p>
+          )}
         </div>
         <div>
           <label className="label">Status</label>

@@ -7,16 +7,35 @@ import {
   Calendar, Check, MapPin, Star, X, PhoneCall,
   BedDouble, Loader2, CheckCircle2, XCircle,
   MoonStar, Search, ChevronDown, SlidersHorizontal,
-  AlertTriangle,
+  AlertTriangle, Pencil, Clock, Plus, Minus, Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { formatCurrency } from '@/lib/currency'
+import { addDays, todayISO } from '@/lib/date'
+import {
+  canGuestEdit, guestEditHoursLeft, groupByStay, stayKey,
+  distributeGuests, assignRoomsToRows, roomSetChanged,
+} from '@/lib/booking'
+import RoomPicker from '@/components/admin/RoomPicker'
+
+/** The availability endpoint already filters; nothing extra is off-limits here. */
+const EMPTY_SET: Set<string> = new Set()
 
 // ─── Types ────────────────────────────────────────────────────────────
 type Payment = { status?: string; amount?: number; payment_method?: string }
 type Hotel   = { name?: string; city?: string; country?: string; currency?: string }
 type Room    = { room_number?: string; room_type?: { name?: string } }
+/** Every room on a booking, resolved from `room_ids`. */
+type RoomInfo = {
+  id: string
+  room_number: string
+  name: string | null
+  price_per_night: number
+  max_adults: number
+  max_children: number
+  room_type?: { name?: string } | null
+}
 type Review  = { id: string; rating: number; comment: string }
 type Booking = {
   id: string
@@ -28,6 +47,7 @@ type Booking = {
   children: number
   total_amount: number
   room_ids: string[] | null
+  special_requests: string | null
   created_at: string
   hotel: Hotel
   room: Room
@@ -78,15 +98,53 @@ function resolveReview(raw: Review | Review[] | undefined | null) {
   return Array.isArray(raw) ? raw[0] ?? null : raw
 }
 
+// ─── Stay grouping ───────────────────────────────────────────────────
+/**
+ * One card per stay, not per row.
+ *
+ * Rooms booked together now share a single booking row, but reservations made
+ * before that — and any rooms added to the same stay in a later visit — are
+ * separate rows describing one trip. Same hotel, same dates, same status means
+ * the guest thinks of it as one booking, so it's presented as one.
+ */
+type Stay = {
+  key: string
+  bookings: Booking[]
+  primary: Booking
+  rooms: RoomInfo[]
+  total: number
+  adults: number
+  children: number
+  roomCount: number
+}
+
+function groupStays(list: Booking[], roomsById: Record<string, RoomInfo>): Stay[] {
+  return groupByStay(list).map(bookings => {
+    const roomIds = Array.from(new Set(bookings.flatMap(b => b.room_ids ?? []).filter(Boolean)))
+    return {
+      key: stayKey(bookings[0]),
+      bookings,
+      primary:  bookings[0],
+      rooms:    roomIds.map(id => roomsById[id]).filter(Boolean) as RoomInfo[],
+      total:    bookings.reduce((s, b) => s + Number(b.total_amount ?? 0), 0),
+      adults:   bookings.reduce((s, b) => s + (b.adults ?? 0), 0),
+      children: bookings.reduce((s, b) => s + (b.children ?? 0), 0),
+      roomCount: roomIds.length || bookings.length,
+    }
+  })
+}
+
+
 // ─── Confirm Cancel Modal ─────────────────────────────────────────────
 function ConfirmCancelModal({
-  booking, cancelling, onConfirm, onDismiss,
+  stay, cancelling, onConfirm, onDismiss,
 }: {
-  booking: Booking
+  stay: Stay
   cancelling: boolean
   onConfirm: () => void
   onDismiss: () => void
 }) {
+  const booking = stay.primary
   const n = nights(booking.check_in, booking.check_out)
   const fmt = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 
@@ -101,7 +159,7 @@ function ConfirmCancelModal({
           </div>
           <h3 className="text-lg font-bold text-gray-900">Cancel Booking?</h3>
           <p className="text-sm text-gray-500 mt-1">
-            This will cancel your booking at{' '}
+            This will cancel {stay.roomCount > 1 ? `all ${stay.roomCount} rooms` : 'your booking'} at{' '}
             <span className="font-semibold text-gray-700">{booking.hotel?.name}</span>.
           </p>
         </div>
@@ -121,8 +179,12 @@ function ConfirmCancelModal({
             <span className="font-medium text-gray-800">{n} night{n !== 1 ? 's' : ''}</span>
           </div>
           <div className="flex justify-between text-sm">
+            <span className="text-gray-400">Rooms</span>
+            <span className="font-medium text-gray-800">{stay.roomCount}</span>
+          </div>
+          <div className="flex justify-between text-sm">
             <span className="text-gray-400">Total</span>
-            <span className="font-bold text-gray-900">{formatCurrency(Number(booking.total_amount), booking.hotel?.currency ?? 'PKR')}</span>
+            <span className="font-bold text-gray-900">{formatCurrency(stay.total, booking.hotel?.currency ?? 'PKR')}</span>
           </div>
         </div>
 
@@ -155,29 +217,334 @@ function ConfirmCancelModal({
   )
 }
 
+// ─── Guest counter ────────────────────────────────────────────────────
+function Stepper({ label, value, min, max, onChange }: {
+  label: string; value: number; min: number; max: number; onChange: (v: number) => void
+}) {
+  return (
+    <div>
+      <p className="text-xs text-gray-500 mb-2">{label}</p>
+      <div className="flex items-center gap-3">
+        <button type="button" onClick={() => onChange(Math.max(min, value - 1))} disabled={value <= min}
+          className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-40 transition-colors">
+          <Minus className="h-3.5 w-3.5" />
+        </button>
+        <span className="text-base font-bold text-gray-900 w-4 text-center">{value}</span>
+        <button type="button" onClick={() => onChange(Math.min(max, value + 1))} disabled={value >= max}
+          className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-40 transition-colors">
+          <Plus className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <p className="mt-1.5 text-[11px] text-gray-400">Max {max}</p>
+    </div>
+  )
+}
+
+// ─── Edit Booking Modal ───────────────────────────────────────────────
+// Guests get one day to adjust their own reservation; after that the hotel has
+// planned around it and changes go through them instead.
+function EditBookingModal({
+  stay, onSaved, onDismiss,
+}: {
+  stay: Stay
+  onSaved: (patches: Record<string, Partial<Booking>>) => void
+  onDismiss: () => void
+}) {
+  const { primary: booking, bookings, rooms } = stay
+
+  const [checkIn,  setCheckIn]  = useState(booking.check_in.slice(0, 10))
+  const [checkOut, setCheckOut] = useState(booking.check_out.slice(0, 10))
+  const [adults,   setAdults]   = useState(Math.max(bookings.length, stay.adults))
+  const [children, setChildren] = useState(Math.max(0, stay.children))
+  const [notes,    setNotes]    = useState(booking.special_requests ?? '')
+  const [saving,   setSaving]   = useState(false)
+  const originalRoomIds = useMemo(() => bookings.flatMap(b => b.room_ids ?? []), [bookings])
+  /** The rooms the guest wants to end up with — edited freely, applied on save. */
+  const [roomIds, setRoomIds] = useState<string[]>(originalRoomIds)
+  /** Other rooms the hotel can still let for these dates. */
+  const [offered, setOffered] = useState<RoomInfo[]>([])
+
+  const [today, setToday] = useState('')
+  useEffect(() => { setToday(todayISO()) }, [])
+
+  const currency  = booking.hotel?.currency ?? 'PKR'
+  const n         = checkIn && checkOut && checkOut > checkIn ? nights(checkIn, checkOut) : 0
+  const hoursLeft = guestEditHoursLeft(booking.created_at)
+
+  // What else the hotel has free for these nights. A guest can't work this out
+  // from the browser — their view of other people's bookings is empty by design.
+  useEffect(() => {
+    if (!checkIn || !checkOut || checkOut <= checkIn) { setOffered([]); return }
+    let cancelled = false
+    const load = async () => {
+      const params = new URLSearchParams({
+        hotel_id: booking.hotel_id,
+        check_in: checkIn,
+        check_out: checkOut,
+        exclude: bookings.map(b => b.id).join(','),
+      })
+      const res = await fetch(`/api/rooms/availability?${params}`)
+      if (!res.ok || cancelled) return
+      setOffered((await res.json()) as RoomInfo[])
+    }
+    load()
+    return () => { cancelled = true }
+  }, [booking.hotel_id, bookings, checkIn, checkOut])
+
+  // Rooms already on the booking plus everything still on offer.
+  const catalogue = useMemo(() => {
+    const byId = new Map<string, RoomInfo>(rooms.map(r => [r.id, r]))
+    for (const r of offered) if (!byId.has(r.id)) byId.set(r.id, r)
+    return byId
+  }, [rooms, offered])
+
+  const chosen     = roomIds.map(id => catalogue.get(id)).filter(Boolean) as RoomInfo[]
+  const adultLimit = Math.max(1, chosen.reduce((s, r) => s + (r.max_adults ?? 0), 0))
+  const childLimit = chosen.reduce((s, r) => s + (r.max_children ?? 0), 0)
+  const nightly    = chosen.reduce((s, r) => s + Number(r.price_per_night ?? 0), 0)
+  const newTotal   = nightly > 0 ? n * nightly : stay.total
+  const roomsChanged = roomSetChanged(roomIds, originalRoomIds)
+
+  // Changing the rooms changes how many guests fit.
+  useEffect(() => {
+    setAdults(v => Math.min(Math.max(1, v), adultLimit))
+    setChildren(v => Math.min(Math.max(0, v), childLimit))
+  }, [adultLimit, childLimit])
+
+  const onCheckInChange = (value: string) => {
+    setCheckIn(value)
+    if (value && (!checkOut || checkOut <= value)) setCheckOut(addDays(value, 1))
+  }
+
+  const save = async () => {
+    if (!checkIn || !checkOut) { toast.error('Select check-in and check-out dates'); return }
+    if (n <= 0) { toast.error('Check-out must be at least one night after check-in'); return }
+    if (!roomIds.length) { toast.error('Keep at least one room, or cancel the booking'); return }
+
+    // Rooms are edited as one pool, then mapped back onto the rows they came
+    // from — a stay can still sit on several rows from before they were merged.
+    const rowRooms = assignRoomsToRows(bookings.map(b => b.room_ids ?? []), roomIds)
+    const caps = bookings
+      .map((_, i) => rowRooms[i])
+      .filter(list => list.length)
+      .map(list => Math.max(1, list.reduce((s, id) => s + (catalogue.get(id)?.max_adults ?? 0), 0)))
+    const childCaps = bookings
+      .map((_, i) => rowRooms[i])
+      .filter(list => list.length)
+      .map(list => list.reduce((s, id) => s + (catalogue.get(id)?.max_children ?? 0), 0))
+
+    const adultSplit = distributeGuests(adults, caps, 1)
+    const childSplit = distributeGuests(children, childCaps, 0)
+
+    setSaving(true)
+    try {
+      const patches: Record<string, Partial<Booking>> = {}
+
+      // A row whose every room was dropped has nothing left to hold — cancel it.
+      for (const [i, b] of bookings.entries()) {
+        if (rowRooms[i].length) continue
+        const res = await fetch('/api/bookings/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookingId: b.id }),
+        })
+        const json = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          toast.error(json.error ?? 'Could not remove the room')
+          if (Object.keys(patches).length) onSaved(patches)
+          return
+        }
+        const pays = Array.isArray(b.payment) ? b.payment : b.payment ? [b.payment] : []
+        patches[b.id] = {
+          status: 'cancelled',
+          payment: pays.map(p => p.status === 'pending' ? { ...p, status: 'failed' } : p),
+        }
+      }
+
+      let j = 0
+      for (const [i, b] of bookings.entries()) {
+        if (!rowRooms[i].length) continue
+        const changed = roomSetChanged(rowRooms[i], b.room_ids ?? [])
+        const k = j++
+
+        const res = await fetch(`/api/bookings/${b.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            check_in: checkIn,
+            check_out: checkOut,
+            adults:   adultSplit[k],
+            children: childSplit[k],
+            special_requests: notes.trim() || null,
+            ...(changed ? { room_ids: rowRooms[i] } : {}),
+          }),
+        })
+        const json = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          toast.error(json.error ?? 'Could not update booking')
+          // Whatever already saved is kept — the card must not show stale dates.
+          if (Object.keys(patches).length) onSaved(patches)
+          return
+        }
+        patches[b.id] = {
+          check_in: checkIn,
+          check_out: checkOut,
+          adults:   adultSplit[k],
+          children: childSplit[k],
+          special_requests: notes.trim() || null,
+          total_amount: json.total_amount ?? b.total_amount,
+          ...(changed ? { room_ids: json.room_ids ?? rowRooms[i] } : {}),
+        }
+      }
+
+      toast.success(roomsChanged
+        ? `Booking updated · ${roomIds.length} room${roomIds.length > 1 ? 's' : ''}`
+        : 'Booking updated')
+      onSaved(patches)
+    } catch {
+      toast.error('Could not update booking')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md my-8 overflow-hidden">
+
+        <div className="flex items-start justify-between gap-3 px-6 pt-5 pb-4 border-b border-gray-100">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">Edit Booking</h3>
+            <p className="text-sm text-gray-500 mt-0.5">
+              {booking.hotel?.name} · {stay.roomCount} room{stay.roomCount !== 1 ? 's' : ''}
+            </p>
+          </div>
+          <button type="button" onClick={onDismiss} className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="px-6 py-4 space-y-5">
+          <div className="flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-xs text-amber-700">
+            <Clock className="h-3.5 w-3.5 shrink-0" />
+            {hoursLeft > 0
+              ? `You can change this booking for another ${hoursLeft} hour${hoursLeft !== 1 ? 's' : ''}.`
+              : 'Your window to change this booking has closed.'}
+          </div>
+
+          {/* Rooms — remove one, add another, or swap */}
+          <RoomPicker
+            rooms={Array.from(catalogue.values())}
+            selected={roomIds}
+            taken={EMPTY_SET}
+            currency={currency}
+            onChange={setRoomIds}
+            changed={roomsChanged}
+          />
+
+          {/* Dates */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Stay</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Check-in</label>
+                <input type="date" value={checkIn} min={today || undefined}
+                  onChange={e => onCheckInChange(e.target.value)} className="input text-sm" />
+              </div>
+              <div>
+                <label className="label">Check-out</label>
+                <input type="date" value={checkOut} min={checkIn ? addDays(checkIn, 1) : (today || undefined)}
+                  onChange={e => setCheckOut(e.target.value)} className="input text-sm" />
+              </div>
+            </div>
+            {n > 0 && (
+              <div className="flex items-center justify-between rounded-xl bg-indigo-50 border border-indigo-100 px-4 py-2.5 text-sm">
+                <span className="text-indigo-700 font-medium">{n} night{n !== 1 ? 's' : ''}</span>
+                <span className="font-bold text-indigo-900">{formatCurrency(newTotal, currency)}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Guests */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Guests</p>
+            <div className="flex items-center gap-8">
+              <Stepper label="Adults" value={adults} min={1} max={adultLimit} onChange={setAdults} />
+              {childLimit > 0 && (
+                <Stepper label="Children" value={children} min={0} max={childLimit} onChange={setChildren} />
+              )}
+            </div>
+          </div>
+
+          {/* Special requests */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              Special Requests <span className="normal-case text-gray-400 font-normal">(optional)</span>
+            </p>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3}
+              className="input resize-none text-sm" placeholder="Anything the hotel should know…" />
+          </div>
+
+          <p className="text-xs text-gray-400">
+            Removing the last room isn&apos;t possible here — cancel the booking instead.
+          </p>
+        </div>
+
+        <div className="px-6 pb-6 flex gap-3">
+          <button type="button" onClick={onDismiss} disabled={saving}
+            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50">
+            Cancel
+          </button>
+          <button type="button" onClick={save} disabled={saving}
+            className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+            {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Booking Card ─────────────────────────────────────────────────────
 function BookingCard({
-  booking, cancellingId, reviewingId, reviewState,
-  onCancel, onRating, onComment, onSubmitReview,
+  stay, cancellingKey, reviewingId, reviewState,
+  onCancel, onEdit, onRating, onComment, onSubmitReview,
 }: {
-  booking: Booking
-  cancellingId: string | null
+  stay: Stay
+  cancellingKey: string | null
   reviewingId: string | null
   reviewState: Record<string, { rating: number; comment: string }>
-  onCancel: (id: string) => void
+  onCancel: (key: string) => void
+  onEdit: (key: string) => void
   onRating: (id: string, r: number) => void
   onComment: (id: string, c: string) => void
   onSubmitReview: (id: string) => void
 }) {
-  const { id, status, check_in, check_out, adults, children, total_amount, room_ids, hotel, room, payment } = booking
-  const n          = nights(check_in, check_out)
-  const pay        = resolvePayment(payment)
-  const payStatus  = pay?.status ?? 'pending'
+  const { primary: booking, bookings, rooms, roomCount } = stay
+  const { id, status, check_in, check_out, hotel, room } = booking
+  const adults    = stay.adults
+  const children  = stay.children
+  const n         = nights(check_in, check_out)
+  // A stay's payment is only settled once every row on it is.
+  const payments  = bookings.map(b => resolvePayment(b.payment)?.status ?? 'pending')
+  const payStatus = payments.every(p => p === 'completed') ? 'completed'
+                  : payments.includes('pending') ? 'pending'
+                  : payments[0]
+  const payMethod = resolvePayment(booking.payment)?.payment_method
   const review     = resolveReview(booking.review)
   const rev        = reviewState[id] ?? { rating: 5, comment: '' }
   const isCancelled = status === 'cancelled'
   const isCompleted = status === 'checked_out'
   const badge       = STATUS_BADGE[status] ?? 'bg-gray-100 text-gray-600 border-gray-200'
+
+  // Every row has to still be editable — a stay is changed as a whole.
+  const editable  = bookings.every(b => canGuestEdit(b))
+  const hoursLeft = Math.min(...bookings.map(b => guestEditHoursLeft(b.created_at)))
+  const cancellable = bookings.every(b => b.status === 'pending')
+
+  const label = (r: RoomInfo) =>
+    `${r.name ?? r.room_number}${r.room_type?.name ? ` · ${r.room_type.name}` : ''}`
 
   return (
     <div className={`bg-white rounded-2xl border overflow-hidden transition-shadow hover:shadow-md ${isCancelled ? 'border-red-100' : 'border-gray-200'}`}>
@@ -198,14 +565,25 @@ function BookingCard({
           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${badge}`}>
             {STATUS_LABEL[status] ?? status}
           </span>
-          {status === 'pending' && (
+          {editable && (
             <button
               type="button"
-              onClick={() => onCancel(id)}
-              disabled={cancellingId === id}
+              onClick={() => onEdit(stay.key)}
+              title={`Editable for another ${hoursLeft} hour${hoursLeft !== 1 ? 's' : ''}`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 text-xs font-semibold transition-colors"
+            >
+              <Pencil className="h-3 w-3" />
+              Edit
+            </button>
+          )}
+          {cancellable && (
+            <button
+              type="button"
+              onClick={() => onCancel(stay.key)}
+              disabled={cancellingKey === stay.key}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 text-xs font-semibold transition-colors disabled:opacity-40"
             >
-              {cancellingId === id
+              {cancellingKey === stay.key
                 ? <Loader2 className="h-3 w-3 animate-spin" />
                 : <X className="h-3 w-3" />}
               Cancel Booking
@@ -218,11 +596,14 @@ function BookingCard({
       <div className="mx-5 mb-3 grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-xl bg-gray-50 px-4 py-3">
         <div>
           <p className="text-gray-400 text-[10px] uppercase tracking-wide mb-0.5 flex items-center gap-1">
-            <BedDouble className="h-3 w-3" /> {(room_ids?.length ?? 0) > 1 ? `Rooms (${room_ids!.length})` : 'Room'}
+            <BedDouble className="h-3 w-3" /> {roomCount > 1 ? `Rooms (${roomCount})` : 'Room'}
           </p>
           <p className="text-sm font-medium text-gray-800 truncate">
-            {room?.room_number ?? '—'}{room?.room_type?.name ? ` · ${room.room_type.name}` : ''}
-            {(room_ids?.length ?? 0) > 1 && ` +${room_ids!.length - 1} more`}
+            {roomCount > 1
+              ? `${roomCount} rooms`
+              : rooms[0]
+                ? label(rooms[0])
+                : `${room?.room_number ?? '—'}${room?.room_type?.name ? ` · ${room.room_type.name}` : ''}`}
           </p>
         </div>
         <div>
@@ -249,15 +630,35 @@ function BookingCard({
         </div>
       </div>
 
+      {/* Every room on this one reservation */}
+      {roomCount > 1 && rooms.length > 0 && (
+        <div className="mx-5 mb-3">
+          <p className="text-gray-400 text-[10px] uppercase tracking-wide mb-1.5">
+            All {rooms.length} rooms on this booking
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {rooms.map(r => (
+              <span
+                key={r.id}
+                className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700"
+              >
+                <BedDouble className="h-3 w-3 text-indigo-400" />
+                {label(r)}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
       <div className="px-5 pb-4 flex flex-wrap items-center gap-2.5 text-xs text-gray-500">
-        <span className="font-bold text-gray-900 text-sm">{formatCurrency(Number(total_amount), hotel?.currency ?? 'PKR')}</span>
+        <span className="font-bold text-gray-900 text-sm">{formatCurrency(stay.total, hotel?.currency ?? 'PKR')}</span>
         <span className="text-gray-200">|</span>
         <span>Payment</span>
         <span className={`font-semibold px-2 py-0.5 rounded-full text-xs ${PAYMENT_BADGE[payStatus] ?? 'bg-gray-100 text-gray-500'}`}>
           {payStatus.replace('_', ' ')}
         </span>
-        {pay?.payment_method && <span className="capitalize text-gray-400">· {pay.payment_method}</span>}
+        {payMethod && <span className="capitalize text-gray-400">· {payMethod}</span>}
         {adults > 0 && (
           <>
             <span className="text-gray-200">|</span>
@@ -273,6 +674,11 @@ function BookingCard({
           <div>
             <p className="text-sm font-semibold text-amber-800">Awaiting advance payment</p>
             <p className="text-xs text-amber-700 mt-0.5">Our team will contact you to collect a 50% advance. Booking confirms once received.</p>
+            <p className="text-xs text-amber-700/80 mt-1">
+              {editable
+                ? `You can change the dates or guests yourself for another ${hoursLeft} hour${hoursLeft !== 1 ? 's' : ''}.`
+                : 'The 24-hour window to change this booking yourself has closed — please contact the hotel.'}
+            </p>
           </div>
         </div>
       )}
@@ -328,10 +734,12 @@ export default function CustomerBookingsPage() {
   const searchParams = useSearchParams()
 
   const [bookings,     setBookings]     = useState<Booking[]>([])
+  const [roomsById,    setRoomsById]    = useState<Record<string, RoomInfo>>({})
   const [loading,      setLoading]      = useState(true)
   const [activeTab,    setActiveTab]    = useState<TabKey>('upcoming')
-  const [cancellingId,       setCancellingId]       = useState<string | null>(null)
-  const [confirmCancelBooking, setConfirmCancelBooking] = useState<Booking | null>(null)
+  const [cancellingKey,   setCancellingKey]   = useState<string | null>(null)
+  const [confirmCancelKey, setConfirmCancelKey] = useState<string | null>(null)
+  const [editingKey,      setEditingKey]      = useState<string | null>(null)
   const [reviewingId,  setReviewingId]  = useState<string | null>(null)
   const [reviewState,  setReviewState]  = useState<Record<string, { rating: number; comment: string }>>({})
   const [showFilters,  setShowFilters]  = useState(false)
@@ -357,7 +765,22 @@ export default function CustomerBookingsPage() {
       .select('*, hotel:hotels(name, city, country, currency), room:rooms(room_number, room_type:room_types(name)), payment:payments(status, amount, payment_method), review:reviews(id, rating, comment)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-    setBookings((data ?? []) as Booking[])
+
+    const list = (data ?? []) as Booking[]
+    setBookings(list)
+
+    // A booking can cover several rooms; the embedded `room` is only the
+    // primary one, so resolve every id on every booking in one round trip.
+    const ids = Array.from(new Set(list.flatMap(b => b.room_ids ?? []).filter(Boolean)))
+    if (ids.length) {
+      const { data: roomRows } = await supabase
+        .from('rooms')
+        .select('id, room_number, name, price_per_night, max_adults, max_children, room_type:room_types(name)')
+        .in('id', ids)
+      setRoomsById(
+        Object.fromEntries(((roomRows ?? []) as unknown as RoomInfo[]).map(r => [r.id, r])),
+      )
+    }
     setLoading(false)
   }, [router])
 
@@ -370,30 +793,38 @@ export default function CustomerBookingsPage() {
   useEffect(() => { fetchBookings() }, [fetchBookings])
 
   // Step 1 — show the confirm modal
-  const requestCancel = (bookingId: string) => {
-    const booking = bookings.find(b => b.id === bookingId) ?? null
-    setConfirmCancelBooking(booking)
-  }
+  const requestCancel = (key: string) => setConfirmCancelKey(key)
 
-  // Step 2 — user confirmed: do the actual cancellation
-  const handleCancel = async (bookingId: string) => {
-    setCancellingId(bookingId)
+  // Step 2 — user confirmed: cancel every row the stay is made of
+  const handleCancel = async (stay: Stay) => {
+    setCancellingKey(stay.key)
+    const cancelled: string[] = []
     try {
-      const res  = await fetch('/api/bookings/cancel', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookingId }),
-      })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) { toast.error(json.error ?? 'Could not cancel booking'); return }
-      toast.success('Booking cancelled')
-      setBookings(prev => prev.map(b => {
-        if (b.id !== bookingId) return b
-        const list = Array.isArray(b.payment) ? b.payment : b.payment ? [b.payment] : []
-        return { ...b, status: 'cancelled', payment: list.map((p: Payment) => p.status === 'pending' ? { ...p, status: 'failed' } : p) }
-      }))
-      setConfirmCancelBooking(null)
+      for (const b of stay.bookings) {
+        const res  = await fetch('/api/bookings/cancel', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookingId: b.id }),
+        })
+        const json = await res.json().catch(() => ({}))
+        if (!res.ok) { toast.error(json.error ?? 'Could not cancel booking'); break }
+        cancelled.push(b.id)
+      }
+
+      if (cancelled.length) {
+        toast.success(
+          cancelled.length === stay.bookings.length
+            ? 'Booking cancelled'
+            : `Cancelled ${cancelled.length} of ${stay.bookings.length} rooms`,
+        )
+        setBookings(prev => prev.map(b => {
+          if (!cancelled.includes(b.id)) return b
+          const list = Array.isArray(b.payment) ? b.payment : b.payment ? [b.payment] : []
+          return { ...b, status: 'cancelled', payment: list.map((p: Payment) => p.status === 'pending' ? { ...p, status: 'failed' } : p) }
+        }))
+      }
+      setConfirmCancelKey(null)
     } catch { toast.error('Could not cancel booking') }
-    finally  { setCancellingId(null) }
+    finally  { setCancellingKey(null) }
   }
 
   const handleSubmitReview = async (bookingId: string) => {
@@ -422,48 +853,62 @@ export default function CustomerBookingsPage() {
     return Array.from(set).sort()
   }, [bookings])
 
-  // Tab counts
+  // One card per stay: rooms booked for the same hotel and dates belong together
+  // even when they landed on separate rows.
+  const stays = useMemo(() => groupStays(bookings, roomsById), [bookings, roomsById])
+
+  // Tab counts — stays, not rows, so a 3-room trip counts once
   const countByTab = useMemo(() => {
     const map: Record<string, number> = { upcoming: 0, completed: 0, cancelled: 0 }
-    bookings.forEach(b => {
-      if (['pending','confirmed','checked_in'].includes(b.status)) map.upcoming++
-      else if (b.status === 'checked_out') map.completed++
-      else if (b.status === 'cancelled')   map.cancelled++
+    stays.forEach(s => {
+      const status = s.primary.status
+      if (['pending','confirmed','checked_in'].includes(status)) map.upcoming++
+      else if (status === 'checked_out') map.completed++
+      else if (status === 'cancelled')   map.cancelled++
     })
     return map
-  }, [bookings])
+  }, [stays])
 
   // Tab + filter pipeline
-  const visibleBookings = useMemo(() => {
+  const visibleStays = useMemo(() => {
     const tab = TABS.find(t => t.key === activeTab)!
-    let list = bookings.filter(b => (tab.statuses as readonly string[]).includes(b.status))
+    let list = stays.filter(s => (tab.statuses as readonly string[]).includes(s.primary.status))
 
     if (searchHotel.trim()) {
       const q = searchHotel.toLowerCase()
-      list = list.filter(b => b.hotel?.name?.toLowerCase().includes(q) || b.hotel?.city?.toLowerCase().includes(q))
+      list = list.filter(s => s.primary.hotel?.name?.toLowerCase().includes(q) || s.primary.hotel?.city?.toLowerCase().includes(q))
     }
     if (filterMonth) {
-      list = list.filter(b => b.check_in.startsWith(filterMonth))
+      list = list.filter(s => s.primary.check_in.startsWith(filterMonth))
     }
     if (filterFrom) {
-      list = list.filter(b => b.check_in >= filterFrom)
+      list = list.filter(s => s.primary.check_in >= filterFrom)
     }
     if (filterTo) {
-      list = list.filter(b => b.check_in <= filterTo)
+      list = list.filter(s => s.primary.check_in <= filterTo)
     }
 
-    list = [...list].sort((a, b) =>
-      sortOrder === 'desc'
-        ? new Date(b.check_in).getTime() - new Date(a.check_in).getTime()
-        : new Date(a.check_in).getTime() - new Date(b.check_in).getTime()
-    )
-    return list
-  }, [bookings, activeTab, searchHotel, filterMonth, filterFrom, filterTo, sortOrder])
+    // Sorted by when the booking was made, not when the stay starts — a
+    // booking made just now belongs at the top even if the trip is months out.
+    return [...list].sort((a, b) => {
+      const at = new Date(a.primary.created_at).getTime()
+      const bt = new Date(b.primary.created_at).getTime()
+      return sortOrder === 'desc' ? bt - at : at - bt
+    })
+  }, [stays, activeTab, searchHotel, filterMonth, filterFrom, filterTo, sortOrder])
 
   const hasFilters = searchHotel || filterMonth || filterFrom || filterTo
   const clearFilters = () => { setSearchHotel(''); setFilterMonth(''); setFilterFrom(''); setFilterTo('') }
 
-  const cardProps = { cancellingId, reviewingId, reviewState, onCancel: requestCancel, onRating: setRating, onComment: setComment, onSubmitReview: handleSubmitReview }
+  const editingStay = stays.find(s => s.key === editingKey) ?? null
+  const cancelStay  = stays.find(s => s.key === confirmCancelKey) ?? null
+
+  const cardProps = {
+    cancellingKey, reviewingId, reviewState,
+    onCancel: requestCancel,
+    onEdit: setEditingKey,
+    onRating: setRating, onComment: setComment, onSubmitReview: handleSubmitReview,
+  }
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
@@ -483,7 +928,7 @@ export default function CustomerBookingsPage() {
         <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h2 className="text-2xl font-extrabold text-white leading-tight">My Bookings</h2>
-            <p className="text-indigo-300 text-sm mt-0.5">{bookings.length} total booking{bookings.length !== 1 ? 's' : ''}</p>
+            <p className="text-indigo-300 text-sm mt-0.5">{stays.length} total booking{stays.length !== 1 ? 's' : ''}</p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             {countByTab.upcoming > 0 && (
@@ -568,8 +1013,8 @@ export default function CustomerBookingsPage() {
               onChange={e => setSortOrder(e.target.value as 'asc'|'desc')}
               className="text-sm border border-gray-200 rounded-xl px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-700"
             >
-              <option value="desc">Newest first</option>
-              <option value="asc">Oldest first</option>
+              <option value="desc">Newest booking first</option>
+              <option value="asc">Oldest booking first</option>
             </select>
           </div>
         </div>
@@ -635,12 +1080,12 @@ export default function CustomerBookingsPage() {
 
       {/* ── Booking list ── */}
       <div className="space-y-3">
-        {visibleBookings.map(b => (
-          <BookingCard key={b.id} booking={b} {...cardProps} />
+        {visibleStays.map(s => (
+          <BookingCard key={s.key} stay={s} {...cardProps} />
         ))}
 
         {/* Empty states */}
-        {visibleBookings.length === 0 && bookings.length === 0 && (
+        {visibleStays.length === 0 && bookings.length === 0 && (
           <div className="bg-white rounded-2xl border border-gray-200 py-16 text-center">
             <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center mx-auto mb-4">
               <Calendar className="h-7 w-7 text-indigo-400" />
@@ -651,7 +1096,7 @@ export default function CustomerBookingsPage() {
           </div>
         )}
 
-        {visibleBookings.length === 0 && bookings.length > 0 && !hasFilters && (
+        {visibleStays.length === 0 && bookings.length > 0 && !hasFilters && (
           <div className="bg-white rounded-2xl border border-gray-200 py-14 text-center">
             {activeTab === 'upcoming' && (
               <>
@@ -678,7 +1123,7 @@ export default function CustomerBookingsPage() {
           </div>
         )}
 
-        {visibleBookings.length === 0 && hasFilters && (
+        {visibleStays.length === 0 && hasFilters && (
           <div className="bg-white rounded-2xl border border-gray-200 py-12 text-center">
             <Search className="h-8 w-8 text-gray-200 mx-auto mb-3" />
             <p className="font-semibold text-gray-700 mb-1">No bookings match your filters</p>
@@ -689,13 +1134,25 @@ export default function CustomerBookingsPage() {
         )}
       </div>
 
+      {/* ── Edit Booking Modal ── */}
+      {editingStay && (
+        <EditBookingModal
+          stay={editingStay}
+          onSaved={patches => {
+            setBookings(prev => prev.map(b => patches[b.id] ? { ...b, ...patches[b.id] } : b))
+            setEditingKey(null)
+          }}
+          onDismiss={() => setEditingKey(null)}
+        />
+      )}
+
       {/* ── Confirm Cancel Modal ── */}
-      {confirmCancelBooking && (
+      {cancelStay && (
         <ConfirmCancelModal
-          booking={confirmCancelBooking}
-          cancelling={cancellingId === confirmCancelBooking.id}
-          onConfirm={() => handleCancel(confirmCancelBooking.id)}
-          onDismiss={() => setConfirmCancelBooking(null)}
+          stay={cancelStay}
+          cancelling={cancellingKey === cancelStay.key}
+          onConfirm={() => handleCancel(cancelStay)}
+          onDismiss={() => setConfirmCancelKey(null)}
         />
       )}
     </div>

@@ -8,6 +8,8 @@ import {
 } from 'lucide-react'
 import BookingActions from '../BookingActions'
 import { formatCurrency } from '@/lib/currency'
+import { guestLabel, guestContact } from '@/lib/guest'
+import GuestAvatar from '@/components/admin/GuestAvatar'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -26,10 +28,6 @@ const sourceConfig: Record<string, { label: string; Icon: typeof DoorOpen }> = {
   online:   { label: 'Online',   Icon: Globe         },
 }
 
-const avatarColor = (name: string) => {
-  const colors = ['bg-blue-500','bg-violet-500','bg-emerald-500','bg-orange-500','bg-pink-500','bg-cyan-500']
-  return colors[(name.charCodeAt(0) ?? 0) % colors.length]
-}
 
 const nights = (ci: string, co: string) =>
   Math.max(1, Math.ceil((new Date(co).getTime() - new Date(ci).getTime()) / 86_400_000))
@@ -51,7 +49,7 @@ export default async function ViewBookingPage({ params }: Ctx) {
       .from('bookings')
       .select(`
         *,
-        user:profiles(full_name, email, phone),
+        user:profiles(full_name, email, phone, avatar_url),
         room:rooms(id, room_number, name, floor, price_per_night, images, room_type:room_types(name))
       `)
       .eq('id', id)
@@ -62,30 +60,85 @@ export default async function ViewBookingPage({ params }: Ctx) {
 
   if (!booking) notFound()
 
+  // Rooms booked as one stay can sit on sibling rows (older reservations put
+  // each room on its own). The desk should see the whole stay here, not a third
+  // of it, so the siblings are pulled in and shown together.
+  let siblingQuery = supabase
+    .from('bookings')
+    .select('*, room:rooms(id, room_number, name, floor, price_per_night, images, room_type:room_types(name))')
+    .eq('hotel_id', profile.tenant_id)
+    .eq('check_in', booking.check_in)
+    .eq('check_out', booking.check_out)
+    .eq('status', booking.status)
+    .neq('id', booking.id)
+  if (booking.user_id) {
+    siblingQuery = siblingQuery.eq('user_id', booking.user_id)
+  } else {
+    // Walk-ins are identified by name + phone, either of which can be null —
+    // `eq` never matches a null, so those need `is` instead.
+    siblingQuery = siblingQuery.is('user_id', null)
+    siblingQuery = booking.guest_name
+      ? siblingQuery.eq('guest_name', booking.guest_name)
+      : siblingQuery.is('guest_name', null)
+    siblingQuery = booking.guest_phone
+      ? siblingQuery.eq('guest_phone', booking.guest_phone)
+      : siblingQuery.is('guest_phone', null)
+  }
+
+  const { data: siblingRows } = await siblingQuery
+  const rows = [booking, ...(siblingRows ?? [])]
+
   const currency  = (hotel as { currency?: string } | null)?.currency ?? 'USD'
   const n         = nights(booking.check_in, booking.check_out)
-  const guest     = booking.user?.full_name ?? booking.guest_name ?? 'Guest'
-  const contact   = booking.user?.email ?? booking.guest_phone ?? ''
+  const guest     = guestLabel(booking)
+  const contact   = guestContact(booking)
   const statusCfg = statusConfig[booking.status] ?? statusConfig.pending
   const srcCfg    = sourceConfig[booking.source ?? 'walk_in'] ?? sourceConfig.walk_in
   const SrcIcon   = srcCfg.Icon
+
+  // Totals describe the stay, not the row that happens to be open.
+  const stayTotal    = rows.reduce((s, r) => s + Number(r.total_amount ?? 0), 0)
+  const stayAdults   = rows.reduce((s, r) => s + (r.adults ?? 0), 0)
+  const stayChildren = rows.reduce((s, r) => s + (r.children ?? 0), 0)
 
   type RoomDetail = { id: string; room_number: string; name: string | null; floor: number; price_per_night: number; images: string[] | null; room_type: { name?: string } | null }
   const primaryRoom = booking.room as RoomDetail | null
   const coverImg    = primaryRoom?.images?.[0] ?? null
 
-  // Fetch additional rooms for multi-room bookings
-  const allRoomIds: string[] = (booking.room_ids as string[] | null) ?? (primaryRoom ? [primaryRoom.id] : [])
-  let extraRooms: RoomDetail[] = []
-  if (allRoomIds.length > 1 && primaryRoom) {
-    const extraIds = allRoomIds.filter(rid => rid !== primaryRoom.id)
+  // Every room across every row of the stay, embedded ones included.
+  const embedded = new Map<string, RoomDetail>()
+  for (const r of rows) {
+    const room = r.room as RoomDetail | null
+    if (room) embedded.set(room.id, room)
+  }
+  const allRoomIds: string[] = Array.from(new Set(
+    rows.flatMap(r => (r.room_ids as string[] | null)?.length ? r.room_ids as string[] : [r.room_id]).filter(Boolean),
+  ))
+  const missingIds = allRoomIds.filter(rid => !embedded.has(rid))
+  if (missingIds.length) {
     const { data: extraData } = await supabase
       .from('rooms')
       .select('id, room_number, name, floor, price_per_night, images, room_type:room_types(name)')
-      .in('id', extraIds)
-    if (extraData) extraRooms = extraData as RoomDetail[]
+      .in('id', missingIds)
+    for (const room of (extraData ?? []) as RoomDetail[]) embedded.set(room.id, room)
   }
-  const allRooms: RoomDetail[] = primaryRoom ? [primaryRoom, ...extraRooms] : []
+  const allRooms: RoomDetail[] = allRoomIds.map(rid => embedded.get(rid)).filter(Boolean) as RoomDetail[]
+
+  // Payments across the whole stay, so "what's owed" is answerable here.
+  const { data: payments } = await supabase
+    .from('payments')
+    .select('id, amount, status, payment_method, created_at, booking_id')
+    .in('booking_id', rows.map(r => r.id))
+    .order('created_at', { ascending: false })
+
+  const paid = (payments ?? [])
+    .filter(p => p.status === 'completed')
+    .reduce((s, p) => s + Number(p.amount ?? 0), 0)
+  const due = Math.max(0, stayTotal - paid)
+
+  const requests = Array.from(new Set(
+    rows.map(r => (r.special_requests as string | null)?.trim()).filter(Boolean) as string[],
+  ))
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -98,11 +151,14 @@ export default async function ViewBookingPage({ params }: Ctx) {
           </Link>
           <div>
             <h2 className="text-xl font-bold text-gray-900">Booking Detail</h2>
-            <p className="text-sm text-gray-400 mt-0.5">#{id.slice(0, 8).toUpperCase()}</p>
+            <p className="text-sm text-gray-400 mt-0.5">
+              #{id.slice(0, 8).toUpperCase()}
+              {rows.length > 1 && <span className="ml-1.5">· {rows.length} reservations, {allRooms.length} rooms</span>}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <BookingActions bookingId={booking.id} currentStatus={booking.status} />
+          <BookingActions bookingIds={rows.map(r => r.id)} currentStatus={booking.status} />
           <Link
             href={`/hotel-admin/bookings/${id}/edit`}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
@@ -115,9 +171,7 @@ export default async function ViewBookingPage({ params }: Ctx) {
 
       {/* Guest + Status hero card */}
       <div className="card p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white text-xl font-bold flex-shrink-0 ${avatarColor(guest)}`}>
-          {guest.charAt(0).toUpperCase()}
-        </div>
+        <GuestAvatar guest={booking} size="lg" />
         <div className="flex-1 min-w-0">
           <h3 className="text-lg font-bold text-gray-900">{guest}</h3>
           {contact && <p className="text-sm text-gray-500 mt-0.5">{contact}</p>}
@@ -134,7 +188,7 @@ export default async function ViewBookingPage({ params }: Ctx) {
           {
             icon: CreditCard,
             label: 'Total Amount',
-            value: formatCurrency(booking.total_amount, currency),
+            value: formatCurrency(stayTotal, currency),
             color: 'text-blue-600 bg-blue-50',
           },
           {
@@ -146,7 +200,7 @@ export default async function ViewBookingPage({ params }: Ctx) {
           {
             icon: Users,
             label: 'Guests',
-            value: `${booking.adults + booking.children} (${booking.adults}A${booking.children ? ` · ${booking.children}C` : ''})`,
+            value: `${stayAdults + stayChildren} (${stayAdults}A${stayChildren ? ` · ${stayChildren}C` : ''})`,
             color: 'text-emerald-600 bg-emerald-50',
           },
           {
@@ -281,23 +335,151 @@ export default async function ViewBookingPage({ params }: Ctx) {
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-500">
                 {allRooms.length > 1
-                  ? `${n} nights · ${allRooms.length} rooms`
+                  ? `${n} night${n !== 1 ? 's' : ''} · ${allRooms.length} rooms`
                   : `${n} × ${formatCurrency(primaryRoom?.price_per_night ?? 0, currency)}`}
               </span>
-              <span className="font-bold text-gray-900">{formatCurrency(booking.total_amount, currency)}</span>
+              <span className="font-bold text-gray-900">{formatCurrency(stayTotal, currency)}</span>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Rooms & rates breakdown */}
+      {allRooms.length > 0 && (
+        <div className="card p-5 space-y-3">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Rate Breakdown</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[420px]">
+              <thead>
+                <tr className="text-left text-xs text-gray-400 border-b border-gray-100">
+                  <th className="pb-2 font-medium">Room</th>
+                  <th className="pb-2 font-medium">Type</th>
+                  <th className="pb-2 font-medium text-right">Per night</th>
+                  <th className="pb-2 font-medium text-right">{n} night{n !== 1 ? 's' : ''}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {allRooms.map(r => (
+                  <tr key={r.id}>
+                    <td className="py-2">
+                      <Link href={`/hotel-admin/rooms/${r.id}`} className="font-medium text-gray-900 hover:text-primary-600">
+                        {r.name ?? `Room ${r.room_number}`}
+                      </Link>
+                      <span className="text-gray-400 text-xs ml-1.5">
+                        #{r.room_number} · {r.floor === 0 ? 'Ground' : `Floor ${r.floor}`}
+                      </span>
+                    </td>
+                    <td className="py-2 text-gray-500">{r.room_type?.name ?? '—'}</td>
+                    <td className="py-2 text-right text-gray-700">{formatCurrency(r.price_per_night, currency)}</td>
+                    <td className="py-2 text-right font-semibold text-gray-900">
+                      {formatCurrency(Number(r.price_per_night) * n, currency)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-gray-100">
+                  <td colSpan={3} className="pt-2.5 text-gray-500">Total</td>
+                  <td className="pt-2.5 text-right font-bold text-gray-900">{formatCurrency(stayTotal, currency)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Payments */}
+      <div className="card p-5 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Payments</p>
+          <div className="flex items-center gap-3 text-xs">
+            <span className="text-gray-500">Paid <span className="font-bold text-emerald-600">{formatCurrency(paid, currency)}</span></span>
+            <span className="text-gray-500">Due <span className={`font-bold ${due > 0 ? 'text-amber-600' : 'text-gray-400'}`}>{formatCurrency(due, currency)}</span></span>
+          </div>
+        </div>
+        {payments && payments.length > 0 ? (
+          <div className="divide-y divide-gray-50">
+            {payments.map(p => (
+              <div key={p.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-900">{formatCurrency(Number(p.amount), currency)}</p>
+                  <p className="text-xs text-gray-400 capitalize">
+                    {(p.payment_method ?? 'online').replace('_', ' ')}
+                    {p.created_at && ` · ${new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`}
+                  </p>
+                </div>
+                <span className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${
+                  p.status === 'completed' ? 'bg-emerald-50 text-emerald-700'
+                  : p.status === 'pending' ? 'bg-amber-50 text-amber-700'
+                  : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {p.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400">No payments recorded yet.</p>
+        )}
+        {due > 0 && (
+          <Link
+            href={`/hotel-admin/payments/collect?booking_id=${booking.id}`}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+          >
+            Record a payment →
+          </Link>
+        )}
+      </div>
+
+      {/* Reservations this stay is made of */}
+      {rows.length > 1 && (
+        <div className="card p-5 space-y-3">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            Reservations in this stay ({rows.length})
+          </p>
+          <p className="text-xs text-gray-400 -mt-1">
+            These rooms were booked separately but are one stay. Actions above apply to all of them.
+          </p>
+          <div className="divide-y divide-gray-50">
+            {rows.map(r => {
+              const room = r.room as RoomDetail | null
+              const extra = Math.max(0, ((r.room_ids as string[] | null)?.length ?? 1) - 1)
+              return (
+                <div key={r.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                  <div className="min-w-0">
+                    <Link
+                      href={`/hotel-admin/bookings/${r.id}`}
+                      className={`font-medium ${r.id === booking.id ? 'text-gray-900' : 'text-primary-600 hover:text-primary-700'}`}
+                    >
+                      {room?.name ?? `Room ${room?.room_number ?? '—'}`}
+                      {extra > 0 && <span className="text-gray-400"> +{extra} more</span>}
+                    </Link>
+                    <p className="text-xs text-gray-400 font-mono">
+                      #{r.id.slice(0, 8).toUpperCase()}
+                      {r.id === booking.id && <span className="ml-1.5 font-sans not-italic text-gray-500">· open</span>}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="font-semibold text-gray-900">{formatCurrency(Number(r.total_amount), currency)}</p>
+                    <p className="text-xs text-gray-400">{r.adults}A{r.children ? ` · ${r.children}C` : ''}</p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Special Requests */}
-      {booking.special_requests && (
+      {requests.length > 0 && (
         <div className="card p-5 space-y-2">
           <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
             <MessageSquare className="h-3.5 w-3.5" />
             Special Requests
           </div>
-          <p className="text-sm text-gray-700 leading-relaxed">{booking.special_requests}</p>
+          {requests.map((req, i) => (
+            <p key={i} className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{req}</p>
+          ))}
         </div>
       )}
 
@@ -317,6 +499,17 @@ export default async function ViewBookingPage({ params }: Ctx) {
                 ? new Date(booking.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
                 : '—'}
             </p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Guest Contact</p>
+            <p className="text-gray-700 mt-0.5">
+              {booking.user?.email ?? booking.guest_phone ?? '—'}
+              {booking.user?.phone && <span className="text-gray-400"> · {booking.user.phone}</span>}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400">Booking Source</p>
+            <p className="text-gray-700 mt-0.5 capitalize">{srcCfg.label}</p>
           </div>
         </div>
       </div>

@@ -1,4 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+/* Lenis needs `html` to size to its content. Without this the smooth-scroll
+   limit is measured from a viewport-height box that never grows, so long pages
+   (a hotel with a dozen rooms) stop scrolling partway down. */
+@import 'lenis/dist/lenis.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

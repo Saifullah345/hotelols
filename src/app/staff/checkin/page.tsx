@@ -58,7 +58,14 @@ export default async function CheckInPage() {
                     )}
                   </div>
                   <div className="text-right">
-                    <p className="font-medium text-gray-900">Room {(b.room as { room_number?: string })?.room_number}</p>
+                    <p className="font-medium text-gray-900">
+                      Room {(b.room as { room_number?: string })?.room_number}
+                      {/* A booking can cover several rooms — don't check the guest
+                          in against the primary one alone. */}
+                      {(b.room_ids?.length ?? 0) > 1 && (
+                        <span className="text-blue-600"> +{b.room_ids.length - 1} more</span>
+                      )}
+                    </p>
                     <p className="text-xs text-gray-500">Floor {(b.room as { floor?: number })?.floor}</p>
                   </div>
                 </div>
@@ -89,7 +96,12 @@ export default async function CheckInPage() {
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="font-semibold text-gray-900">{(b.user as { full_name?: string })?.full_name}</p>
-                    <p className="text-sm text-gray-500">Room {(b.room as { room_number?: string })?.room_number}</p>
+                    <p className="text-sm text-gray-500">
+                      Room {(b.room as { room_number?: string })?.room_number}
+                      {(b.room_ids?.length ?? 0) > 1 && (
+                        <span className="text-blue-600"> +{b.room_ids.length - 1} more</span>
+                      )}
+                    </p>
                   </div>
                   <p className="font-medium text-gray-900">${b.total_amount}</p>
                 </div>

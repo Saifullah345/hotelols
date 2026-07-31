@@ -4,6 +4,7 @@ import { useState, useTransition, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Heart } from 'lucide-react'
 import Link from 'next/link'
+import { toast } from 'sonner'
 import { toggleSaveHotel } from '@/app/actions/savedHotels'
 
 interface Props {
@@ -58,9 +59,24 @@ export default function SaveHotelButton({ hotelId, initialSaved, isLoggedIn, var
       return
     }
 
+    // Fill the heart straight away — the server action is confirmed below and
+    // the state is rolled back if it didn't take.
+    const optimistic = !saved
+    setSaved(optimistic)
+
     startTransition(async () => {
       const result = await toggleSaveHotel(hotelId)
+      if (result.error) {
+        setSaved(!optimistic)
+        toast.error(
+          result.error === 'not_authenticated'
+            ? 'Please sign in to save hotels'
+            : 'Could not update your saved hotels',
+        )
+        return
+      }
       if (result.saved !== undefined) setSaved(result.saved)
+      toast.success(result.saved ? 'Added to favourites' : 'Removed from favourites')
     })
   }
 
@@ -95,7 +111,7 @@ export default function SaveHotelButton({ hotelId, initialSaved, isLoggedIn, var
         onClick={handleClick}
         disabled={pending}
         aria-label={saved ? 'Remove from saved' : 'Save hotel'}
-        className={`flex items-center justify-center rounded-full bg-white/90 shadow backdrop-blur transition-all hover:scale-110 active:scale-95 disabled:opacity-60
+        className={`flex items-center justify-center rounded-full bg-white/90 shadow backdrop-blur transition-all hover:scale-110 active:scale-95
           ${isCard ? 'w-8 h-8' : 'w-10 h-10'}`}
       >
         <Heart

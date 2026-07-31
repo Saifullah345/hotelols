@@ -74,11 +74,24 @@ export function Header({ title, profile, onMenuOpen }: HeaderProps) {
             onClick={() => setShowDropdown(!showDropdown)}
             className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
           >
-            <div className="h-8 w-8 rounded-full bg-primary-600 flex items-center justify-center text-white text-sm font-medium">
-              {profile?.full_name?.[0]?.toUpperCase() ?? <User className="h-4 w-4" />}
-            </div>
+            {profile?.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={profile.avatar_url}
+                alt=""
+                className="h-8 w-8 rounded-full border border-gray-200 object-cover"
+              />
+            ) : (
+              <div className="h-8 w-8 rounded-full bg-primary-600 flex items-center justify-center text-white text-sm font-medium">
+                {/* full_name defaults to '' on a new profile, so fall through to
+                    the email before giving up on a letter entirely. */}
+                {profile?.full_name?.trim()?.[0]?.toUpperCase()
+                  ?? profile?.email?.trim()?.[0]?.toUpperCase()
+                  ?? <User className="h-4 w-4" />}
+              </div>
+            )}
             <div className="text-left hidden sm:block">
-              <p className="text-sm font-medium text-gray-900">{profile?.full_name ?? 'User'}</p>
+              <p className="text-sm font-medium text-gray-900">{profile?.full_name?.trim() || profile?.email || 'User'}</p>
               <p className="text-xs text-gray-500 capitalize">{profile?.role?.replace('_', ' ')}</p>
             </div>
           </button>
@@ -86,7 +99,7 @@ export function Header({ title, profile, onMenuOpen }: HeaderProps) {
           {showDropdown && (
             <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-20">
               <div className="px-4 py-3 border-b border-gray-100">
-                <p className="text-sm font-medium text-gray-900 truncate">{profile?.full_name ?? 'User'}</p>
+                <p className="text-sm font-medium text-gray-900 truncate">{profile?.full_name?.trim() || profile?.email || 'User'}</p>
                 <p className="text-xs text-gray-500 capitalize">{profile?.role?.replace('_', ' ')}</p>
               </div>
               {profileHref && (

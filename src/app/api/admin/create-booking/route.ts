@@ -125,6 +125,14 @@ export async function POST(request: Request) {
   const isPaid       = payment_collected !== false
   const paymentStatus = source === 'online' ? 'pending' : (isPaid ? 'completed' : 'pending')
 
+  // A booking that has been paid for is confirmed, whatever the status field
+  // said — leaving it "pending" tells the desk money is still owed when it
+  // isn't, and the guest's own screen would ask them to await payment.
+  const requestedStatus = status ?? 'confirmed'
+  const bookingStatus = paymentStatus === 'completed' && requestedStatus === 'pending'
+    ? 'confirmed'
+    : requestedStatus
+
   let paymentAmount = total_amount
   if (paymentStatus === 'completed' && advance_amount != null) {
     const advance = Number(advance_amount)
@@ -153,7 +161,7 @@ export async function POST(request: Request) {
     adults:           adults ?? 1,
     children:         children ?? 0,
     special_requests: special_requests ?? null,
-    status:           status ?? 'confirmed',
+    status:           bookingStatus,
     source,
     total_amount,
   }).select().single()

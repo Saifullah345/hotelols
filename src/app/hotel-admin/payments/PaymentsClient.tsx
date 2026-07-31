@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/currency'
 import { todayISO } from '@/lib/date'
+import { guestLabel, guestContact } from '@/lib/guest'
 import { DATE_RANGES, resolveDateWindow, inWindow } from '@/lib/dateRange'
 import DateRangeChips from '@/components/admin/DateRangeChips'
 import Pagination from '@/components/admin/Pagination'
@@ -84,10 +85,10 @@ const STATUSES = ['completed', 'pending']
 const METHODS  = ['cash', 'card_pos', 'bank_transfer', 'cheque', 'online', 'other']
 
 function guestName(p: PaymentRow) {
-  return p.booking?.user?.full_name ?? p.booking?.guest_name ?? '—'
+  return p.booking ? guestLabel(p.booking) : '—'
 }
 function guestSub(p: PaymentRow) {
-  return p.booking?.user?.email ?? p.booking?.guest_phone ?? ''
+  return p.booking ? guestContact(p.booking) : ''
 }
 
 export default function PaymentsClient({
