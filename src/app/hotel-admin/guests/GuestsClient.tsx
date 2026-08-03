@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Plus, Search, Star, Pencil, Trash2, X, Loader2, Users } from 'lucide-react'
-import { avatarColor } from '@/lib/guest'
 
 export interface GuestRecord {
   id: string
@@ -38,17 +37,21 @@ const EMPTY_FORM: GuestForm = {
   passport_id: '', notes: '', is_vip: false,
 }
 
-// Map Tailwind bg class → inline hex (for style prop, since bg classes aren't in safelist)
-const BG_HEX: Record<string, string> = {
-  'bg-blue-500':    '#3B82F6',
-  'bg-violet-500':  '#8B5CF6',
-  'bg-emerald-500': '#10B981',
-  'bg-orange-500':  '#F97316',
-  'bg-pink-500':    '#EC4899',
-  'bg-cyan-500':    '#06B6D4',
-}
-function avatarHex(seed: string) {
-  return BG_HEX[avatarColor(seed)] ?? '#D97706'
+// Warm amber/gold palette matching the Aurelia Grand Admin Suite
+const WARM_COLORS = [
+  '#D97706', // amber-600  – primary warm gold
+  '#B45309', // amber-700  – deep amber
+  '#F59E0B', // amber-500  – light gold
+  '#92400E', // amber-800  – rich brown-amber
+  '#0D9488', // teal-600   – warm dark teal accent
+  '#C2410C', // orange-700 – warm burnt orange
+]
+
+function avatarHex(seed: string): string {
+  if (!seed) return WARM_COLORS[0]
+  let hash = 0
+  for (let i = 0; i < seed.length; i++) hash = (hash + seed.charCodeAt(i)) % WARM_COLORS.length
+  return WARM_COLORS[hash]
 }
 
 function initials(name: string) {
