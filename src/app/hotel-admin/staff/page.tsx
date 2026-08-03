@@ -8,8 +8,6 @@ import StaffClient, { type StaffMember } from './StaffClient'
 
 export const metadata = { title: 'Staff Management' }
 
-// Edits, removals and newly invited members must show on the next render.
-
 export default async function StaffPage({
   searchParams,
 }: {

@@ -26,7 +26,7 @@ const schema = z.object({
 })
 type FormData = z.infer<typeof schema>
 
-export default function InviteStaffPage() {
+export default function AddStaffPage() {
   const router = useRouter()
   const [permissions, setPermissions] = useState<string[]>(['rooms:read', 'bookings:read'])
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
@@ -56,7 +56,6 @@ export default function InviteStaffPage() {
     toast.success('Staff member added successfully')
     if (json.emailWarning) toast.warning(json.emailWarning)
     router.push('/hotel-admin/staff')
-    // The list is a server component; refresh it so the new member is there.
     router.refresh()
   }
 
@@ -79,7 +78,7 @@ export default function InviteStaffPage() {
             <input
               {...fullNameField}
               onChange={e => {
-                e.target.value = e.target.value.replace(/[^a-zA-ZÀ-ɏ\s'-]/g, '')
+                e.target.value = e.target.value.replace(/[^a-zA-ZÀ-ÿ\s'-]/g, '')
                 fullNameField.onChange(e)
               }}
               className="input"
