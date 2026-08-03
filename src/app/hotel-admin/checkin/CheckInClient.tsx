@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { LogIn, LogOut, BedDouble, Calendar, Loader2 } from 'lucide-react'
+import { LogIn, LogOut, BedDouble, Calendar, Loader2, AlertTriangle, X } from 'lucide-react'
+import Link from 'next/link'
 import type { BookingEntry } from './page'
 
 // Warm palette — matches guest directory & reports
@@ -192,13 +193,44 @@ function Column({
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────
+type PaymentBlock = {
+  bookingId: string
+  guestName: string
+  pendingAmount: number
+  currency: string
+}
+
 export default function CheckInClient({ arrivals, inHouse, upcoming, departuresToday }: Props) {
   const router = useRouter()
-  const [loadingId, setLoadingId] = useState<string | null>(null)
+  const [loadingId, setLoadingId]       = useState<string | null>(null)
+  const [paymentBlock, setPaymentBlock] = useState<PaymentBlock | null>(null)
 
   const doAction = async (bookingId: string, action: 'check_in' | 'check_out') => {
     setLoadingId(bookingId)
     const supabase = createClient()
+
+    // ── Checkout: block if any payment is still pending ──────────────────
+    if (action === 'check_out') {
+      const { data: pending } = await supabase
+        .from('payments')
+        .select('amount, currency')
+        .eq('booking_id', bookingId)
+        .eq('status', 'pending')
+
+      if (pending && pending.length > 0) {
+        const total    = pending.reduce((s, p) => s + (p.amount ?? 0), 0)
+        const currency = pending[0]?.currency ?? ''
+        const guest    = inHouse.find(b => b.id === bookingId)
+        setPaymentBlock({
+          bookingId,
+          guestName:     guest?.userName ?? 'this guest',
+          pendingAmount: total,
+          currency,
+        })
+        setLoadingId(null)
+        return
+      }
+    }
 
     const { data: booking } = await supabase
       .from('bookings').select('room_id').eq('id', bookingId).single()
@@ -232,12 +264,8 @@ export default function CheckInClient({ arrivals, inHouse, upcoming, departuresT
   })
 
   return (
-    /*
-     * h-full fills the <main> flex-1 area.
-     * flex-col + min-h-0 lets the kanban grid shrink and scroll internally
-     * instead of pushing the page taller.
-     * On mobile we fall back to natural scroll (remove h-full).
-     */
+    <>
+    {/* h-full fills main, min-h-0 lets columns shrink/scroll; mobile falls back to natural scroll */}
     <div className="flex flex-col lg:h-full">
 
       {/* ── Compact page header ── */}
@@ -319,5 +347,53 @@ export default function CheckInClient({ arrivals, inHouse, upcoming, departuresT
 
       </div>
     </div>
+
+    {/* ── Pending-payment block modal ── */}
+    {paymentBlock && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 h-11 w-11 rounded-full bg-amber-50 flex items-center justify-center">
+              <AlertTriangle className="h-6 w-6 text-amber-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-gray-900 text-base">Pending Payment</h3>
+              <p className="text-sm text-gray-600 mt-1.5 leading-relaxed">
+                <span className="font-semibold text-gray-900">{paymentBlock.guestName}</span> has
+                an outstanding balance of{' '}
+                <span className="font-bold text-red-600">
+                  {paymentBlock.currency} {paymentBlock.pendingAmount.toLocaleString()}
+                </span>.
+                <br />
+                Please record the payment before checking out.
+              </p>
+            </div>
+            <button
+              onClick={() => setPaymentBlock(null)}
+              className="flex-shrink-0 p-1 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-3 mt-6">
+            <button
+              onClick={() => setPaymentBlock(null)}
+              className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-800 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <Link
+              href={`/hotel-admin/payments?booking=${paymentBlock.bookingId}`}
+              onClick={() => setPaymentBlock(null)}
+              className="flex-1 px-4 py-2.5 text-sm font-semibold text-center text-white bg-primary-600 hover:bg-primary-700 rounded-xl transition-colors"
+            >
+              Record Payment
+            </Link>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }

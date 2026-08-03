@@ -20,6 +20,25 @@ export default function CheckInActions({ bookingId, action }: Props) {
     const supabase = createClient()
     const newStatus = action === 'check_in' ? 'checked_in' : 'checked_out'
 
+    // Block checkout if there are pending payments
+    if (action === 'check_out') {
+      const { data: pending } = await supabase
+        .from('payments')
+        .select('amount, currency')
+        .eq('booking_id', bookingId)
+        .eq('status', 'pending')
+
+      if (pending && pending.length > 0) {
+        const total    = pending.reduce((s, p) => s + (p.amount ?? 0), 0)
+        const currency = pending[0]?.currency ?? ''
+        toast.error(
+          `Cannot check out: guest has a pending payment of ${currency} ${total.toLocaleString()}. Please record payment first.`
+        )
+        setLoading(false)
+        return
+      }
+    }
+
     const { data: booking } = await supabase.from('bookings').select('room_id').eq('id', bookingId).single()
     if (booking) {
       await supabase.from('rooms').update({
