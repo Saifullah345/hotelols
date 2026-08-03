@@ -264,14 +264,15 @@ export default function ReportsClient({
                   outerRadius={85}
                   dataKey="value"
                   nameKey="name"
-                  paddingAngle={2}
+                  stroke="#fff"
+                  strokeWidth={2}
                   label={({ name, percent }) =>
                     (percent as number) > 0.06 ? name : ''
                   }
                   labelLine={{ stroke: '#d1d5db', strokeWidth: 1 }}
                 >
                   {rtChartData.map((_, i) => (
-                    <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
+                    <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} stroke="#fff" strokeWidth={2} />
                   ))}
                 </Pie>
                 <Tooltip
