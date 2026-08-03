@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -36,7 +36,7 @@ export function RevenueChart({ data, currency = 'USD' }: RevenueChartProps) {
     <div className="card overflow-hidden">
       <div className="px-5 pt-5 pb-4 flex items-start justify-between border-b border-gray-100">
         <div className="flex items-center gap-2">
-          <div className="w-1.5 h-4 bg-indigo-500 rounded-full" />
+          <div className="w-1.5 h-4 bg-primary-500 rounded-full" />
           <div>
             <h3 className="text-base font-semibold text-gray-900">Revenue Overview</h3>
             <p className="text-xs text-gray-400 mt-0.5">Last 6 months</p>

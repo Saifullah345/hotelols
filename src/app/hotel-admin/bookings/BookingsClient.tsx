@@ -577,15 +577,15 @@ export default function BookingsClient({
       <div className="space-y-6">
 
         {/* Header banner */}
-        <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-indigo-950 via-indigo-900 to-indigo-800 px-6 py-5 sm:px-8">
+        <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-primary-900 via-primary-800 to-primary-700 px-6 py-5 sm:px-8">
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
-            <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-indigo-600/20 blur-3xl" />
-            <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full bg-violet-600/20 blur-3xl" />
+            <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-primary-600/20 blur-3xl" />
+            <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full bg-primary-500/20 blur-3xl" />
           </div>
           <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h2 className="text-2xl font-extrabold text-white leading-tight">Bookings</h2>
-              <p className="text-indigo-300 text-sm mt-0.5">{allStays.length} total reservations</p>
+              <p className="text-primary-300 text-sm mt-0.5">{allStays.length} total reservations</p>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
               {/* Booked today — clicking it jumps straight to that filter. */}
@@ -594,37 +594,37 @@ export default function BookingsClient({
                 onClick={() => { setDateRange(dateRange === 'today' ? 'all' : 'today'); setStatusTab('all') }}
                 title="Show bookings made today"
                 className={`flex items-center gap-2 backdrop-blur px-3.5 py-2 rounded-xl text-sm transition-colors ${
-                  dateRange === 'today' ? 'bg-white text-indigo-700' : 'bg-white/10 hover:bg-white/20'
+                  dateRange === 'today' ? 'bg-white text-primary-700' : 'bg-white/10 hover:bg-white/20'
                 }`}
               >
-                <Calendar className={`h-4 w-4 ${dateRange === 'today' ? 'text-indigo-600' : 'text-sky-300'}`} />
+                <Calendar className={`h-4 w-4 ${dateRange === 'today' ? 'text-primary-600' : 'text-sky-300'}`} />
                 <div className="text-left">
-                  <p className={`font-bold leading-none ${dateRange === 'today' ? 'text-indigo-700' : 'text-white'}`}>{counts.today}</p>
-                  <p className={`text-xs leading-none mt-0.5 ${dateRange === 'today' ? 'text-indigo-500' : 'text-indigo-300'}`}>Booked Today</p>
+                  <p className={`font-bold leading-none ${dateRange === 'today' ? 'text-primary-700' : 'text-white'}`}>{counts.today}</p>
+                  <p className={`text-xs leading-none mt-0.5 ${dateRange === 'today' ? 'text-primary-500' : 'text-primary-300'}`}>Booked Today</p>
                 </div>
               </button>
               <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3.5 py-2 rounded-xl text-sm">
                 <Clock className="h-4 w-4 text-amber-400" />
                 <div>
                   <p className="text-white font-bold leading-none">{counts.pending}</p>
-                  <p className="text-indigo-300 text-xs leading-none mt-0.5">Pending</p>
+                  <p className="text-primary-300 text-xs leading-none mt-0.5">Pending</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3.5 py-2 rounded-xl text-sm">
                 <BadgeCheck className="h-4 w-4 text-blue-400" />
                 <div>
                   <p className="text-white font-bold leading-none">{counts.confirmed}</p>
-                  <p className="text-indigo-300 text-xs leading-none mt-0.5">Confirmed</p>
+                  <p className="text-primary-300 text-xs leading-none mt-0.5">Confirmed</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3.5 py-2 rounded-xl text-sm">
                 <BedDouble className="h-4 w-4 text-emerald-400" />
                 <div>
                   <p className="text-white font-bold leading-none">{counts.checked_in}</p>
-                  <p className="text-indigo-300 text-xs leading-none mt-0.5">Checked In</p>
+                  <p className="text-primary-300 text-xs leading-none mt-0.5">Checked In</p>
                 </div>
               </div>
-              <Link href="/hotel-admin/bookings/new" className="flex items-center gap-2 bg-white text-indigo-700 font-semibold text-sm px-4 py-2 rounded-xl hover:bg-indigo-50 transition-colors shadow-sm">
+              <Link href="/hotel-admin/bookings/new" className="flex items-center gap-2 bg-white text-primary-700 font-semibold text-sm px-4 py-2 rounded-xl hover:bg-primary-50 transition-colors shadow-sm">
                 <Plus className="h-4 w-4" /> New Booking
               </Link>
             </div>
@@ -639,7 +639,7 @@ export default function BookingsClient({
               <input
                 value={q} onChange={e => setQ(e.target.value)}
                 placeholder="Search guest, phone, room…"
-                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-400"
               />
             </div>
 
@@ -650,7 +650,7 @@ export default function BookingsClient({
                   onClick={() => setStatusTab(tab)}
                   className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                     statusTab === tab
-                      ? 'bg-indigo-600 text-white'
+                      ? 'bg-primary-600 text-white'
                       : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
                   }`}
                 >
@@ -808,7 +808,7 @@ export default function BookingsClient({
                           <Link
                             href={`/hotel-admin/bookings/${b.id}`}
                             title="View booking"
-                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
                           >
                             <Eye className="h-3.5 w-3.5" />
                           </Link>
@@ -857,7 +857,7 @@ export default function BookingsClient({
                       {(q || statusTab !== 'all' || dateRange !== 'all') && (
                         <button
                           onClick={() => { setQ(''); setStatusTab('all'); setDateRange('all'); setCustomFrom(''); setCustomTo('') }}
-                          className="mt-3 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+                          className="mt-3 text-sm font-semibold text-primary-600 hover:text-primary-700"
                         >
                           Clear filters
                         </button>

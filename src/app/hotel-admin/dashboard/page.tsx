@@ -90,21 +90,21 @@ export default async function HotelAdminDashboard() {
   return (
     <div className="space-y-6">
       {/* Welcome banner */}
-      <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-indigo-950 via-indigo-900 to-indigo-800 p-6 sm:p-8">
+      <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-primary-900 via-primary-800 to-primary-700 p-6 sm:p-8">
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-indigo-600/20 blur-3xl" />
-          <div className="absolute -bottom-10 -left-10 w-48 h-48 rounded-full bg-violet-600/20 blur-3xl" />
+          <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-primary-600/20 blur-3xl" />
+          <div className="absolute -bottom-10 -left-10 w-48 h-48 rounded-full bg-primary-500/20 blur-3xl" />
         </div>
         <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-1.5 bg-white/10 text-indigo-200 text-xs font-semibold px-3 py-1 rounded-full mb-3">
+            <div className="inline-flex items-center gap-1.5 bg-white/10 text-primary-200 text-xs font-semibold px-3 py-1 rounded-full mb-3">
               <Sparkles className="h-3 w-3" />
               {new Date().toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric' })}
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight">
               Welcome back!
             </h2>
-            <p className="text-indigo-200 text-sm mt-1">
+            <p className="text-primary-200 text-sm mt-1">
               {hotelName}{hotelCity ? ` · ${hotelCity}` : ''}
             </p>
           </div>
@@ -113,14 +113,14 @@ export default async function HotelAdminDashboard() {
               <Clock className="h-4 w-4 text-amber-400" />
               <div>
                 <p className="text-white font-bold leading-none">{pendingBookings}</p>
-                <p className="text-indigo-300 text-xs leading-none mt-0.5">Pending</p>
+                <p className="text-primary-300 text-xs leading-none mt-0.5">Pending</p>
               </div>
             </div>
             <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-4 py-2.5 rounded-xl text-sm">
               <TrendingUp className="h-4 w-4 text-emerald-400" />
               <div>
                 <p className="text-white font-bold leading-none">{occupancyRate}%</p>
-                <p className="text-indigo-300 text-xs leading-none mt-0.5">Occupancy</p>
+                <p className="text-primary-300 text-xs leading-none mt-0.5">Occupancy</p>
               </div>
             </div>
           </div>
@@ -138,7 +138,7 @@ export default async function HotelAdminDashboard() {
 
         <div className="card overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
-            <div className="w-1.5 h-4 bg-indigo-500 rounded-full" />
+            <div className="w-1.5 h-4 bg-primary-500 rounded-full" />
             <h3 className="font-semibold text-gray-900">Today&apos;s Overview</h3>
           </div>
           <div className="p-5 space-y-3">
@@ -146,7 +146,7 @@ export default async function HotelAdminDashboard() {
               { label: 'Bookings Today', value: bookedToday ?? 0, bg: 'bg-sky-50', text: 'text-sky-700', bar: 'bg-sky-500' },
               { label: 'Check-ins Today', value: checkedInToday ?? 0, bg: 'bg-emerald-50', text: 'text-emerald-700', bar: 'bg-emerald-500' },
               { label: 'Pending Bookings', value: pendingBookings ?? 0, bg: 'bg-amber-50', text: 'text-amber-700', bar: 'bg-amber-500' },
-              { label: 'Occupancy Rate', value: `${occupancyRate}%`, bg: 'bg-indigo-50', text: 'text-indigo-700', bar: 'bg-indigo-500' },
+              { label: 'Occupancy Rate', value: `${occupancyRate}%`, bg: 'bg-primary-50', text: 'text-primary-700', bar: 'bg-primary-500' },
             ].map(item => (
               <div key={item.label} className={`flex justify-between items-center px-3 py-2.5 rounded-xl ${item.bg}`}>
                 <span className="text-sm text-gray-600 font-medium">{item.label}</span>
@@ -159,7 +159,7 @@ export default async function HotelAdminDashboard() {
 
       <div className="card overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
-          <div className="w-1.5 h-4 bg-indigo-500 rounded-full" />
+          <div className="w-1.5 h-4 bg-primary-500 rounded-full" />
           <h3 className="font-semibold text-gray-900">Recent Bookings</h3>
         </div>
         <div className="overflow-x-auto">

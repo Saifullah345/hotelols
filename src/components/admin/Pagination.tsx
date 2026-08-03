@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useMemo } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -25,10 +25,10 @@ export default function Pagination({ page, onPage, perPage, onPerPage, total, no
 
   // First, last, and a window around the current page.
   const pageNumbers = useMemo(() => {
-    const out: (number | '…')[] = []
+    const out: (number | 'â€¦')[] = []
     for (let i = 1; i <= totalPages; i++) {
       if (i === 1 || i === totalPages || Math.abs(i - safePage) <= 1) out.push(i)
-      else if (out[out.length - 1] !== '…') out.push('…')
+      else if (out[out.length - 1] !== 'â€¦') out.push('â€¦')
     }
     return out
   }, [totalPages, safePage])
@@ -40,7 +40,7 @@ export default function Pagination({ page, onPage, perPage, onPerPage, total, no
       <p className="text-xs text-gray-500">
         Showing{' '}
         <span className="font-semibold text-gray-700">
-          {start + 1}–{Math.min(start + perPage, total)}
+          {start + 1}â€“{Math.min(start + perPage, total)}
         </span>{' '}
         of <span className="font-semibold text-gray-700">{total}</span> {noun}
         {total !== 1 ? 's' : ''}
@@ -51,7 +51,7 @@ export default function Pagination({ page, onPage, perPage, onPerPage, total, no
           value={perPage}
           onChange={e => onPerPage(Number(e.target.value))}
           aria-label={`${noun}s per page`}
-          className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-400"
         >
           {PER_PAGE_OPTIONS.map(n => (
             <option key={n} value={n}>{n} / page</option>
@@ -70,8 +70,8 @@ export default function Pagination({ page, onPage, perPage, onPerPage, total, no
             </button>
 
             {pageNumbers.map((p, i) =>
-              p === '…' ? (
-                <span key={`gap-${i}`} className="px-1 text-xs text-gray-400 select-none">…</span>
+              p === 'â€¦' ? (
+                <span key={`gap-${i}`} className="px-1 text-xs text-gray-400 select-none">â€¦</span>
               ) : (
                 <button
                   key={p}
@@ -79,7 +79,7 @@ export default function Pagination({ page, onPage, perPage, onPerPage, total, no
                   aria-current={p === safePage ? 'page' : undefined}
                   className={`inline-flex items-center justify-center min-w-[1.75rem] h-7 px-2 rounded-lg text-xs font-semibold transition-colors ${
                     p === safePage
-                      ? 'bg-indigo-600 text-white'
+                      ? 'bg-primary-600 text-white'
                       : 'border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }`}
                 >

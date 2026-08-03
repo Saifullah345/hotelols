@@ -519,7 +519,7 @@ export default function HotelSettingsPage() {
       {/* ── Extra Services ── */}
       <section className="space-y-4">
         <div className="flex items-center gap-2.5">
-          <ShoppingBag className="h-5 w-5 text-indigo-500" />
+          <ShoppingBag className="h-5 w-5 text-primary-500" />
           <h3 className="text-base font-bold text-gray-900">Extra Services</h3>
         </div>
         <p className="text-sm text-gray-500">

@@ -163,7 +163,7 @@ export default function NewRoomPage() {
           <div className="p-5">
             <div className="flex items-center gap-2.5 mb-4">
               <div className="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center flex-shrink-0">
-                <Tag className="h-3.5 w-3.5 text-violet-600" />
+                <Tag className="h-3.5 w-3.5 text-primary-500" />
               </div>
               <h3 className="text-sm font-semibold text-gray-800">Type & Pricing</h3>
             </div>
@@ -175,7 +175,7 @@ export default function NewRoomPage() {
                     type="button"
                     onClick={() => setTypeModalOpen(true)}
                     disabled={!tenantId}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700 disabled:opacity-40 transition-colors"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-primary-500 hover:text-violet-700 disabled:opacity-40 transition-colors"
                   >
                     <Plus className="h-3 w-3" /> New type
                   </button>

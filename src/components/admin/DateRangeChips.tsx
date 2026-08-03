@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { Calendar, X } from 'lucide-react'
 import { DATE_RANGES } from '@/lib/dateRange'
@@ -20,7 +20,7 @@ interface Props {
 }
 
 /**
- * Today-through-last-10-days quick filters plus a custom from→to range.
+ * Today-through-last-10-days quick filters plus a custom fromâ†’to range.
  * Shared by the bookings and payments lists so both behave identically.
  */
 export default function DateRangeChips({
@@ -28,7 +28,7 @@ export default function DateRangeChips({
 }: Props) {
   const chip = (active: boolean) =>
     `flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-      active ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+      active ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
     }`
 
   return (
@@ -41,7 +41,7 @@ export default function DateRangeChips({
         <button key={r.key} onClick={() => onChange(r.key)} className={chip(value === r.key)}>
           {r.label}
           {counts && (
-            <span className={value === r.key ? 'ml-1.5 text-indigo-200' : 'ml-1.5 text-gray-400'}>
+            <span className={value === r.key ? 'ml-1.5 text-primary-200' : 'ml-1.5 text-gray-400'}>
               {counts[r.key] ?? 0}
             </span>
           )}
@@ -60,15 +60,15 @@ export default function DateRangeChips({
             value={customFrom}
             max={customTo || today}
             onChange={e => onCustomFrom(e.target.value)}
-            className="text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-400"
           />
-          <span className="text-gray-400 text-sm">→</span>
+          <span className="text-gray-400 text-sm">â†’</span>
           <input
             type="date"
             value={customTo}
             min={customFrom || undefined}
             onChange={e => onCustomTo(e.target.value)}
-            className="text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-400"
           />
           {(customFrom || customTo) && (
             <button

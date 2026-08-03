@@ -24,7 +24,7 @@ export function RoomRow({ href, children, draggable, isDragOver, onDragStart, on
       onDragOver={onDragOver}
       onDrop={onDrop}
       onDragEnd={onDragEnd}
-      className={`hover:bg-blue-50/40 cursor-pointer transition-colors ${isDragOver ? 'border-t-2 border-indigo-400 bg-indigo-50/30' : ''}`}
+      className={`hover:bg-blue-50/40 cursor-pointer transition-colors ${isDragOver ? 'border-t-2 border-primary-400 bg-primary-50/30' : ''}`}
     >
       {children}
     </tr>

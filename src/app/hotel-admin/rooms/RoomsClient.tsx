@@ -61,7 +61,7 @@ function RoomGridCard({ room, rangeActive, occupancy, availFrom, availTo, curren
     cleaning:    { badge: 'bg-amber-500',   label: 'Cleaning'    },
   }
   const sc      = statusConfig[room.status as keyof typeof statusConfig] ?? { badge: 'bg-gray-500', label: room.status }
-  const imgBg   = { available: 'from-emerald-50 to-teal-50', booked: 'from-blue-50 to-indigo-50', maintenance: 'from-red-50 to-orange-50', cleaning: 'from-amber-50 to-yellow-50' }[room.status] ?? 'from-gray-50 to-gray-100'
+  const imgBg   = { available: 'from-emerald-50 to-teal-50', booked: 'from-blue-50 to-primary-50', maintenance: 'from-red-50 to-orange-50', cleaning: 'from-amber-50 to-yellow-50' }[room.status] ?? 'from-gray-50 to-gray-100'
   const iconClr = { available: 'text-emerald-200', booked: 'text-blue-200', maintenance: 'text-red-200', cleaning: 'text-amber-200' }[room.status] ?? 'text-gray-200'
 
   return (
@@ -127,7 +127,7 @@ function RoomGridCard({ room, rangeActive, occupancy, availFrom, availTo, curren
       <div className="flex items-center border-t border-gray-100 divide-x divide-gray-100">
         <Link
           href={`/hotel-admin/rooms/${room.id}/edit`}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors font-medium"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm text-gray-500 hover:text-primary-600 hover:bg-primary-50 transition-colors font-medium"
         >
           <Pencil className="h-3.5 w-3.5" /> Edit
         </Link>
@@ -318,15 +318,15 @@ export default function RoomsClient({
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-indigo-950 via-indigo-900 to-indigo-800 px-6 py-5 sm:px-8">
+      <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-primary-900 via-primary-800 to-primary-700 px-6 py-5 sm:px-8">
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-indigo-600/20 blur-3xl" />
-          <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full bg-violet-600/20 blur-3xl" />
+          <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-primary-600/20 blur-3xl" />
+          <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full bg-primary-500/20 blur-3xl" />
         </div>
         <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h2 className="text-2xl font-extrabold text-white leading-tight">Rooms</h2>
-            <p className="text-indigo-300 text-sm mt-0.5">
+            <p className="text-primary-300 text-sm mt-0.5">
               {rooms.length} total
               {filtered.length !== rooms.length && ` · ${filtered.length} shown`}
               {saving && <span className="ml-2 text-amber-400 animate-pulse">Saving…</span>}
@@ -337,24 +337,24 @@ export default function RoomsClient({
               <BedDouble className="h-4 w-4 text-emerald-400" />
               <div>
                 <p className="text-white font-bold leading-none">{available}</p>
-                <p className="text-indigo-300 text-xs leading-none mt-0.5">Available</p>
+                <p className="text-primary-300 text-xs leading-none mt-0.5">Available</p>
               </div>
             </div>
             <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3.5 py-2 rounded-xl text-sm">
               <BookOpen className="h-4 w-4 text-blue-400" />
               <div>
                 <p className="text-white font-bold leading-none">{booked}</p>
-                <p className="text-indigo-300 text-xs leading-none mt-0.5">Occupied</p>
+                <p className="text-primary-300 text-xs leading-none mt-0.5">Occupied</p>
               </div>
             </div>
             <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3.5 py-2 rounded-xl text-sm">
               <Wrench className="h-4 w-4 text-red-400" />
               <div>
                 <p className="text-white font-bold leading-none">{maintenance}</p>
-                <p className="text-indigo-300 text-xs leading-none mt-0.5">Maintenance</p>
+                <p className="text-primary-300 text-xs leading-none mt-0.5">Maintenance</p>
               </div>
             </div>
-            <Link href="/hotel-admin/rooms/new" className="flex items-center gap-2 bg-white text-indigo-700 font-semibold text-sm px-4 py-2 rounded-xl hover:bg-indigo-50 transition-colors shadow-sm">
+            <Link href="/hotel-admin/rooms/new" className="flex items-center gap-2 bg-white text-primary-700 font-semibold text-sm px-4 py-2 rounded-xl hover:bg-primary-50 transition-colors shadow-sm">
               <Plus className="h-4 w-4" /> Add Room
             </Link>
           </div>
@@ -363,22 +363,22 @@ export default function RoomsClient({
 
       {/* Availability checker — a tool, not a list filter, so it reads as its
           own panel: pick a stay on the left, get the verdict on the right. */}
-      <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 overflow-hidden">
+      <div className="rounded-2xl border border-primary-100 bg-primary-50/50 overflow-hidden">
         <div className="flex flex-col lg:flex-row lg:items-center gap-4 px-4 py-4 sm:px-5">
 
           {/* Title */}
           <div className="flex items-center gap-3 lg:w-56 shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-primary-600 flex items-center justify-center shrink-0">
               <CalendarSearch className="h-4.5 w-4.5 text-white" />
             </div>
             <div className="min-w-0">
               <p className="text-sm font-bold text-gray-900 leading-tight">Check availability</p>
-              <p className="text-xs text-indigo-500/80 leading-tight mt-0.5">See what&apos;s free on a date</p>
+              <p className="text-xs text-primary-500/80 leading-tight mt-0.5">See what&apos;s free on a date</p>
             </div>
           </div>
 
           {/* Dates — grouped so the two inputs read as one range */}
-          <div className="flex items-center gap-2 rounded-xl bg-white border border-indigo-100 px-3 py-2 shadow-sm">
+          <div className="flex items-center gap-2 rounded-xl bg-white border border-primary-100 px-3 py-2 shadow-sm">
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Check-in</label>
               <input
@@ -407,13 +407,13 @@ export default function RoomsClient({
               {/* Resolved on click, so they land on the viewer's own "today". */}
               <button
                 onClick={() => onFromChange(todayISO())}
-                className="px-3 py-1.5 rounded-lg bg-white border border-indigo-200 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors"
+                className="px-3 py-1.5 rounded-lg bg-white border border-primary-200 text-sm font-semibold text-primary-700 hover:bg-primary-100 transition-colors"
               >
                 Tonight
               </button>
               <button
                 onClick={() => onFromChange(addDays(todayISO(), 1))}
-                className="px-3 py-1.5 rounded-lg bg-white border border-indigo-200 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors"
+                className="px-3 py-1.5 rounded-lg bg-white border border-primary-200 text-sm font-semibold text-primary-700 hover:bg-primary-100 transition-colors"
               >
                 Tomorrow
               </button>
@@ -471,13 +471,13 @@ export default function RoomsClient({
             value={q}
             onChange={e => setQ(e.target.value)}
             placeholder="Search name or number…"
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-400"
           />
         </div>
         <select
           value={typeId}
           onChange={e => setTypeId(e.target.value)}
-          className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white text-gray-700"
+          className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white text-gray-700"
         >
           <option value="">All Types</option>
           {roomTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -485,7 +485,7 @@ export default function RoomsClient({
         <select
           value={status}
           onChange={e => setStatus(e.target.value)}
-          className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white text-gray-700"
+          className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white text-gray-700"
         >
           <option value="">All Statuses</option>
           {STATUSES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
@@ -500,7 +500,7 @@ export default function RoomsClient({
             onClick={() => setView('list')}
             title="List view"
             aria-label="List view"
-            className={`p-1.5 rounded-lg transition-colors ${view === 'list' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+            className={`p-1.5 rounded-lg transition-colors ${view === 'list' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-400 hover:text-gray-600'}`}
           >
             <LayoutList className="h-4 w-4" />
           </button>
@@ -508,7 +508,7 @@ export default function RoomsClient({
             onClick={() => setView('grid')}
             title="Grid view"
             aria-label="Grid view"
-            className={`p-1.5 rounded-lg transition-colors ${view === 'grid' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+            className={`p-1.5 rounded-lg transition-colors ${view === 'grid' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-400 hover:text-gray-600'}`}
           >
             <LayoutGrid className="h-4 w-4" />
           </button>
@@ -525,7 +525,7 @@ export default function RoomsClient({
       {view === 'grid' ? (
         <div className="space-y-4">
           <div className="card px-5 py-3.5 flex items-center gap-2">
-            <div className="w-1.5 h-4 bg-indigo-500 rounded-full" />
+            <div className="w-1.5 h-4 bg-primary-500 rounded-full" />
             <h3 className="font-semibold text-gray-900 text-sm">
               {hasFilter ? `${filtered.length} room${filtered.length !== 1 ? 's' : ''} found` : 'All Rooms'}
             </h3>
@@ -558,7 +558,7 @@ export default function RoomsClient({
               <div ref={sentinelRef} className="h-1" />
               {hasMore && (
                 <div className="flex justify-center py-2">
-                  <Loader2 className="h-5 w-5 animate-spin text-indigo-400" />
+                  <Loader2 className="h-5 w-5 animate-spin text-primary-400" />
                 </div>
               )}
             </>
@@ -567,7 +567,7 @@ export default function RoomsClient({
       ) : (
         <div className="card overflow-hidden">
           <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
-            <div className="w-1.5 h-4 bg-indigo-500 rounded-full" />
+            <div className="w-1.5 h-4 bg-primary-500 rounded-full" />
             <h3 className="font-semibold text-gray-900 text-sm">
               {hasFilter ? `${filtered.length} room${filtered.length !== 1 ? 's' : ''} found` : 'All Rooms'}
             </h3>
@@ -720,7 +720,7 @@ export default function RoomsClient({
           <div ref={sentinelRef} className="h-1" />
           {hasMore && (
             <div className="flex justify-center py-3 border-t border-gray-100">
-              <Loader2 className="h-5 w-5 animate-spin text-indigo-400" />
+              <Loader2 className="h-5 w-5 animate-spin text-primary-400" />
             </div>
           )}
         </div>

@@ -62,38 +62,38 @@ export default async function StaffPage({
   return (
     <div className="space-y-6">
       {/* Header banner */}
-      <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-indigo-950 via-indigo-900 to-indigo-800 px-6 py-5 sm:px-8">
+      <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-primary-900 via-primary-800 to-primary-700 px-6 py-5 sm:px-8">
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-indigo-600/20 blur-3xl" />
-          <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full bg-violet-600/20 blur-3xl" />
+          <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-primary-600/20 blur-3xl" />
+          <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full bg-primary-500/20 blur-3xl" />
         </div>
         <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h2 className="text-2xl font-extrabold text-white leading-tight">Team Members</h2>
-            <p className="text-indigo-300 text-sm mt-0.5">
+            <p className="text-primary-300 text-sm mt-0.5">
               {totalCount} staff · {activeCount} on duty
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3.5 py-2 rounded-xl text-sm">
-              <Users className="h-4 w-4 text-indigo-300" />
+              <Users className="h-4 w-4 text-primary-300" />
               <div>
                 <p className="text-white font-bold leading-none">{totalCount}</p>
-                <p className="text-indigo-300 text-xs leading-none mt-0.5">Total</p>
+                <p className="text-primary-300 text-xs leading-none mt-0.5">Total</p>
               </div>
             </div>
             <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3.5 py-2 rounded-xl text-sm">
               <UserCheck className="h-4 w-4 text-emerald-400" />
               <div>
                 <p className="text-white font-bold leading-none">{activeCount}</p>
-                <p className="text-indigo-300 text-xs leading-none mt-0.5">Active</p>
+                <p className="text-primary-300 text-xs leading-none mt-0.5">Active</p>
               </div>
             </div>
             <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3.5 py-2 rounded-xl text-sm">
               <UserMinus className="h-4 w-4 text-amber-400" />
               <div>
                 <p className="text-white font-bold leading-none">{onLeaveCount}</p>
-                <p className="text-indigo-300 text-xs leading-none mt-0.5">On Leave</p>
+                <p className="text-primary-300 text-xs leading-none mt-0.5">On Leave</p>
               </div>
             </div>
           </div>
@@ -108,13 +108,13 @@ export default async function StaffPage({
             name="q"
             defaultValue={q}
             placeholder="Search by name or email…"
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-400"
           />
         </div>
         <select
           name="department"
           defaultValue={department ?? ''}
-          className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+          className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white"
         >
           <option value="">All Departments</option>
           {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
@@ -122,7 +122,7 @@ export default async function StaffPage({
         <select
           name="status"
           defaultValue={status ?? ''}
-          className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+          className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white"
         >
           <option value="">All Status</option>
           <option value="active">Active</option>

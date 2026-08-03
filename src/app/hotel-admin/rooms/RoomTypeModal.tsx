@@ -85,7 +85,7 @@ export default function RoomTypeModal({
 
         <div className="flex items-center gap-2.5 mb-5">
           <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center flex-shrink-0">
-            <Tag className="h-4 w-4 text-violet-600" />
+            <Tag className="h-4 w-4 text-primary-500" />
           </div>
           <div>
             <h3 className="text-base font-bold text-gray-900">New Room Type</h3>

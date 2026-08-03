@@ -1,4 +1,4 @@
-import Link from 'next/link'
+﻿import Link from 'next/link'
 import { cn } from '@/utils/cn'
 import { TrendingUp, TrendingDown } from 'lucide-react'
 
@@ -50,7 +50,7 @@ export function StatsCard({
 
   if (href) {
     return (
-      <Link href={href} className="card block transition-all duration-200 hover:shadow-lg hover:-translate-y-1 hover:border-indigo-200">
+      <Link href={href} className="card block transition-all duration-200 hover:shadow-lg hover:-translate-y-1 hover:border-primary-200">
         {content}
       </Link>
     )
