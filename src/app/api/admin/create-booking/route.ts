@@ -132,11 +132,9 @@ export async function POST(request: Request) {
   const isPaid       = payment_collected !== false
   const paymentStatus = source === 'online' ? 'pending' : (isPaid ? 'completed' : 'pending')
 
-  // Confirmed only when payment was actually collected (walk-in / paid now).
-  // Phone / WhatsApp "pay later" bookings stay pending until payment is recorded.
-  const bookingStatus = paymentStatus === 'completed'
-    ? 'confirmed'
-    : (status ?? 'pending')
+  // Admin always collects advance before creating any booking (walk-in, phone,
+  // WhatsApp, etc.), so every admin-created booking is confirmed immediately.
+  const bookingStatus = status ?? 'confirmed'
 
   let paymentAmount = total_amount
   if (paymentStatus === 'completed' && advance_amount != null) {
