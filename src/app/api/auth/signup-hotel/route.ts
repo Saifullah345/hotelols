@@ -94,6 +94,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to link your account to the hotel. Please try again.' }, { status: 500 })
     }
 
+    // Keep user_roles in sync: the trigger inserted (hotel_admin, tenant_id=NULL);
+    // now that the hotel exists, set the real tenant_id.
+    await admin.from('user_roles')
+      .update({ tenant_id: hotel.id })
+      .eq('user_id', userId)
+      .eq('role', 'hotel_admin')
+      .is('tenant_id', null)
+
     try {
       const { subject, html } = confirmEmailTemplate(full_name, verifyUrl)
       await sendEmail({ to: email, subject, html })

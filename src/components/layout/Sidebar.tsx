@@ -82,6 +82,8 @@ export function Sidebar({ role, hotelName, isOpen = false, onClose }: SidebarPro
   const navItems = navMap[role] ?? []
 
   const handleLogout = async () => {
+    // Clear the active role cookie before signing out
+    await fetch('/api/auth/activate-role', { method: 'DELETE' }).catch(() => {})
     const supabase = createClient()
     await supabase.auth.signOut()
     toast.success('Signed out')

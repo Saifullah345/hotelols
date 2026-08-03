@@ -58,22 +58,37 @@ export default function LoginPage() {
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({ email: data.email, password: data.password })
     if (error) {
-      // Supabase rejects accounts that never clicked the signup confirmation link.
       if (/confirm/i.test(error.message)) { setUnverifiedEmail(data.email); return }
       toast.error(error.message)
       return
     }
     const { data: { user } } = await supabase.auth.getUser()
-    let profile: { role?: string } | null = null
-    if (user) {
-      try {
-        const result = await supabase.from('profiles').select('role').eq('id', user.id).single()
-        profile = result.data ?? null
-      } catch { profile = null }
-    }
+    if (!user) { toast.error('Login failed'); return }
+
+    const { data: roles } = await supabase
+      .from('user_roles')
+      .select('id, role, tenant_id')
+      .eq('user_id', user.id)
+
     toast.success('Logged in successfully')
     setRedirecting(true)
-    router.push(profile?.role ? roleRedirects[profile.role] ?? '/' : '/')
+
+    if (!roles || roles.length === 0) {
+      // No roles yet (migration not run); fall back to profiles.role for this login
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+      router.push(roleRedirects[profile?.role ?? 'customer'] ?? '/')
+    } else if (roles.length === 1) {
+      const r = roles[0]
+      await fetch('/api/auth/activate-role', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: r.role, tenantId: r.tenant_id }),
+      })
+      router.push(roleRedirects[r.role] ?? '/')
+    } else {
+      router.push('/select-role')
+    }
+
     router.refresh()
   }
 

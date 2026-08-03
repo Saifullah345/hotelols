@@ -22,15 +22,12 @@ export async function POST(request: Request) {
   const body = await request.json()
   const { full_name, role, hotel_id, department, position, permissions, country, city, address, shift, salary } = body
   const password = body.password
-  // Normalise so duplicate detection is case-insensitive and matches how
-  // Supabase Auth stores emails.
   const email: string = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
 
   if (!full_name || !email || !role) {
     return NextResponse.json({ error: 'full_name, email, and role are required' }, { status: 400 })
   }
 
-  // There is exactly one super admin per platform — created directly in Supabase.
   if (role === 'super_admin') {
     return NextResponse.json(
       { error: 'Super admin accounts cannot be created here. Create one directly in Supabase.' },
@@ -38,42 +35,79 @@ export async function POST(request: Request) {
     )
   }
 
-  // hotel_admin can only add staff to their own hotel
-  if (caller.role === 'hotel_admin') {
-    if (role !== 'staff') {
-      return NextResponse.json({ error: 'Hotel admins can only add staff members' }, { status: 403 })
-    }
+  if (caller.role === 'hotel_admin' && role !== 'staff') {
+    return NextResponse.json({ error: 'Hotel admins can only add staff members' }, { status: 403 })
   }
 
   const adminClient = await createAdminClient()
+  const effectiveHotelId = caller.role === 'hotel_admin' ? caller.tenant_id : hotel_id
+  const roleTenantId = ['hotel_admin', 'staff'].includes(role) ? effectiveHotelId : null
 
-  // One email = one account. Don't let the same address be reused for a
-  // different account type (e.g. a customer email reused to make a staff login).
-  const { data: existing } = await adminClient
+  // ── Check if user already exists ──────────────────────────────────────────
+  const { data: existingProfiles } = await adminClient
     .from('profiles')
     .select('id, role')
     .ilike('email', email)
     .limit(1)
-  if (existing && existing.length > 0) {
-    return NextResponse.json(
-      { error: `An account with this email already exists (role: ${existing[0].role}). Use a different email.` },
-      { status: 409 },
-    )
-  }
-  const effectiveHotelId = caller.role === 'hotel_admin' ? caller.tenant_id : hotel_id
 
+  if (existingProfiles && existingProfiles.length > 0) {
+    const existingUserId = existingProfiles[0].id
+
+    // Block if they already have this role at this tenant
+    let dupQ = adminClient
+      .from('user_roles')
+      .select('id')
+      .eq('user_id', existingUserId)
+      .eq('role', role)
+
+    if (roleTenantId) {
+      dupQ = dupQ.eq('tenant_id', roleTenantId)
+    } else {
+      dupQ = dupQ.is('tenant_id', null)
+    }
+
+    const { data: dupRole } = await dupQ.maybeSingle()
+    if (dupRole) {
+      return NextResponse.json(
+        { error: `This user already has the ${role} role${effectiveHotelId ? ' at this hotel' : ''}.` },
+        { status: 409 },
+      )
+    }
+
+    // Existing user: add the new role without touching their password or primary role
+    const { error: roleInsertError } = await adminClient.from('user_roles').insert({
+      user_id: existingUserId,
+      role,
+      tenant_id: roleTenantId,
+    })
+    if (roleInsertError) return NextResponse.json({ error: roleInsertError.message }, { status: 400 })
+
+    if (role === 'staff' && effectiveHotelId) {
+      await adminClient.from('staff').insert({
+        hotel_id:    effectiveHotelId,
+        user_id:     existingUserId,
+        department:  department  || 'General',
+        position:    position    || 'Staff',
+        permissions: permissions || [],
+        is_active:   true,
+        status:      'active',
+        shift:       shift  || null,
+        salary:      parseFloat(salary) || 0,
+      })
+    }
+
+    return NextResponse.json({
+      success: true,
+      userId: existingUserId,
+      note: 'Role added to existing account. The user can now select this role on their next login.',
+    })
+  }
+
+  // ── New user ───────────────────────────────────────────────────────────────
   let createdUserId: string
-  // A branded email to send once the account is fully set up. We build it here
-  // (while we still have the invite link / temp password) but only send after
-  // the profile + staff rows are in place, so a bad email never leaves a
-  // half-provisioned account behind.
   let pendingEmail: { subject: string; html: string } | null = null
 
   if (role === 'customer') {
-    // generateLink({ type: 'invite' }) creates the (unconfirmed) user AND returns
-    // the invite link without sending anything itself — so we can deliver our own
-    // branded Resend email instead of Supabase's default template. redirectTo must
-    // be in Supabase's Auth → URL Configuration → Redirect URLs allow-list.
     const { data: invite, error: inviteError } = await adminClient.auth.admin.generateLink({
       type: 'invite',
       email,
@@ -92,7 +126,6 @@ export async function POST(request: Request) {
     if (!password) {
       return NextResponse.json({ error: 'Password is required for non-customer roles' }, { status: 400 })
     }
-    // Admin-created users have email auto-confirmed — no verification needed
     const { data: created, error: createError } = await adminClient.auth.admin.createUser({
       email,
       password,
@@ -110,14 +143,12 @@ export async function POST(request: Request) {
     })
   }
 
-  // Update profile (trigger may have created it with defaults already)
   const { error: profileError } = await adminClient.from('profiles').upsert({
     id: createdUserId,
     email,
     full_name,
     role,
-    tenant_id: ['hotel_admin', 'staff'].includes(role) ? effectiveHotelId : null,
-    // Location details (captured for customers).
+    tenant_id: roleTenantId,
     country: country || null,
     city: city || null,
     address: address || null,
@@ -125,7 +156,22 @@ export async function POST(request: Request) {
   })
   if (profileError) return NextResponse.json({ error: profileError.message }, { status: 400 })
 
-  // Create staff record when role is staff
+  // Insert into user_roles (trigger may have created a row with tenant_id=null; update it)
+  await adminClient.from('user_roles')
+    .update({ tenant_id: roleTenantId })
+    .eq('user_id', createdUserId)
+    .eq('role', role)
+    .is('tenant_id', null)
+
+  // Insert if it didn't exist yet (e.g. trigger hasn't fired for invite flow)
+  await adminClient.from('user_roles').insert({
+    user_id: createdUserId,
+    role,
+    tenant_id: roleTenantId,
+  }).then(({ error }) => {
+    if (error && error.code !== '23505') console.error('user_roles insert:', error)
+  })
+
   if (role === 'staff' && effectiveHotelId) {
     const { error: staffError } = await adminClient.from('staff').insert({
       hotel_id:    effectiveHotelId,
@@ -141,8 +187,6 @@ export async function POST(request: Request) {
     if (staffError) return NextResponse.json({ error: staffError.message }, { status: 400 })
   }
 
-  // The account exists now, so an email failure must NOT fail the request —
-  // surface it as a warning the caller can show instead.
   let emailWarning: string | undefined
   if (pendingEmail) {
     try {

@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { AdminShell } from '@/components/layout/AdminShell'
@@ -10,10 +11,26 @@ export default async function StaffLayout({ children }: { children: React.ReactN
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-  if (profile?.role !== 'staff') redirect('/login')
+  const store = await cookies()
+  const activeRole     = store.get('bq_role')?.value
+  const activeTenantId = store.get('bq_tenant')?.value
 
-  const { data: hotel } = await supabase.from('hotels').select('name').eq('id', profile.tenant_id).single()
+  if (activeRole !== 'staff' || !activeTenantId) redirect('/select-role')
+
+  const { data: roleRow } = await supabase
+    .from('user_roles')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('role', 'staff')
+    .eq('tenant_id', activeTenantId)
+    .maybeSingle()
+
+  if (!roleRow) redirect('/select-role')
+
+  const [{ data: profile }, { data: hotel }] = await Promise.all([
+    supabase.from('profiles').select('*').eq('id', user.id).single(),
+    supabase.from('hotels').select('name').eq('id', activeTenantId).single(),
+  ])
 
   return (
     <AdminShell role="staff" hotelName={hotel?.name} title="Front Desk" profile={profile}>
