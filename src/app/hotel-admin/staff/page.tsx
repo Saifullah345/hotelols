@@ -8,6 +8,9 @@ import StaffClient, { type StaffMember } from './StaffClient'
 
 export const metadata = { title: 'Staff Management' }
 
+// Edits, removals and newly invited members must show on the next render.
+export const dynamic = 'force-dynamic'
+
 export default async function StaffPage({
   searchParams,
 }: {
@@ -27,7 +30,9 @@ export default async function StaffPage({
     .from('staff')
     .select('id, user_id, name, email, phone, department, position, is_active, status, shift, salary, user:profiles(full_name, email, phone)')
     .eq('hotel_id', tenantId)
+    // Newest member first.
     .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
 
   if (department) query = query.eq('department', department)
   if (status === 'active')   query = query.eq('status', 'active')

@@ -83,6 +83,9 @@ export default function AddUserPage() {
     } else {
       toast.success('User created successfully')
       router.push('/super-admin/users')
+      // Without this the list comes back from the router cache and the account
+      // that was just created is missing from the top of it.
+      router.refresh()
     }
   }
 
