@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useMemo, useEffect, useRef } from 'react'
 import Link from 'next/link'
@@ -34,7 +34,7 @@ type Room = {
 
 type RoomType = { id: string; name: string }
 
-/** One night from the given day — the default range for a single-day check. */
+/** One night from the given day â€” the default range for a single-day check. */
 const nextDay = (date: string) => addDays(date, 1)
 
 const fmtShort = (d: string) =>
@@ -92,7 +92,7 @@ function RoomGridCard({ room, rangeActive, occupancy, availFrom, availTo, curren
               {room.name ?? `Room ${room.room_number}`}
             </h3>
             <p className="text-xs text-gray-400 mt-0.5">
-              {room.room_type?.name ?? '—'} · {room.floor === 0 ? 'Ground floor' : `Floor ${room.floor}`}
+              {room.room_type?.name ?? 'â€”'} Â· {room.floor === 0 ? 'Ground floor' : `Floor ${room.floor}`}
             </p>
           </div>
           <div className="text-right shrink-0">
@@ -110,14 +110,14 @@ function RoomGridCard({ room, rangeActive, occupancy, availFrom, availTo, curren
             <div className="mt-2.5 px-3 py-2 rounded-lg bg-red-50 border border-red-100 flex items-center gap-1.5">
               <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
               <span className="text-xs text-red-700 font-medium truncate">
-                {taken.guest} · {fmtShort(taken.checkIn)}–{fmtShort(taken.checkOut)}
+                {taken.guest} Â· {fmtShort(taken.checkIn)}â€“{fmtShort(taken.checkOut)}
               </span>
             </div>
           ) : room.status === 'available' ? (
             <div className="mt-2.5 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center gap-1.5">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
               <span className="text-xs text-emerald-700 font-medium">
-                Free · {fmtShort(availFrom)}–{fmtShort(availTo)}
+                Free Â· {fmtShort(availFrom)}â€“{fmtShort(availTo)}
               </span>
             </div>
           ) : null
@@ -163,8 +163,8 @@ export default function RoomsClient({
   const [typeId, setTypeId]     = useState('')
   const saveTimer               = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // ── Availability check ────────────────────────────────────────────
-  // "Is this room free on that day?" — pick a range and every room is marked
+  // â”€â”€ Availability check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // "Is this room free on that day?" â€” pick a range and every room is marked
   // against the bookings that actually overlap it.
   const [availFrom, setAvailFrom] = useState('')
   const [availTo, setAvailTo]     = useState('')
@@ -242,7 +242,7 @@ export default function RoomsClient({
     [rooms, rangeActive, occupancy],
   )
 
-  // ── Infinite scroll ───────────────────────────────────────────────
+  // â”€â”€ Infinite scroll â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const BATCH = 20
   const [visibleCount, setVisibleCount] = useState(BATCH)
   const sentinelRef = useRef<HTMLDivElement>(null)
@@ -269,7 +269,7 @@ export default function RoomsClient({
 
   const clearAll = () => { setQ(''); setStatus(''); setTypeId('') }
 
-  // ── Drag handlers ──────────────────────────────────────────────
+  // â”€â”€ Drag handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleDragStart = (id: string) => (e: React.DragEvent) => {
     e.dataTransfer.effectAllowed = 'move'
     setDragId(id)
@@ -318,7 +318,7 @@ export default function RoomsClient({
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-primary-900 via-primary-800 to-primary-700 px-6 py-5 sm:px-8">
+      <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-primary-700 via-primary-600 to-primary-500 px-6 py-5 sm:px-8">
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-primary-600/20 blur-3xl" />
           <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full bg-primary-500/20 blur-3xl" />
@@ -328,8 +328,8 @@ export default function RoomsClient({
             <h2 className="text-2xl font-extrabold text-white leading-tight">Rooms</h2>
             <p className="text-primary-300 text-sm mt-0.5">
               {rooms.length} total
-              {filtered.length !== rooms.length && ` · ${filtered.length} shown`}
-              {saving && <span className="ml-2 text-amber-400 animate-pulse">Saving…</span>}
+              {filtered.length !== rooms.length && ` Â· ${filtered.length} shown`}
+              {saving && <span className="ml-2 text-amber-400 animate-pulse">Savingâ€¦</span>}
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
@@ -361,7 +361,7 @@ export default function RoomsClient({
         </div>
       </div>
 
-      {/* Availability checker — a tool, not a list filter, so it reads as its
+      {/* Availability checker â€” a tool, not a list filter, so it reads as its
           own panel: pick a stay on the left, get the verdict on the right. */}
       <div className="rounded-2xl border border-primary-100 bg-primary-50/50 overflow-hidden">
         <div className="flex flex-col lg:flex-row lg:items-center gap-4 px-4 py-4 sm:px-5">
@@ -377,7 +377,7 @@ export default function RoomsClient({
             </div>
           </div>
 
-          {/* Dates — grouped so the two inputs read as one range */}
+          {/* Dates â€” grouped so the two inputs read as one range */}
           <div className="flex items-center gap-2 rounded-xl bg-white border border-primary-100 px-3 py-2 shadow-sm">
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Check-in</label>
@@ -425,7 +425,7 @@ export default function RoomsClient({
             <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
               {checking ? (
                 <span className="flex items-center gap-1.5 text-sm text-gray-500">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking…
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Checkingâ€¦
                 </span>
               ) : (
                 <span
@@ -437,7 +437,7 @@ export default function RoomsClient({
                 >
                   {freeCount > 0 ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
                   {freeCount} of {rooms.length} free
-                  <span className="font-medium opacity-70">· {fmtShort(availFrom)}–{fmtShort(availTo)}</span>
+                  <span className="font-medium opacity-70">Â· {fmtShort(availFrom)}â€“{fmtShort(availTo)}</span>
                 </span>
               )}
               <button
@@ -470,7 +470,7 @@ export default function RoomsClient({
           <input
             value={q}
             onChange={e => setQ(e.target.value)}
-            placeholder="Search name or number…"
+            placeholder="Search name or numberâ€¦"
             className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-400"
           />
         </div>
@@ -517,7 +517,7 @@ export default function RoomsClient({
 
       {!hasFilter && rooms.length > 1 && view === 'list' && (
         <p className="text-xs text-gray-400 flex items-center gap-1.5 -mt-2">
-          <GripVertical className="h-3.5 w-3.5" /> Drag rows to reorder — order is shown to customers.
+          <GripVertical className="h-3.5 w-3.5" /> Drag rows to reorder â€” order is shown to customers.
         </p>
       )}
 
@@ -536,7 +536,7 @@ export default function RoomsClient({
               <BedDouble className="h-9 w-9 text-gray-200 mx-auto mb-3" />
               <p className="text-gray-400 text-sm">
                 {rangeActive && freeOnly
-                  ? `No rooms free for ${fmtShort(availFrom)} – ${fmtShort(availTo)}.`
+                  ? `No rooms free for ${fmtShort(availFrom)} â€“ ${fmtShort(availTo)}.`
                   : hasFilter ? 'No rooms match your filters.' : 'No rooms yet.'}
               </p>
             </div>
@@ -636,7 +636,7 @@ export default function RoomsClient({
 
                     <td className="table-cell">
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                        {room.room_type?.name ?? '—'}
+                        {room.room_type?.name ?? 'â€”'}
                       </span>
                     </td>
 
@@ -665,7 +665,7 @@ export default function RoomsClient({
                                 <XCircle className="h-3 w-3" /> Booked
                               </span>
                               <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[150px]">
-                                {taken.guest} · {fmtShort(taken.checkIn)}–{fmtShort(taken.checkOut)}
+                                {taken.guest} Â· {fmtShort(taken.checkIn)}â€“{fmtShort(taken.checkOut)}
                               </p>
                             </>
                           ) : room.status === 'available' ? (
@@ -708,7 +708,7 @@ export default function RoomsClient({
                       <BedDouble className="h-9 w-9 text-gray-200 mx-auto mb-3" />
                       <p className="text-gray-400 text-sm">
                         {rangeActive && freeOnly
-                          ? `No rooms free for ${fmtShort(availFrom)} – ${fmtShort(availTo)}.`
+                          ? `No rooms free for ${fmtShort(availFrom)} â€“ ${fmtShort(availTo)}.`
                           : hasFilter ? 'No rooms match your filters.' : 'No rooms yet.'}
                       </p>
                     </td>

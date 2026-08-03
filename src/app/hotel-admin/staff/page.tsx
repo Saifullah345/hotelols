@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+﻿import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Search, Users, UserCheck, UserMinus } from 'lucide-react'
@@ -62,7 +62,7 @@ export default async function StaffPage({
   return (
     <div className="space-y-6">
       {/* Header banner */}
-      <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-primary-900 via-primary-800 to-primary-700 px-6 py-5 sm:px-8">
+      <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-primary-700 via-primary-600 to-primary-500 px-6 py-5 sm:px-8">
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-primary-600/20 blur-3xl" />
           <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full bg-primary-500/20 blur-3xl" />
@@ -71,7 +71,7 @@ export default async function StaffPage({
           <div>
             <h2 className="text-2xl font-extrabold text-white leading-tight">Team Members</h2>
             <p className="text-primary-300 text-sm mt-0.5">
-              {totalCount} staff · {activeCount} on duty
+              {totalCount} staff Â· {activeCount} on duty
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
@@ -107,7 +107,7 @@ export default async function StaffPage({
           <input
             name="q"
             defaultValue={q}
-            placeholder="Search by name or email…"
+            placeholder="Search by name or emailâ€¦"
             className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-400"
           />
         </div>

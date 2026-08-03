@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+﻿import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { StatsCard } from '@/components/dashboard/StatsCard'
 import { RevenueChart } from '@/components/dashboard/RevenueChart'
@@ -55,7 +55,7 @@ export default async function HotelAdminDashboard() {
       .limit(5),
     supabase.from('bookings').select('*', { count: 'exact', head: true })
       .eq('hotel_id', tenantId).eq('status', 'checked_in').eq('check_in', today),
-    // Reservations taken today, whatever their stay dates — the day's intake.
+    // Reservations taken today, whatever their stay dates â€” the day's intake.
     supabase.from('bookings').select('*', { count: 'exact', head: true })
       .eq('hotel_id', tenantId).gte('created_at', `${today}T00:00:00`),
   ])
@@ -90,7 +90,7 @@ export default async function HotelAdminDashboard() {
   return (
     <div className="space-y-6">
       {/* Welcome banner */}
-      <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-primary-900 via-primary-800 to-primary-700 p-6 sm:p-8">
+      <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-primary-700 via-primary-600 to-primary-500 p-6 sm:p-8">
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-primary-600/20 blur-3xl" />
           <div className="absolute -bottom-10 -left-10 w-48 h-48 rounded-full bg-primary-500/20 blur-3xl" />
@@ -105,7 +105,7 @@ export default async function HotelAdminDashboard() {
               Welcome back!
             </h2>
             <p className="text-primary-200 text-sm mt-1">
-              {hotelName}{hotelCity ? ` · ${hotelCity}` : ''}
+              {hotelName}{hotelCity ? ` Â· ${hotelCity}` : ''}
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
@@ -181,7 +181,7 @@ export default async function HotelAdminDashboard() {
                     {(b.user as { full_name?: string } | null)?.full_name
                       || (b as { guest_name?: string }).guest_name
                       || (b.user as { email?: string } | null)?.email
-                      || '—'}
+                      || 'â€”'}
                   </td>
                   <td className="table-cell text-gray-500">Room {(b.room as { room_number?: string })?.room_number}</td>
                   <td className="table-cell text-gray-500">{new Date(b.check_in).toLocaleDateString()}</td>
