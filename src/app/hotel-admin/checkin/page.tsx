@@ -1,9 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import CheckInClient from './CheckInClient'
+import { markExpiredBookings } from '@/lib/bookings'
 
 export const metadata = { title: 'Check-In / Out' }
-export const dynamic = 'force-dynamic'
 
 export type BookingEntry = {
   id: string
@@ -63,15 +63,7 @@ export default async function CheckInPage() {
 
   const today = new Date().toISOString().split('T')[0]
 
-  // Auto-mark expired bookings silently on every page load:
-  // confirmed + date passed = guest never arrived (No Show)
-  // pending   + date passed = payment was never collected (Overdue)
-  await Promise.all([
-    supabase.from('bookings').update({ status: 'no_show' })
-      .eq('hotel_id', tenantId).eq('status', 'confirmed').lt('check_in', today),
-    supabase.from('bookings').update({ status: 'overdue' })
-      .eq('hotel_id', tenantId).eq('status', 'pending').lt('check_in', today),
-  ])
+  await markExpiredBookings(supabase, tenantId, today)
 
   const [
     { data: rawArrivals },

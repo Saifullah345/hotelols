@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import BookingsClient, { type RoomOption } from './BookingsClient'
+import { markExpiredBookings } from '@/lib/bookings'
 
 export const metadata = { title: 'Bookings' }
 
@@ -14,13 +15,7 @@ export default async function BookingsPage() {
   if (!tenantId) redirect('/login')
 
   const todayISO = new Date().toISOString().slice(0, 10)
-  // confirmed + date passed = No Show; pending + date passed = Overdue
-  await Promise.all([
-    supabase.from('bookings').update({ status: 'no_show' })
-      .eq('hotel_id', tenantId).eq('status', 'confirmed').lt('check_in', todayISO),
-    supabase.from('bookings').update({ status: 'overdue' })
-      .eq('hotel_id', tenantId).eq('status', 'pending').lt('check_in', todayISO),
-  ])
+  await markExpiredBookings(supabase, tenantId, todayISO)
 
   const [{ data: bookings }, { data: hotelInfo }, { data: rooms }] = await Promise.all([
     supabase

@@ -3,7 +3,6 @@ import { redirect } from 'next/navigation'
 import GuestsClient, { type GuestRecord } from './GuestsClient'
 
 export const metadata = { title: 'Guest Directory' }
-export const dynamic = 'force-dynamic'
 
 type ProfileRow = {
   id: string

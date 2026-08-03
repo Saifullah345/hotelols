@@ -32,10 +32,10 @@ export default async function ReviewsPage({
   if (published === 'true')  query = query.eq('is_published', true)
   if (published === 'false') query = query.eq('is_published', false)
 
-  const { data: reviews } = await query
-
-  const { data: allReviews } = await supabase
+  const allReviewsQuery = supabase
     .from('reviews').select('rating').eq('hotel_id', tenantId)
+
+  const [{ data: reviews }, { data: allReviews }] = await Promise.all([query, allReviewsQuery])
 
   const avgRating = allReviews?.length
     ? (allReviews.reduce((s, r) => s + r.rating, 0) / allReviews.length).toFixed(1)

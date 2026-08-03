@@ -25,3 +25,16 @@ export function addDays(iso: string, days: number): string {
   d.setDate(d.getDate() + days)
   return toISODate(d)
 }
+
+/**
+ * Number of nights between two ISO date strings (minimum 1).
+ * Single source of truth — import this instead of inlining the 86_400_000 division.
+ */
+export function nightsBetween(checkIn: string, checkOut: string): number {
+  return Math.max(
+    1,
+    Math.ceil(
+      (new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86_400_000,
+    ),
+  )
+}

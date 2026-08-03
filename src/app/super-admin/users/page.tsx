@@ -11,7 +11,6 @@ export const metadata = { title: 'Users' }
 
 // Read through to the database on every visit — a user added a moment ago has
 // to be on the list, not whatever the last render happened to contain.
-export const dynamic = 'force-dynamic'
 
 const roleBadge: Record<UserRole, string> = {
   super_admin: 'badge-red',

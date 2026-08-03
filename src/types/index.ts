@@ -207,24 +207,3 @@ export interface Notification {
   created_at: string
 }
 
-export interface DashboardStats {
-  total_bookings: number
-  total_revenue: number
-  occupancy_rate: number
-  total_rooms: number
-  available_rooms: number
-  pending_bookings: number
-  checked_in_today: number
-  checking_out_today: number
-  revenue_this_month: number
-  revenue_last_month: number
-}
-
-export interface SuperAdminStats {
-  total_hotels: number
-  active_hotels: number
-  suspended_hotels: number
-  total_users: number
-  total_revenue: number
-  hotels_by_plan: Record<PlanName, number>
-}

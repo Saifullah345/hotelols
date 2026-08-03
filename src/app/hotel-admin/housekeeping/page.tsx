@@ -3,7 +3,6 @@ import { redirect } from 'next/navigation'
 import HousekeepingClient from './HousekeepingClient'
 
 export const metadata = { title: 'Housekeeping' }
-export const dynamic = 'force-dynamic'
 
 export type HKTask = {
   id: string

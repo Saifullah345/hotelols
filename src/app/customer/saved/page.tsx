@@ -7,7 +7,6 @@ import { formatCurrency } from '@/lib/currency'
 import { MapPin, Star, Wifi, Car, Coffee, ChevronRight, Heart } from 'lucide-react'
 
 export const metadata = { title: 'Saved Hotels' }
-export const dynamic = 'force-dynamic'
 
 type SavedRow = {
   hotel: {

@@ -4,7 +4,6 @@ import ReportsClient from './ReportsClient'
 import type { PaymentRow, BookingRow, RoomRow, ReviewRow } from '@/lib/reports'
 
 export const metadata = { title: 'Reports & Analytics' }
-export const dynamic = 'force-dynamic'
 
 export default async function ReportsPage() {
   const supabase = await createClient()

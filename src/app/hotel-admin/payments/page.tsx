@@ -17,22 +17,22 @@ export default async function PaymentsPage() {
   const tenantId = profile?.tenant_id
   if (!tenantId) redirect('/login')
 
-  const { data: payments } = await supabase
-    .from('payments')
-    .select(`
-      id, booking_id, amount, currency, status, payment_method,
-      invoice_number, paid_at, created_at,
-      booking:bookings(
-        check_in, check_out, guest_name, guest_phone, total_amount, room_ids,
-        room:rooms(room_number),
-        user:profiles(full_name, email)
-      )
-    `)
-    .eq('hotel_id', tenantId)
-    .order('created_at', { ascending: false })
-
-  const { data: hotelInfo } = await supabase
-    .from('hotels').select('currency').eq('id', tenantId).single()
+  const [{ data: payments }, { data: hotelInfo }] = await Promise.all([
+    supabase
+      .from('payments')
+      .select(`
+        id, booking_id, amount, currency, status, payment_method,
+        invoice_number, paid_at, created_at,
+        booking:bookings(
+          check_in, check_out, guest_name, guest_phone, total_amount, room_ids,
+          room:rooms(room_number),
+          user:profiles(full_name, email)
+        )
+      `)
+      .eq('hotel_id', tenantId)
+      .order('created_at', { ascending: false }),
+    supabase.from('hotels').select('currency').eq('id', tenantId).single(),
+  ])
   const currency = (hotelInfo as { currency?: string } | null)?.currency ?? 'USD'
 
   const paymentList = (payments ?? []) as unknown as PaymentRow[]
