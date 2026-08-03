@@ -498,6 +498,11 @@ export default function NewBookingPage() {
     special_requests?: string; status: string
   }) => {
     if (selectedRoomIds.length === 0) { toast.error('Select at least one room'); return false }
+    const MAX_ROOMS = 10
+    if (selectedRoomIds.length > MAX_ROOMS) {
+      toast.error(`A single booking cannot include more than ${MAX_ROOMS} rooms. For large group bookings, please contact hotel management directly.`)
+      return false
+    }
 
     // Guard against overbooking the selected rooms' combined capacity.
     const partySize = (payload.adults ?? 1) + (payload.children ?? 0)

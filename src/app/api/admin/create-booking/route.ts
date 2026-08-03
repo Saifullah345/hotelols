@@ -61,6 +61,13 @@ export async function POST(request: Request) {
   if (roomIds.length === 0 || !check_in || !check_out) {
     return NextResponse.json({ error: 'At least one room, check_in and check_out are required' }, { status: 400 })
   }
+  const MAX_ROOMS_PER_BOOKING = 10
+  if (roomIds.length > MAX_ROOMS_PER_BOOKING) {
+    return NextResponse.json(
+      { error: `A single booking cannot include more than ${MAX_ROOMS_PER_BOOKING} rooms. For large group bookings, please contact hotel management directly.` },
+      { status: 400 },
+    )
+  }
 
   const checkInDate  = new Date(check_in)
   const checkOutDate = new Date(check_out)
