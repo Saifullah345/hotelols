@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
@@ -278,7 +278,7 @@ function EditBookingModal({ stay, currency, rooms, allBookings, onClose, onSaved
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label">Full Name</label>
-                  <input value={guestName} onChange={e => setGuestName(e.target.value.replace(/[^a-zA-ZÃ€-É\s'-]/g, ''))}
+                  <input value={guestName} onChange={e => setGuestName(e.target.value.replace(/[^a-zA-Z\u00C0-\u00FF\s'-]/g, ''))}
                     className="input" placeholder="John Smith" />
                 </div>
                 <div>
