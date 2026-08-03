@@ -4,9 +4,6 @@ import ReportsClient from './ReportsClient'
 import type { PaymentRow, BookingRow, RoomRow, ReviewRow } from '@/lib/reports'
 
 export const metadata = { title: 'Reports & Analytics' }
-
-// Always read through to the database: a report the desk just refreshed must
-// not come back from a cached render.
 export const dynamic = 'force-dynamic'
 
 export default async function ReportsPage() {
@@ -18,18 +15,72 @@ export default async function ReportsPage() {
   const tenantId = profile?.tenant_id
   if (!tenantId) redirect('/login')
 
-  // The rows are fetched once and every window is computed from them in the
-  // browser, so changing the period is instant and never refetches.
-  const [{ data: payments }, { data: bookings }, { data: rooms }, { data: reviews }, { data: hotelInfo }] =
-    await Promise.all([
-      supabase.from('payments').select('amount, created_at, status, payment_method').eq('hotel_id', tenantId),
-      supabase.from('bookings').select('created_at, check_in, check_out, status, total_amount, source').eq('hotel_id', tenantId),
-      supabase.from('rooms').select('status').eq('hotel_id', tenantId),
-      supabase.from('reviews').select('rating, created_at').eq('hotel_id', tenantId),
-      supabase.from('hotels').select('currency').eq('id', tenantId).single(),
-    ])
+  const [
+    { data: payments },
+    { data: bookings },
+    { data: rooms },
+    { data: reviews },
+    { data: hotelInfo },
+    { data: bookingAmounts },
+    { data: allRooms },
+    { data: allRoomTypes },
+  ] = await Promise.all([
+    supabase.from('payments').select('amount, created_at, status, payment_method').eq('hotel_id', tenantId),
+    supabase.from('bookings').select('created_at, check_in, check_out, status, total_amount, source').eq('hotel_id', tenantId),
+    supabase.from('rooms').select('status').eq('hotel_id', tenantId),
+    supabase.from('reviews').select('rating, created_at').eq('hotel_id', tenantId),
+    supabase.from('hotels').select('currency').eq('id', tenantId).single(),
+    supabase.from('bookings').select('total_amount, room_id, user_id, status').eq('hotel_id', tenantId),
+    supabase.from('rooms').select('id, room_type_id').eq('hotel_id', tenantId),
+    supabase.from('room_types').select('id, name').eq('hotel_id', tenantId),
+  ])
 
   const currency = (hotelInfo as { currency?: string } | null)?.currency ?? 'USD'
+
+  // Room type revenue: join bookings → rooms → room_types
+  const roomTypeIdToName = new Map(
+    (allRoomTypes ?? []).map(rt => [(rt as { id: string; name: string }).id, (rt as { id: string; name: string }).name])
+  )
+  const roomIdToTypeId = new Map(
+    (allRooms ?? []).map(r => [(r as { id: string; room_type_id: string }).id, (r as { id: string; room_type_id: string }).room_type_id])
+  )
+  const rtRevMap = new Map<string, number>()
+  for (const b of (bookingAmounts ?? []) as { total_amount: number; room_id: string; user_id: string; status: string }[]) {
+    if (b.status === 'cancelled') continue
+    const typeId = roomIdToTypeId.get(b.room_id)
+    const typeName = typeId ? (roomTypeIdToName.get(typeId) ?? 'Other') : 'Other'
+    rtRevMap.set(typeName, (rtRevMap.get(typeName) ?? 0) + Number(b.total_amount ?? 0))
+  }
+  const roomTypeRevenue = [...rtRevMap.entries()]
+    .map(([name, revenue]) => ({ name, revenue }))
+    .sort((a, b) => b.revenue - a.revenue)
+
+  // Top guests: aggregate spend per user, then fetch profiles
+  const guestSpend = new Map<string, number>()
+  for (const b of (bookingAmounts ?? []) as { total_amount: number; room_id: string; user_id: string; status: string }[]) {
+    if (b.status === 'cancelled' || !b.user_id) continue
+    guestSpend.set(b.user_id, (guestSpend.get(b.user_id) ?? 0) + Number(b.total_amount ?? 0))
+  }
+  const topUserIds = [...guestSpend.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([uid]) => uid)
+
+  let topGuests: { name: string; country: string; spend: number }[] = []
+  if (topUserIds.length) {
+    const { data: guestProfiles } = await supabase
+      .from('profiles')
+      .select('id, full_name, country')
+      .in('id', topUserIds)
+    topGuests = topUserIds.map(uid => {
+      const p = (guestProfiles ?? []).find((x: { id: string }) => x.id === uid) as { full_name?: string; country?: string } | undefined
+      return {
+        name: p?.full_name?.trim() || 'Guest',
+        country: p?.country || '',
+        spend: guestSpend.get(uid) ?? 0,
+      }
+    })
+  }
 
   return (
     <ReportsClient
@@ -39,6 +90,8 @@ export default async function ReportsPage() {
       reviews={(reviews ?? []) as ReviewRow[]}
       currency={currency}
       serverToday={new Date().toISOString().slice(0, 10)}
+      roomTypeRevenue={roomTypeRevenue}
+      topGuests={topGuests}
     />
   )
 }

@@ -4,10 +4,13 @@ import { useMemo, useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
-  TrendingUp, CalendarCheck, Star, RefreshCw, FileDown, FileSpreadsheet,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell,
+} from 'recharts'
+import {
+  TrendingUp, CalendarCheck, Star, RefreshCw, Download,
   Calendar, X, Loader2, MoonStar,
 } from 'lucide-react'
-import { RevenueChart } from '@/components/dashboard/RevenueChart'
 import { StatsCard } from '@/components/dashboard/StatsCard'
 import { formatCurrency } from '@/lib/currency'
 import { currencyIcon } from '@/components/dashboard/CurrencyIcon'
@@ -23,30 +26,58 @@ interface Props {
   rooms: RoomRow[]
   reviews: ReviewRow[]
   currency: string
-  /** Server's date, replaced by the viewer's own after mount. */
   serverToday: string
+  roomTypeRevenue: { name: string; revenue: number }[]
+  topGuests: { name: string; country: string; spend: number }[]
+}
+
+const DONUT_COLORS = ['#EC4899', '#3B82F6', '#D97706', '#A855F7', '#10B981', '#6B7280']
+const STATUS_COLORS: Record<string, string> = {
+  checked_in:  '#10B981',
+  confirmed:   '#3B82F6',
+  checked_out: '#A855F7',
+  cancelled:   '#EF4444',
+  pending:     '#F59E0B',
+}
+const AVATAR_BG = ['#F59E0B', '#10B981', '#3B82F6', '#A855F7', '#EC4899']
+
+function initials(name: string) {
+  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?'
 }
 
 export default function ReportsClient({
   payments, bookings, rooms, reviews, currency, serverToday,
+  roomTypeRevenue, topGuests,
 }: Props) {
   const router = useRouter()
   const [refreshing, startRefresh] = useTransition()
 
-  const [range,      setRange]      = useState<string>('30d')
+  const [range,      setRange]      = useState<string>('year')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo,   setCustomTo]   = useState('')
   const [exporting,  setExporting]  = useState<'pdf' | 'excel' | null>(null)
 
-  // "Today" starts as the server's so the first paint matches, then becomes the
-  // viewer's own date once mounted.
   const [today, setToday] = useState(serverToday)
   useEffect(() => { setToday(todayISO()) }, [])
 
-  const window  = useMemo(() => resolveWindow(range, today, customFrom, customTo), [range, today, customFrom, customTo])
-  const summary = useMemo(() => summarise(payments, bookings, rooms, reviews, window), [payments, bookings, rooms, reviews, window])
-  const series  = useMemo(() => revenueSeries(payments, window, today), [payments, window, today])
+  const win     = useMemo(() => resolveWindow(range, today, customFrom, customTo), [range, today, customFrom, customTo])
+  const summary = useMemo(() => summarise(payments, bookings, rooms, reviews, win),  [payments, bookings, rooms, reviews, win])
+  const series  = useMemo(() => revenueSeries(payments, win, today),                 [payments, win, today])
   const label   = windowLabel(range, customFrom, customTo)
+
+  // Booking status mix (all bookings, not date-filtered)
+  const statusMix = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const b of bookings) counts.set(b.status, (counts.get(b.status) ?? 0) + 1)
+    return [...counts.entries()]
+      .map(([key, value]) => ({ name: key.replace(/_/g, ' '), key, value }))
+      .sort((a, b) => b.value - a.value)
+  }, [bookings])
+
+  const rtChartData = useMemo(
+    () => roomTypeRevenue.map(r => ({ name: r.name, value: r.revenue })),
+    [roomTypeRevenue],
+  )
 
   const refresh = () => startRefresh(() => {
     router.refresh()
@@ -68,16 +99,13 @@ export default function ReportsClient({
         return
       }
       const blob = await res.blob()
-      // Content-Disposition names the file; mirror it for the download link.
       const disposition = res.headers.get('Content-Disposition') ?? ''
       const named = /filename="([^"]+)"/.exec(disposition)?.[1]
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
       a.download = named ?? `report.${format === 'pdf' ? 'pdf' : 'xlsx'}`
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
+      document.body.appendChild(a); a.click(); a.remove()
       URL.revokeObjectURL(url)
       toast.success(`${format === 'pdf' ? 'PDF' : 'Excel'} report downloaded`)
     } catch {
@@ -89,24 +117,32 @@ export default function ReportsClient({
 
   const chip = (active: boolean) =>
     `flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-      active ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+      active
+        ? 'bg-amber-500 text-white shadow-sm'
+        : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
     }`
+
+  const tooltipStyle = {
+    borderRadius: '12px',
+    border: 'none',
+    boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
+    fontSize: '13px',
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header + actions */}
+
+      {/* ── Header ─────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Reports &amp; Analytics</h2>
-          <p className="text-gray-500 text-sm mt-1">
-            Insights into your hotel performance · <span className="font-medium text-gray-700">{label}</span>
-          </p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Analytics &amp; Reports</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Revenue, occupancy and booking performance</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={refresh}
             disabled={refreshing}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-60"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-60"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
             {refreshing ? 'Updating…' : 'Refresh'}
@@ -114,30 +150,20 @@ export default function ReportsClient({
           <button
             onClick={() => exportReport('excel')}
             disabled={exporting !== null}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-emerald-200 bg-emerald-50 text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors disabled:opacity-60"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-sm font-semibold transition-colors disabled:opacity-60 shadow-sm shadow-amber-200"
           >
             {exporting === 'excel'
-              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              : <FileSpreadsheet className="h-3.5 w-3.5" />}
-            Excel
-          </button>
-          <button
-            onClick={() => exportReport('pdf')}
-            disabled={exporting !== null}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 text-sm font-medium text-rose-700 hover:bg-rose-100 transition-colors disabled:opacity-60"
-          >
-            {exporting === 'pdf'
-              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              : <FileDown className="h-3.5 w-3.5" />}
-            PDF
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : <Download className="h-4 w-4" />}
+            Export CSV
           </button>
         </div>
       </div>
 
-      {/* Date filter */}
+      {/* ── Date filter ────────────────────────────────────────── */}
       <div className="card px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wide mr-1">
             <Calendar className="h-3.5 w-3.5" /> Period
           </span>
           {REPORT_RANGES.map(r => (
@@ -146,7 +172,6 @@ export default function ReportsClient({
             </button>
           ))}
           <button onClick={() => setRange('custom')} className={chip(range === 'custom')}>Custom</button>
-
           {range === 'custom' && (
             <div className="flex items-center gap-2">
               <input
@@ -154,7 +179,7 @@ export default function ReportsClient({
                 value={customFrom}
                 max={customTo || today}
                 onChange={e => setCustomFrom(e.target.value)}
-                className="text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-400"
               />
               <span className="text-gray-400 text-sm">→</span>
               <input
@@ -162,14 +187,10 @@ export default function ReportsClient({
                 value={customTo}
                 min={customFrom || undefined}
                 onChange={e => setCustomTo(e.target.value)}
-                className="text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-400"
               />
               {(customFrom || customTo) && (
-                <button
-                  onClick={() => { setCustomFrom(''); setCustomTo('') }}
-                  className="text-gray-400 hover:text-gray-600 p-1"
-                  title="Clear dates"
-                >
+                <button onClick={() => { setCustomFrom(''); setCustomTo('') }} className="text-gray-400 hover:text-gray-600 p-1" title="Clear">
                   <X className="h-3.5 w-3.5" />
                 </button>
               )}
@@ -178,84 +199,190 @@ export default function ReportsClient({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard title="Revenue" value={formatCurrency(summary.revenue, currency)} icon={currencyIcon(currency)}
-          iconBg="bg-green-50" iconColor="text-green-600" />
-        <StatsCard title="Bookings" value={summary.bookings} icon={CalendarCheck}
-          iconBg="bg-blue-50" iconColor="text-blue-600" />
-        <StatsCard title="Occupancy Rate" value={summary.occupancyRate} icon={TrendingUp} suffix="%"
-          iconBg="bg-purple-50" iconColor="text-purple-600" />
-        <StatsCard title="Avg Rating" value={summary.avgRating} icon={Star}
-          iconBg="bg-gold-50" iconColor="text-gold-600" />
+      {/* ── KPI cards ──────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatsCard title="Revenue"    value={formatCurrency(summary.revenue, currency)}      icon={currencyIcon(currency)} iconBg="bg-amber-50"   iconColor="text-amber-600" />
+        <StatsCard title="Bookings"   value={summary.bookings}                               icon={CalendarCheck}          iconBg="bg-blue-50"    iconColor="text-blue-600" />
+        <StatsCard title="Occupancy"  value={summary.occupancyRate}                          icon={TrendingUp}             iconBg="bg-emerald-50" iconColor="text-emerald-600" suffix="%" />
+        <StatsCard title="Avg Rating" value={summary.avgRating}                              icon={Star}                   iconBg="bg-purple-50"  iconColor="text-purple-600" />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard title="Nights Sold" value={summary.nightsSold} icon={MoonStar}
-          iconBg="bg-indigo-50" iconColor="text-indigo-600" />
-        <StatsCard title="Avg per Booking" value={formatCurrency(summary.avgBookingValue, currency)} icon={currencyIcon(currency)}
-          iconBg="bg-teal-50" iconColor="text-teal-600" />
-        <StatsCard title="Payments" value={summary.paymentsCount} icon={CalendarCheck}
-          iconBg="bg-sky-50" iconColor="text-sky-600" />
-        <StatsCard title="Cancelled" value={summary.cancelled} icon={X}
-          iconBg="bg-rose-50" iconColor="text-rose-600" />
-      </div>
-
-      <RevenueChart data={series} currency={currency} />
-
+      {/* ── Charts row 1: bar + donut ───────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* Monthly Revenue */}
         <div className="card p-6">
-          <h3 className="font-semibold text-gray-900 mb-4">Room Status Breakdown</h3>
-          <div className="space-y-3">
-            {['available', 'booked', 'maintenance', 'cleaning'].map(status => {
-              const count = summary.roomsByStatus[status] ?? 0
-              const pct = summary.roomTotal ? Math.round((count / summary.roomTotal) * 100) : 0
-              return (
-                <div key={status}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="capitalize text-gray-700">{status}</span>
-                    <span className="font-medium text-gray-900">{count} ({pct}%)</span>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-primary-500 rounded-full" style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-              )
-            })}
+          <div className="mb-6">
+            <h3 className="font-bold text-gray-900 dark:text-white text-[15px]">Monthly Revenue</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Collected payments — {label}</p>
           </div>
+          {series.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={series} margin={{ top: 5, right: 8, left: -18, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+                <XAxis
+                  dataKey="month"
+                  tick={{ fontSize: 11, fill: '#9ca3af' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: '#9ca3af' }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`}
+                />
+                <Tooltip
+                  contentStyle={tooltipStyle}
+                  formatter={(v: number) => [formatCurrency(v, currency), 'Revenue']}
+                  cursor={{ fill: '#fef3c7', radius: 4 }}
+                />
+                <Bar dataKey="revenue" fill="#D97706" radius={[5, 5, 0, 0]} maxBarSize={44} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[220px] flex items-center justify-center text-sm text-gray-400">
+              No payment data for this period
+            </div>
+          )}
         </div>
 
+        {/* Revenue by Room Type */}
         <div className="card p-6">
-          <h3 className="font-semibold text-gray-900 mb-4">Revenue by Payment Method</h3>
-          {summary.revenueByMethod.length ? (
-            <div className="space-y-3">
-              {summary.revenueByMethod.map(m => (
-                <div key={m.method} className="flex justify-between text-sm">
-                  <span className="capitalize text-gray-600">{m.method.replace(/_/g, ' ')}</span>
-                  <span className="font-semibold text-gray-900">{formatCurrency(m.amount, currency)}</span>
+          <div className="mb-6">
+            <h3 className="font-bold text-gray-900 dark:text-white text-[15px]">Revenue by Room Type</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Completed stays contribution</p>
+          </div>
+          {rtChartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie
+                  data={rtChartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={58}
+                  outerRadius={85}
+                  dataKey="value"
+                  nameKey="name"
+                  paddingAngle={2}
+                  label={({ name, percent }) =>
+                    (percent as number) > 0.06 ? name : ''
+                  }
+                  labelLine={{ stroke: '#d1d5db', strokeWidth: 1 }}
+                >
+                  {rtChartData.map((_, i) => (
+                    <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={tooltipStyle}
+                  formatter={(v: number) => [formatCurrency(v, currency), 'Revenue']}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[220px] flex items-center justify-center text-sm text-gray-400">
+              No room type data yet
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Charts row 2: pie + guest list ─────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* Booking Status Mix */}
+        <div className="card p-6">
+          <div className="mb-6">
+            <h3 className="font-bold text-gray-900 dark:text-white text-[15px]">Booking Status Mix</h3>
+            <p className="text-xs text-gray-400 mt-0.5">All reservations by current status</p>
+          </div>
+          {statusMix.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie
+                  data={statusMix}
+                  cx="48%"
+                  cy="50%"
+                  outerRadius={85}
+                  dataKey="value"
+                  nameKey="name"
+                  paddingAngle={1}
+                  label={({ name, percent }) =>
+                    (percent as number) > 0.06 ? name : ''
+                  }
+                  labelLine={{ stroke: '#d1d5db', strokeWidth: 1 }}
+                >
+                  {statusMix.map((item, i) => (
+                    <Cell
+                      key={i}
+                      fill={STATUS_COLORS[item.key] ?? DONUT_COLORS[i % DONUT_COLORS.length]}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={tooltipStyle}
+                  formatter={(v: number) => [v, 'Bookings']}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[220px] flex items-center justify-center text-sm text-gray-400">
+              No booking data yet
+            </div>
+          )}
+        </div>
+
+        {/* Top Guests by Spend */}
+        <div className="card p-6">
+          <div className="mb-4">
+            <h3 className="font-bold text-gray-900 dark:text-white text-[15px]">Top Guests by Spend</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Highest-spending guests (all time)</p>
+          </div>
+          {topGuests.length > 0 ? (
+            <div className="space-y-1">
+              {topGuests.slice(0, 5).map((guest, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors"
+                >
+                  <span className="w-5 text-xs font-semibold text-gray-400 text-center flex-shrink-0 tabular-nums">
+                    {i + 1}
+                  </span>
+                  <div
+                    className="h-9 w-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 select-none"
+                    style={{ backgroundColor: AVATAR_BG[i % AVATAR_BG.length] }}
+                  >
+                    {initials(guest.name)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{guest.name}</p>
+                    {guest.country && (
+                      <p className="text-xs text-gray-400 truncate">{guest.country}</p>
+                    )}
+                  </div>
+                  <span className="text-sm font-bold text-gray-900 dark:text-white flex-shrink-0 tabular-nums">
+                    {formatCurrency(guest.spend, currency)}
+                  </span>
                 </div>
               ))}
-              <div className="pt-3 border-t border-gray-200 flex justify-between text-sm">
-                <span className="text-gray-600">Total</span>
-                <span className="font-bold text-gray-900">{formatCurrency(summary.revenue, currency)}</span>
-              </div>
             </div>
           ) : (
-            <p className="text-sm text-gray-400">No payments in this period.</p>
+            <div className="h-[220px] flex items-center justify-center text-sm text-gray-400">
+              No guest data yet
+            </div>
           )}
-
-          {summary.bookingsBySource.length > 0 && (
-            <>
-              <h3 className="font-semibold text-gray-900 mt-6 mb-3">Bookings by Source</h3>
-              <div className="space-y-2">
-                {summary.bookingsBySource.map(s => (
-                  <div key={s.source} className="flex justify-between text-sm">
-                    <span className="capitalize text-gray-600">{s.source.replace(/_/g, ' ')}</span>
-                    <span className="font-semibold text-gray-900">{s.count}</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
+          {/* Extra stats below the list */}
+          <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs text-gray-400">Nights Sold</p>
+              <p className="text-lg font-bold text-gray-900 dark:text-white mt-0.5">{summary.nightsSold}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Avg per Booking</p>
+              <p className="text-lg font-bold text-gray-900 dark:text-white mt-0.5">{formatCurrency(summary.avgBookingValue, currency)}</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
