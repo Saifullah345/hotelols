@@ -5,6 +5,7 @@ import Link from 'next/link'
 import {
   Search, CreditCard, CheckCircle, Clock, Receipt,
   BedDouble, User, Phone, Calendar, Trash2, AlertTriangle, Loader2,
+  RotateCcw, XCircle,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/currency'
 import { todayISO } from '@/lib/date'
@@ -69,11 +70,15 @@ function computeLabels(payments: PaymentRow[]): Map<string, PaymentLabel> {
 const STATUS_BADGE: Record<string, string> = {
   completed: 'badge-green',
   pending:   'badge-yellow',
+  refunded:  'badge-purple',
+  failed:    'badge-red',
 }
 
 const STATUS_ICON: Record<string, React.ElementType> = {
   completed: CheckCircle,
   pending:   Clock,
+  refunded:  RotateCcw,
+  failed:    XCircle,
 }
 
 const METHOD_LABEL: Record<string, string> = {
@@ -81,7 +86,7 @@ const METHOD_LABEL: Record<string, string> = {
   cheque: 'Cheque', online: 'Online', offline: 'Offline', other: 'Other',
 }
 
-const STATUSES = ['completed', 'pending']
+const STATUSES = ['completed', 'pending', 'refunded', 'failed']
 const METHODS  = ['cash', 'card_pos', 'bank_transfer', 'cheque', 'online', 'other']
 
 function guestName(p: PaymentRow) {
@@ -106,6 +111,9 @@ export default function PaymentsClient({
   const [method,   setMethod]   = useState('')
   const [deleteTarget, setDeleteTarget] = useState<PaymentRow | null>(null)
   const [deleting,     setDeleting]     = useState(false)
+  const [refundTarget, setRefundTarget] = useState<PaymentRow | null>(null)
+  const [refunding,    setRefunding]    = useState(false)
+  const [refundAmount, setRefundAmount] = useState('')
 
   // ── Paid-on date filter ───────────────────────────────────────────
   // Server value first so hydration matches, then the viewer's own date.
@@ -131,6 +139,32 @@ export default function PaymentsClient({
     }
     return out
   }, [payments, today])
+
+  useEffect(() => {
+    if (refundTarget) setRefundAmount(String(refundTarget.amount))
+  }, [refundTarget])
+
+  const handleRefund = async () => {
+    if (!refundTarget) return
+    setRefunding(true)
+    const amt = parseFloat(refundAmount)
+    const body: { paymentId: string; amount?: number } = { paymentId: refundTarget.id }
+    if (!isNaN(amt) && amt !== refundTarget.amount) body.amount = amt
+    const res = await fetch('/api/payments/refund', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    setRefunding(false)
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}))
+      toast.error(json.error ?? 'Refund failed')
+      return
+    }
+    setPayments(prev => prev.map(p => p.id === refundTarget.id ? { ...p, status: 'refunded' } : p))
+    toast.success('Refund processed successfully')
+    setRefundTarget(null)
+  }
 
   const handleDelete = async () => {
     if (!deleteTarget) return
@@ -353,18 +387,34 @@ export default function PaymentsClient({
                 {/* Actions */}
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   {p.status === 'completed' ? (
-                    <Link
-                      href={`/hotel-admin/payments/${p.id}/receipt`}
-                      className="flex items-center gap-1.5 text-xs font-medium text-primary-600 hover:text-primary-800 bg-primary-50 hover:bg-primary-100 px-3 py-1.5 rounded-lg transition-colors"
-                    >
-                      <Receipt className="h-3.5 w-3.5" /> Receipt
-                    </Link>
+                    <>
+                      <Link
+                        href={`/hotel-admin/payments/${p.id}/receipt`}
+                        className="flex items-center gap-1.5 text-xs font-medium text-primary-600 hover:text-primary-800 bg-primary-50 hover:bg-primary-100 px-3 py-1.5 rounded-lg transition-colors"
+                      >
+                        <Receipt className="h-3.5 w-3.5" /> Receipt
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => setRefundTarget(p)}
+                        className="flex items-center gap-1.5 text-xs font-medium text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 px-3 py-1.5 rounded-lg transition-colors"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" /> Refund
+                      </button>
+                    </>
                   ) : p.status === 'pending' ? (
                     <Link
                       href={`/hotel-admin/payments/collect?booking_id=${p.booking_id}`}
                       className="flex items-center gap-1.5 text-xs font-medium text-amber-700 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg transition-colors"
                     >
                       Collect
+                    </Link>
+                  ) : p.status === 'refunded' ? (
+                    <Link
+                      href={`/hotel-admin/payments/${p.id}/receipt`}
+                      className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      <Receipt className="h-3.5 w-3.5" /> Receipt
                     </Link>
                   ) : null}
                   <button
@@ -390,6 +440,63 @@ export default function PaymentsClient({
           noun="payment"
         />
       </div>
+
+      {/* Refund modal */}
+      {refundTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !refunding && setRefundTarget(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-start gap-4">
+              <div className="w-11 h-11 rounded-xl bg-purple-50 flex items-center justify-center flex-shrink-0">
+                <RotateCcw className="h-5 w-5 text-purple-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-gray-900 text-base">Refund Payment</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Refund to{' '}
+                  <span className="font-semibold text-gray-700">{guestName(refundTarget)}</span>
+                </p>
+              </div>
+            </div>
+            <div className="mt-5">
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                Refund Amount ({refundTarget.currency})
+              </label>
+              <input
+                type="number"
+                min="0.01"
+                max={refundTarget.amount}
+                step="0.01"
+                value={refundAmount}
+                onChange={e => setRefundAmount(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+              <p className="text-xs text-gray-400 mt-1.5">
+                Maximum: {formatCurrency(refundTarget.amount, currency)}
+              </p>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => setRefundTarget(null)}
+                disabled={refunding}
+                className="btn-secondary flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleRefund}
+                disabled={refunding || !refundAmount || parseFloat(refundAmount) <= 0}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-sm transition-colors disabled:opacity-50"
+              >
+                {refunding ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+                {refunding ? 'Processing…' : 'Confirm Refund'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete confirmation modal */}
       {deleteTarget && (

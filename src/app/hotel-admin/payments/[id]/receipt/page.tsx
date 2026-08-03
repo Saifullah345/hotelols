@@ -3,7 +3,7 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, Building2, CheckCircle2, Clock, User, BedDouble,
-  Calendar, CreditCard, Hash, Banknote,
+  Calendar, CreditCard, Hash, Banknote, RotateCcw,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/currency'
 import PrintButton from './PrintButton'
@@ -111,7 +111,8 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
   const guestContact = booking?.user?.email || booking?.guest_phone || ''
   const receiptNumber = payment.invoice_number || `RCPT-${payment.id.slice(0, 8).toUpperCase()}`
   const paidOn = payment.paid_at || payment.created_at
-  const isPaid = payment.status === 'completed'
+  const isPaid     = payment.status === 'completed'
+  const isRefunded = payment.status === 'refunded'
 
   const nights = booking
     ? Math.max(1, Math.round((new Date(booking.check_out).getTime() - new Date(booking.check_in).getTime()) / 86400000))
@@ -160,23 +161,29 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
 
         <div
           className={`mx-8 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium ${
-            isAdvanceReceipt
-              ? 'bg-amber-50 text-amber-700 border border-amber-200'
-              : isPaid
-                ? 'bg-green-50 text-green-700 border border-green-200'
-                : 'bg-amber-50 text-amber-700 border border-amber-200'
+            isRefunded
+              ? 'bg-purple-50 text-purple-700 border border-purple-200'
+              : isAdvanceReceipt
+                ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                : isPaid
+                  ? 'bg-green-50 text-green-700 border border-green-200'
+                  : 'bg-amber-50 text-amber-700 border border-amber-200'
           }`}
         >
-          {isPaid && !isAdvanceReceipt
-            ? <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
-            : <Clock className="h-4 w-4 flex-shrink-0" />}
-          {isAdvanceReceipt
-            ? `Advance / partial payment received — ${formatCurrency(balanceDue, currency)} balance due`
-            : isBalanceReceipt
-              ? 'Balance payment received — booking fully settled'
-              : isPaid
-                ? 'Payment received in full'
-                : `Payment ${payment.status}`}
+          {isRefunded
+            ? <RotateCcw className="h-4 w-4 flex-shrink-0" />
+            : isPaid && !isAdvanceReceipt
+              ? <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+              : <Clock className="h-4 w-4 flex-shrink-0" />}
+          {isRefunded
+            ? 'Payment refunded'
+            : isAdvanceReceipt
+              ? `Advance / partial payment received — ${formatCurrency(balanceDue, currency)} balance due`
+              : isBalanceReceipt
+                ? 'Balance payment received — booking fully settled'
+                : isPaid
+                  ? 'Payment received in full'
+                  : `Payment ${payment.status}`}
         </div>
 
         {/* Guest + Room */}
