@@ -49,18 +49,18 @@ export function Header({ title, profile, onMenuOpen }: HeaderProps) {
   }
 
   return (
-    <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 md:px-6 flex items-center justify-between sticky top-0 z-10 print:hidden">
+    <header className="h-16 bg-white border-b border-gray-200 px-4 md:px-6 flex items-center justify-between sticky top-0 z-10 print:hidden">
       <div className="flex items-center gap-2">
         {onMenuOpen && (
           <button
             onClick={onMenuOpen}
-            className="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 -ml-1"
+            className="md:hidden p-2 rounded-lg hover:bg-gray-100 text-gray-600 -ml-1"
             aria-label="Open menu"
           >
             <Menu className="h-5 w-5" />
           </button>
         )}
-        <h1 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white truncate">{title}</h1>
+        <h1 className="text-base md:text-lg font-semibold text-gray-900 truncate">{title}</h1>
       </div>
       <div className="flex items-center gap-3">
         <NotificationBell
@@ -72,7 +72,7 @@ export function Header({ title, profile, onMenuOpen }: HeaderProps) {
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setShowDropdown(!showDropdown)}
-            className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
           >
             {profile?.avatar_url ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -91,16 +91,16 @@ export function Header({ title, profile, onMenuOpen }: HeaderProps) {
               </div>
             )}
             <div className="text-left hidden sm:block">
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{profile?.full_name?.trim() || profile?.email || 'User'}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{profile?.role?.replace('_', ' ')}</p>
+              <p className="text-sm font-medium text-gray-900">{profile?.full_name?.trim() || profile?.email || 'User'}</p>
+              <p className="text-xs text-gray-500 capitalize">{profile?.role?.replace('_', ' ')}</p>
             </div>
           </button>
 
           {showDropdown && (
-            <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 z-20">
-              <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{profile?.full_name?.trim() || profile?.email || 'User'}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{profile?.role?.replace('_', ' ')}</p>
+            <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-20">
+              <div className="px-4 py-3 border-b border-gray-100">
+                <p className="text-sm font-medium text-gray-900 truncate">{profile?.full_name?.trim() || profile?.email || 'User'}</p>
+                <p className="text-xs text-gray-500 capitalize">{profile?.role?.replace('_', ' ')}</p>
               </div>
               {profileHref && (
                 <button
@@ -108,7 +108,7 @@ export function Header({ title, profile, onMenuOpen }: HeaderProps) {
                     setShowDropdown(false)
                     router.push(profileHref)
                   }}
-                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                 >
                   <Settings className="h-4 w-4" />
                   Profile

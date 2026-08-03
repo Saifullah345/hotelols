@@ -96,9 +96,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   // measuring how far a long page can actually scroll.
   return (
     <html lang="en" data-scroll-behavior="smooth">
-      {/* eslint-disable-next-line @next/next/no-before-interactive-script-outside-document */}
-      <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'){document.documentElement.classList.add('dark')}}catch(e){}})();` }} />
-      <body className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <body className="min-h-screen bg-gray-50">
         <JsonLd data={[organizationSchema, websiteSchema]} />
         <NextTopLoader color="#2563eb" height={3} showSpinner={false} />
         <SmoothScroll />

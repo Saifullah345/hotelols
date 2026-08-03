@@ -119,7 +119,7 @@ export default function ReportsClient({
     `flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
       active
         ? 'bg-amber-500 text-white shadow-sm'
-        : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+        : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
     }`
 
   const tooltipStyle = {
@@ -135,14 +135,14 @@ export default function ReportsClient({
       {/* ── Header ─────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Analytics &amp; Reports</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Revenue, occupancy and booking performance</p>
+          <h2 className="text-2xl font-bold text-gray-900">Analytics &amp; Reports</h2>
+          <p className="text-sm text-gray-500 mt-0.5">Revenue, occupancy and booking performance</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={refresh}
             disabled={refreshing}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-60"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-60"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
             {refreshing ? 'Updating…' : 'Refresh'}
@@ -179,7 +179,7 @@ export default function ReportsClient({
                 value={customFrom}
                 max={customTo || today}
                 onChange={e => setCustomFrom(e.target.value)}
-                className="text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                className="text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
               />
               <span className="text-gray-400 text-sm">→</span>
               <input
@@ -187,7 +187,7 @@ export default function ReportsClient({
                 value={customTo}
                 min={customFrom || undefined}
                 onChange={e => setCustomTo(e.target.value)}
-                className="text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                className="text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
               />
               {(customFrom || customTo) && (
                 <button onClick={() => { setCustomFrom(''); setCustomTo('') }} className="text-gray-400 hover:text-gray-600 p-1" title="Clear">
@@ -213,7 +213,7 @@ export default function ReportsClient({
         {/* Monthly Revenue */}
         <div className="card p-6">
           <div className="mb-6">
-            <h3 className="font-bold text-gray-900 dark:text-white text-[15px]">Monthly Revenue</h3>
+            <h3 className="font-bold text-gray-900 text-[15px]">Monthly Revenue</h3>
             <p className="text-xs text-gray-400 mt-0.5">Collected payments — {label}</p>
           </div>
           {series.length > 0 ? (
@@ -250,7 +250,7 @@ export default function ReportsClient({
         {/* Revenue by Room Type */}
         <div className="card p-6">
           <div className="mb-6">
-            <h3 className="font-bold text-gray-900 dark:text-white text-[15px]">Revenue by Room Type</h3>
+            <h3 className="font-bold text-gray-900 text-[15px]">Revenue by Room Type</h3>
             <p className="text-xs text-gray-400 mt-0.5">Completed stays contribution</p>
           </div>
           {rtChartData.length > 0 ? (
@@ -294,7 +294,7 @@ export default function ReportsClient({
         {/* Booking Status Mix */}
         <div className="card p-6">
           <div className="mb-6">
-            <h3 className="font-bold text-gray-900 dark:text-white text-[15px]">Booking Status Mix</h3>
+            <h3 className="font-bold text-gray-900 text-[15px]">Booking Status Mix</h3>
             <p className="text-xs text-gray-400 mt-0.5">All reservations by current status</p>
           </div>
           {statusMix.length > 0 ? (
@@ -336,7 +336,7 @@ export default function ReportsClient({
         {/* Top Guests by Spend */}
         <div className="card p-6">
           <div className="mb-4">
-            <h3 className="font-bold text-gray-900 dark:text-white text-[15px]">Top Guests by Spend</h3>
+            <h3 className="font-bold text-gray-900 text-[15px]">Top Guests by Spend</h3>
             <p className="text-xs text-gray-400 mt-0.5">Highest-spending guests (all time)</p>
           </div>
           {topGuests.length > 0 ? (
@@ -344,7 +344,7 @@ export default function ReportsClient({
               {topGuests.slice(0, 5).map((guest, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors"
+                  className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
                 >
                   <span className="w-5 text-xs font-semibold text-gray-400 text-center flex-shrink-0 tabular-nums">
                     {i + 1}
@@ -356,12 +356,12 @@ export default function ReportsClient({
                     {initials(guest.name)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{guest.name}</p>
+                    <p className="text-sm font-semibold text-gray-900 truncate">{guest.name}</p>
                     {guest.country && (
                       <p className="text-xs text-gray-400 truncate">{guest.country}</p>
                     )}
                   </div>
-                  <span className="text-sm font-bold text-gray-900 dark:text-white flex-shrink-0 tabular-nums">
+                  <span className="text-sm font-bold text-gray-900 flex-shrink-0 tabular-nums">
                     {formatCurrency(guest.spend, currency)}
                   </span>
                 </div>
@@ -373,14 +373,14 @@ export default function ReportsClient({
             </div>
           )}
           {/* Extra stats below the list */}
-          <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 grid grid-cols-2 gap-4">
+          <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 gap-4">
             <div>
               <p className="text-xs text-gray-400">Nights Sold</p>
-              <p className="text-lg font-bold text-gray-900 dark:text-white mt-0.5">{summary.nightsSold}</p>
+              <p className="text-lg font-bold text-gray-900 mt-0.5">{summary.nightsSold}</p>
             </div>
             <div>
               <p className="text-xs text-gray-400">Avg per Booking</p>
-              <p className="text-lg font-bold text-gray-900 dark:text-white mt-0.5">{formatCurrency(summary.avgBookingValue, currency)}</p>
+              <p className="text-lg font-bold text-gray-900 mt-0.5">{formatCurrency(summary.avgBookingValue, currency)}</p>
             </div>
           </div>
         </div>

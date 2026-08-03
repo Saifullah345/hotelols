@@ -6,8 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import {
   Loader2, Save, MessageCircle, Copy, ExternalLink, ImagePlus, Trash2,
-  AlertTriangle, Plus, X as XIcon, ShoppingBag, Building2, Sun, Moon,
-  UserCircle, Sparkles,
+  AlertTriangle, Plus, X as XIcon, ShoppingBag, Building2, UserCircle,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { CURRENCIES, formatCurrency } from '@/lib/currency'
@@ -48,18 +47,8 @@ export default function HotelSettingsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState('')
   const [deleting,      setDeleting]      = useState(false)
 
-  // Appearance
-  const [darkMode, setDarkMode] = useState(false)
-
   const hotelForm = useForm()
   const waForm    = useForm()
-
-  // Read dark mode preference from localStorage on mount
-  useEffect(() => {
-    try {
-      setDarkMode(localStorage.getItem('theme') === 'dark')
-    } catch {}
-  }, [])
 
   useEffect(() => {
     const supabase = createClient()
@@ -97,13 +86,6 @@ export default function HotelSettingsPage() {
       setLoading(false)
     })
   }, [hotelForm, waForm])
-
-  // ── Appearance ──────────────────────────────────────────────────────
-  const toggleDark = (dark: boolean) => {
-    setDarkMode(dark)
-    document.documentElement.classList.toggle('dark', dark)
-    localStorage.setItem('theme', dark ? 'dark' : 'light')
-  }
 
   // ── Hotel Profile ────────────────────────────────────────────────────
   const saveHotel = async (data: Record<string, unknown>) => {
@@ -389,52 +371,6 @@ export default function HotelSettingsPage() {
 
         {/* ── Right column ── */}
         <div className="space-y-4">
-
-          {/* Appearance */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <div className="flex items-center gap-2.5 mb-1">
-              <Sparkles className="h-5 w-5 text-amber-500" />
-              <h3 className="font-bold text-gray-900">Appearance</h3>
-            </div>
-            <p className="text-xs text-gray-400 mb-4">Choose how the admin suite looks for you.</p>
-            <div className="flex gap-2 mb-4">
-              <button
-                type="button"
-                onClick={() => toggleDark(false)}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                  !darkMode
-                    ? 'bg-amber-50 text-amber-700 border-2 border-amber-200 shadow-sm'
-                    : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100'
-                }`}
-              >
-                <Sun className="h-4 w-4" /> Light Mode
-              </button>
-              <button
-                type="button"
-                onClick={() => toggleDark(true)}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                  darkMode
-                    ? 'bg-gray-800 text-white border-2 border-gray-600 shadow-sm'
-                    : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100'
-                }`}
-              >
-                <Moon className="h-4 w-4" /> Dark Mode
-              </button>
-            </div>
-            {coverImage ? (
-              <div className="rounded-xl overflow-hidden border border-gray-100 relative">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={coverImage} alt="Hotel preview" className="w-full h-32 object-cover" />
-                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent px-3 py-2">
-                  <p className="text-white text-xs font-medium truncate">{hotelName}</p>
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-xl border border-dashed border-gray-200 h-28 flex items-center justify-center text-xs text-gray-400">
-                Upload a cover image to preview
-              </div>
-            )}
-          </div>
 
           {/* My Account */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
