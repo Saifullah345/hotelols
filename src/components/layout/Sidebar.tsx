@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import {
   LayoutDashboard, BedDouble, CalendarCheck, Users, BarChart3,
   CreditCard, Star, LogOut, Settings, Hotel, ClipboardList, UserCheck, Search,
-  MessageCircle, X,
+  MessageCircle, X, DoorOpen,
 } from 'lucide-react'
 import { LogoMark } from '@/components/layout/Logo'
 
@@ -30,7 +30,8 @@ const hotelAdminNav: NavItem[] = [
   { label: 'Dashboard', href: '/hotel-admin/dashboard', icon: LayoutDashboard },
   { label: 'Rooms', href: '/hotel-admin/rooms', icon: BedDouble },
   { label: 'Bookings', href: '/hotel-admin/bookings', icon: CalendarCheck },
-  { label: 'Guests',   href: '/hotel-admin/guests',   icon: Users },
+  { label: 'Guests',       href: '/hotel-admin/guests',   icon: Users },
+  { label: 'Check-In / Out', href: '/hotel-admin/checkin', icon: DoorOpen },
   { label: 'WhatsApp', href: '/hotel-admin/whatsapp', icon: MessageCircle },
   { label: 'Staff',    href: '/hotel-admin/staff',    icon: UserCheck },
   { label: 'Reports', href: '/hotel-admin/reports', icon: BarChart3 },

@@ -236,7 +236,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
         </div>
         <button
           onClick={openAdd}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-semibold text-sm transition-colors shadow-sm shadow-amber-200"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white font-semibold text-sm transition-colors shadow-sm shadow-primary-200"
         >
           <Plus className="h-4 w-4" /> Add Guest
         </button>
@@ -251,7 +251,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search guests, email, country…"
-            className="w-full pl-9 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-300"
+            className="w-full pl-9 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-300"
           />
         </div>
         <button
@@ -501,7 +501,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
               <button
                 onClick={modal === 'add' ? handleAdd : handleEdit}
                 disabled={saving}
-                className="flex items-center gap-2 px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold text-sm transition-colors disabled:opacity-60"
+                className="flex items-center gap-2 px-5 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm transition-colors disabled:opacity-60"
               >
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />}
                 {modal === 'add' ? 'Add Guest' : 'Save Changes'}

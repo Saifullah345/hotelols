@@ -118,7 +118,7 @@ export default function ReportsClient({
   const chip = (active: boolean) =>
     `flex-shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
       active
-        ? 'bg-amber-500 text-white shadow-sm'
+        ? 'bg-primary-600 text-white shadow-sm'
         : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
     }`
 
@@ -150,7 +150,7 @@ export default function ReportsClient({
           <button
             onClick={() => exportReport('excel')}
             disabled={exporting !== null}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-sm font-semibold transition-colors disabled:opacity-60 shadow-sm shadow-amber-200"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white text-sm font-semibold transition-colors disabled:opacity-60 shadow-sm shadow-primary-200"
           >
             {exporting === 'excel'
               ? <Loader2 className="h-4 w-4 animate-spin" />
@@ -179,7 +179,7 @@ export default function ReportsClient({
                 value={customFrom}
                 max={customTo || today}
                 onChange={e => setCustomFrom(e.target.value)}
-                className="text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                className="text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-400"
               />
               <span className="text-gray-400 text-sm">→</span>
               <input
@@ -187,7 +187,7 @@ export default function ReportsClient({
                 value={customTo}
                 min={customFrom || undefined}
                 onChange={e => setCustomTo(e.target.value)}
-                className="text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                className="text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-400"
               />
               {(customFrom || customTo) && (
                 <button onClick={() => { setCustomFrom(''); setCustomTo('') }} className="text-gray-400 hover:text-gray-600 p-1" title="Clear">
