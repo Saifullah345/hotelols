@@ -559,10 +559,6 @@ export default function NewBookingPage() {
   }
 
   const submitOffline = async (data: OfflineForm) => {
-    if (!payNow && source === 'walk_in') {
-      toast.error('Advance payment is required for walk-in bookings')
-      return
-    }
     if (advanceInvalid) {
       toast.error(`Advance amount must be greater than 0 and no more than ${formatCurrency(totalAmount, currency)}`)
       return
@@ -784,7 +780,7 @@ export default function NewBookingPage() {
 
           <div className="flex justify-end gap-3">
             <Link href="/hotel-admin/bookings" className="btn-secondary">Cancel</Link>
-            <button type="submit" disabled={submitting || (!payNow && source === 'walk_in') || advanceInvalid || selectedRoomIds.length === 0}
+            <button type="submit" disabled={submitting || advanceInvalid || selectedRoomIds.length === 0}
               className="btn-primary flex items-center gap-2">
               {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
               {submitting ? 'Creating…' : 'Create Booking'}
