@@ -70,6 +70,47 @@ function CancelConfirmModal({ onConfirm, onClose, roomCount = 1 }: {
   )
 }
 
+type PaymentBlock = { pendingAmount: number; currency: string; primaryId: string }
+
+function PaymentBlockModal({ block, onClose }: { block: PaymentBlock; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+          <X className="h-4 w-4" />
+        </button>
+        <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-100 mx-auto mb-4">
+          <AlertTriangle className="h-6 w-6 text-amber-600" />
+        </div>
+        <h3 className="text-lg font-bold text-gray-900 text-center mb-2">Payment Still Pending</h3>
+        <p className="text-sm text-gray-500 text-center mb-1">
+          Checkout cannot be completed because payment is still pending.
+        </p>
+        <p className="text-sm font-semibold text-red-600 text-center mb-6">
+          Outstanding: {block.currency} {block.pendingAmount.toLocaleString()}
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            Close
+          </button>
+          <Link
+            href={`/hotel-admin/payments/collect?booking_id=${block.primaryId}`}
+            onClick={onClose}
+            className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold transition-colors"
+          >
+            <Wallet className="h-3.5 w-3.5" />
+            Record Payment
+          </Link>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function BookingActions({
   bookingId,
   bookingIds,
@@ -85,6 +126,7 @@ export default function BookingActions({
 }) {
   const router = useRouter()
   const [showCancelModal, setShowCancelModal] = useState(false)
+  const [paymentBlock, setPaymentBlock] = useState<PaymentBlock | null>(null)
   const [closeMenu, setCloseMenu] = useState<(() => void) | null>(null)
 
   const ids = bookingIds?.length ? bookingIds : bookingId ? [bookingId] : []
@@ -121,6 +163,23 @@ export default function BookingActions({
     }
 
     const supabase = createClient()
+
+    // Block checkout if any payment on any of the booking rows is still pending
+    if (status === 'checked_out') {
+      const { data: pending } = await supabase
+        .from('payments')
+        .select('amount, currency')
+        .in('booking_id', ids)
+        .eq('status', 'pending')
+
+      if (pending && pending.length > 0) {
+        const total    = pending.reduce((s, p) => s + (p.amount ?? 0), 0)
+        const currency = pending[0]?.currency ?? ''
+        close()
+        setPaymentBlock({ pendingAmount: total, currency, primaryId: bookingId ?? ids[0] })
+        return
+      }
+    }
 
     // Checking in/out flips the physical rooms too — every room on every row.
     const roomStatus = roomStatusForBooking[status]
@@ -207,6 +266,13 @@ export default function BookingActions({
           onConfirm={confirmCancel}
           onClose={() => setShowCancelModal(false)}
           roomCount={ids.length}
+        />
+      )}
+
+      {paymentBlock && (
+        <PaymentBlockModal
+          block={paymentBlock}
+          onClose={() => setPaymentBlock(null)}
         />
       )}
     </>
