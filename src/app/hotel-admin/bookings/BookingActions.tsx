@@ -15,6 +15,7 @@ const transitions: Record<string, string[]> = {
   checked_out: [],
   cancelled:  [],
   no_show:    [],
+  overdue:    [],
 }
 
 const ACTION_LABEL: Record<string, string> = {

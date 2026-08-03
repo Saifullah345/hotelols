@@ -85,18 +85,18 @@ function toStays(list: Booking[]): Stay[] {
 }
 
 // ── Config ─────────────────────────────────────────────────────────
-const STATUS_TABS = ['all', 'pending', 'confirmed', 'checked_in', 'checked_out', 'no_show', 'cancelled']
+const STATUS_TABS = ['all', 'pending', 'confirmed', 'checked_in', 'checked_out', 'no_show', 'overdue', 'cancelled']
 
 const statusBadge: Record<string, string> = {
   pending: 'badge-yellow', confirmed: 'badge-blue',
   checked_in: 'badge-green', checked_out: 'badge-gray',
-  no_show: 'badge-orange', cancelled: 'badge-red',
+  no_show: 'badge-orange', overdue: 'badge-red', cancelled: 'badge-red',
 }
 
 const STATUS_TAB_LABEL: Record<string, string> = {
   all: 'All', pending: 'Pending', confirmed: 'Confirmed',
   checked_in: 'Checked In', checked_out: 'Checked Out',
-  no_show: 'No Show', cancelled: 'Cancelled',
+  no_show: 'No Show', overdue: 'Overdue', cancelled: 'Cancelled',
 }
 
 const SOURCES = [

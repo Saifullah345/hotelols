@@ -67,6 +67,7 @@ const STATUS_LABEL: Record<string, string> = {
   pending:     'Pending',
   confirmed:   'Confirmed',
   no_show:     'No Show',
+  overdue:     'Overdue',
   checked_in:  'Checked In',
   checked_out: 'Completed',
   cancelled:   'Cancelled',
@@ -78,6 +79,7 @@ const STATUS_BADGE: Record<string, string> = {
   checked_out: 'bg-teal-100   text-teal-700   border-teal-200',
   cancelled:   'bg-red-100    text-red-500    border-red-200',
   no_show:     'bg-orange-100 text-orange-700 border-orange-200',
+  overdue:     'bg-red-100   text-red-700   border-red-200',
 }
 const PAYMENT_BADGE: Record<string, string> = {
   pending:   'bg-amber-50  text-amber-600',

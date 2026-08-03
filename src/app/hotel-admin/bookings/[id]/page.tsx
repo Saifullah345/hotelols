@@ -20,6 +20,7 @@ const statusConfig: Record<string, { label: string; cls: string }> = {
   checked_out: { label: 'Checked Out',  cls: 'bg-gray-100   text-gray-600    border-gray-200'   },
   cancelled:   { label: 'Cancelled',    cls: 'bg-red-50     text-red-700     border-red-200'     },
   no_show:     { label: 'No Show',      cls: 'bg-orange-50  text-orange-700  border-orange-200'  },
+  overdue:     { label: 'Overdue',      cls: 'bg-red-50     text-red-700     border-red-200'      },
 }
 
 const sourceConfig: Record<string, { label: string; Icon: typeof DoorOpen }> = {

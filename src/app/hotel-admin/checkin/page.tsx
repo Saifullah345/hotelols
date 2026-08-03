@@ -63,14 +63,15 @@ export default async function CheckInPage() {
 
   const today = new Date().toISOString().split('T')[0]
 
-  // Auto-mark any confirmed/pending bookings whose check-in date has passed
-  // as no_show — runs silently on every page load, best-effort.
-  await supabase
-    .from('bookings')
-    .update({ status: 'no_show' })
-    .eq('hotel_id', tenantId)
-    .in('status', ['pending', 'confirmed'])
-    .lt('check_in', today)
+  // Auto-mark expired bookings silently on every page load:
+  // confirmed + date passed = guest never arrived (No Show)
+  // pending   + date passed = payment was never collected (Overdue)
+  await Promise.all([
+    supabase.from('bookings').update({ status: 'no_show' })
+      .eq('hotel_id', tenantId).eq('status', 'confirmed').lt('check_in', today),
+    supabase.from('bookings').update({ status: 'overdue' })
+      .eq('hotel_id', tenantId).eq('status', 'pending').lt('check_in', today),
+  ])
 
   const [
     { data: rawArrivals },
