@@ -4,46 +4,87 @@ import { type ChangeEvent, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Loader2, Save, MessageCircle, Copy, ExternalLink, ImagePlus, Trash2, AlertTriangle, Plus, X as XIcon, ShoppingBag } from 'lucide-react'
+import {
+  Loader2, Save, MessageCircle, Copy, ExternalLink, ImagePlus, Trash2,
+  AlertTriangle, Plus, X as XIcon, ShoppingBag, Building2, Sun, Moon,
+  UserCircle, Sparkles,
+} from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { CURRENCIES, formatCurrency } from '@/lib/currency'
 import PhoneInput from '@/components/ui/PhoneInput'
 import { CountrySelect, CitySelect } from '@/components/ui/CountryCitySelect'
 
+const fi = 'w-full px-3.5 py-2.5 text-sm text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-transparent placeholder:text-gray-300 transition-shadow'
+const lbl = 'block text-[10px] font-bold text-gray-400 uppercase tracking-[0.08em] mb-1.5'
+
 export default function HotelSettingsPage() {
   const router = useRouter()
-  const [tenantId, setTenantId] = useState<string | null>(null)
-  const [hotelName, setHotelName] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [hotelImages, setHotelImages] = useState<string[]>([])
-  const [coverImage, setCoverImage] = useState<string | null>(null)
-  const [uploadingImage, setUploadingImage] = useState(false)
+
+  // Hotel state
+  const [tenantId,      setTenantId]      = useState<string | null>(null)
+  const [hotelName,     setHotelName]     = useState('')
+  const [loading,       setLoading]       = useState(true)
+  const [hotelImages,   setHotelImages]   = useState<string[]>([])
+  const [coverImage,    setCoverImage]    = useState<string | null>(null)
+  const [uploadingImage,setUploadingImage]= useState(false)
+  const [countryCode,   setCountryCode]   = useState('')
+  const [extraServices, setExtraServices] = useState<{
+    id: string; name: string; description: string
+    price: number; per: 'flat' | 'per_night' | 'per_person'
+  }[]>([])
+  const [newSvc,  setNewSvc]  = useState({ name: '', description: '', price: '', per: 'flat' as 'flat' | 'per_night' | 'per_person' })
+  const [savingSvc, setSavingSvc] = useState(false)
+
+  // My Account state
+  const [userId,          setUserId]          = useState<string | null>(null)
+  const [userEmail,       setUserEmail]       = useState('')
+  const [userRole,        setUserRole]        = useState('')
+  const [displayName,     setDisplayName]     = useState('')
+  const [newPassword,     setNewPassword]     = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [savingAccount,   setSavingAccount]   = useState(false)
+
+  // Danger zone
   const [deleteConfirm, setDeleteConfirm] = useState('')
-  const [deleting, setDeleting] = useState(false)
-  const [countryCode,    setCountryCode]    = useState('')
-  const [extraServices,  setExtraServices]  = useState<{ id: string; name: string; description: string; price: number; per: 'flat' | 'per_night' | 'per_person' }[]>([])
-  const [newSvc,         setNewSvc]         = useState({ name: '', description: '', price: '', per: 'flat' as 'flat' | 'per_night' | 'per_person' })
-  const [savingSvc,      setSavingSvc]      = useState(false)
+  const [deleting,      setDeleting]      = useState(false)
+
+  // Appearance
+  const [darkMode, setDarkMode] = useState(false)
 
   const hotelForm = useForm()
-  const waForm = useForm()
+  const waForm    = useForm()
+
+  // Read current dark mode from DOM on mount
+  useEffect(() => {
+    setDarkMode(document.documentElement.classList.contains('dark'))
+  }, [])
 
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
-      const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
+      setUserId(user.id)
+      setUserEmail(user.email ?? '')
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('tenant_id, full_name, role')
+        .eq('id', user.id)
+        .single()
       if (!profile?.tenant_id) return
       setTenantId(profile.tenant_id)
+      setDisplayName((profile.full_name as string) ?? '')
+      setUserRole((profile.role as string) ?? '')
+
       const { data } = await supabase.from('hotels').select('*').eq('id', profile.tenant_id).single()
       hotelForm.reset(data)
       setHotelName((data?.name as string) ?? '')
       setHotelImages(((data?.images as string[]) ?? []).filter(Boolean))
       setCoverImage((data?.cover_image as string | undefined) ?? null)
       waForm.reset({
-        whatsapp_number: data?.whatsapp_number ?? '',
-        whatsapp_phone_number_id: data?.whatsapp_phone_number_id ?? '',
-        whatsapp_access_token: data?.whatsapp_access_token ?? '',
+        whatsapp_number:           data?.whatsapp_number          ?? '',
+        whatsapp_phone_number_id:  data?.whatsapp_phone_number_id ?? '',
+        whatsapp_access_token:     data?.whatsapp_access_token    ?? '',
       })
       if (data?.country) {
         const { Country } = await import('country-state-city')
@@ -55,99 +96,111 @@ export default function HotelSettingsPage() {
     })
   }, [hotelForm, waForm])
 
-  const saveHotel = async (data: Record<string, unknown>) => {
-    const supabase = createClient()
-    const latitude = data.latitude === '' || data.latitude == null ? null : Number(data.latitude)
-    const longitude = data.longitude === '' || data.longitude == null ? null : Number(data.longitude)
-    const { error } = await supabase.from('hotels').update({
-      name: data.name,
-      description: data.description,
-      phone: data.phone,
-      email: data.email,
-      address: data.address,
-      city: data.city,
-      country: data.country,
-      check_in_time: data.check_in_time,
-      check_out_time: data.check_out_time,
-      currency: data.currency,
-      latitude,
-      longitude,
-      cover_image: coverImage,
-      images: hotelImages,
-    }).eq('id', tenantId!)
-    if (error) { toast.error(error.message); return }
-    toast.success('Settings saved')
+  // ── Appearance ──────────────────────────────────────────────────────
+  const toggleDark = (dark: boolean) => {
+    setDarkMode(dark)
+    document.documentElement.classList.toggle('dark', dark)
+    localStorage.setItem('theme', dark ? 'dark' : 'light')
   }
 
+  // ── Hotel Profile ────────────────────────────────────────────────────
+  const saveHotel = async (data: Record<string, unknown>) => {
+    const supabase  = createClient()
+    const latitude  = data.latitude  == null || data.latitude  === '' ? null : Number(data.latitude)
+    const longitude = data.longitude == null || data.longitude === '' ? null : Number(data.longitude)
+    const { error } = await supabase.from('hotels').update({
+      name:           data.name,
+      description:    data.description,
+      phone:          data.phone,
+      email:          data.email,
+      address:        data.address,
+      city:           data.city,
+      country:        data.country,
+      check_in_time:  data.check_in_time,
+      check_out_time: data.check_out_time,
+      currency:       data.currency,
+      website:        data.website    || null,
+      tax_rate:       data.tax_rate   ? Number(data.tax_rate) : 0,
+      latitude,
+      longitude,
+      cover_image:    coverImage,
+      images:         hotelImages,
+    }).eq('id', tenantId!)
+    if (error) { toast.error(error.message); return }
+    toast.success('Profile saved')
+  }
+
+  const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !tenantId) return
+    setUploadingImage(true)
+    const reader = new FileReader()
+    reader.onload = async () => {
+      const dataUrl  = reader.result as string
+      const nextImgs = [...hotelImages, dataUrl]
+      const nextCover = coverImage ?? dataUrl
+      const supabase = createClient()
+      const { error } = await supabase.from('hotels').update({ cover_image: nextCover, images: nextImgs }).eq('id', tenantId)
+      if (error) toast.error(error.message)
+      else { setCoverImage(nextCover); setHotelImages(nextImgs); toast.success('Image added') }
+      setUploadingImage(false)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  // ── My Account ───────────────────────────────────────────────────────
+  const saveAccount = async () => {
+    if (newPassword && newPassword !== confirmPassword) { toast.error('Passwords do not match'); return }
+    setSavingAccount(true)
+    const supabase = createClient()
+    const { error: pe } = await supabase.from('profiles').update({ full_name: displayName.trim() }).eq('id', userId!)
+    if (pe) { toast.error(pe.message); setSavingAccount(false); return }
+    if (newPassword) {
+      const { error: we } = await supabase.auth.updateUser({ password: newPassword })
+      if (we) { toast.error(we.message); setSavingAccount(false); return }
+      setNewPassword(''); setConfirmPassword('')
+    }
+    setSavingAccount(false)
+    toast.success('Account updated')
+  }
+
+  // ── WhatsApp ─────────────────────────────────────────────────────────
   const saveWhatsApp = async (data: Record<string, unknown>) => {
     const supabase = createClient()
     const { error } = await supabase.from('hotels').update({
-      whatsapp_number: data.whatsapp_number || null,
+      whatsapp_number:          data.whatsapp_number          || null,
       whatsapp_phone_number_id: data.whatsapp_phone_number_id || null,
-      whatsapp_access_token: data.whatsapp_access_token || null,
+      whatsapp_access_token:    data.whatsapp_access_token    || null,
     }).eq('id', tenantId!)
     if (error) { toast.error(error.message); return }
     toast.success('WhatsApp settings saved')
   }
 
-  const handleImageUpload = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file || !tenantId) return
+  const webhookUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/api/webhooks/whatsapp`
+    : '/api/webhooks/whatsapp'
+  const copyWebhook = () => { navigator.clipboard.writeText(webhookUrl); toast.success('Copied') }
 
-    setUploadingImage(true)
-    const reader = new FileReader()
-    reader.onload = async () => {
-      const dataUrl = reader.result as string
-      const nextImages = [...hotelImages, dataUrl]
-      const nextCover = coverImage ?? dataUrl
-
-      const supabase = createClient()
-      const { error } = await supabase.from('hotels').update({
-        cover_image: nextCover,
-        images: nextImages,
-      }).eq('id', tenantId)
-
-      if (error) {
-        toast.error(error.message)
-      } else {
-        setCoverImage(nextCover)
-        setHotelImages(nextImages)
-        toast.success('Hotel image added')
-      }
-      setUploadingImage(false)
-    }
-
-    reader.readAsDataURL(file)
-  }
-
+  // ── Danger Zone ──────────────────────────────────────────────────────
   const deleteHotel = async () => {
     setDeleting(true)
-    const res = await fetch('/api/admin/delete-hotel', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirm_name: deleteConfirm }),
-    })
+    const res  = await fetch('/api/admin/delete-hotel', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirm_name: deleteConfirm }) })
     const json = await res.json()
     setDeleting(false)
     if (!res.ok) { toast.error(json.error ?? 'Failed to delete hotel'); return }
-    toast.success('Hotel deleted successfully')
-    router.push('/login')
+    toast.success('Hotel deleted'); router.push('/login')
   }
 
+  // ── Extra Services ────────────────────────────────────────────────────
   const addService = () => {
-    const name = newSvc.name.trim()
+    const name  = newSvc.name.trim()
     const price = parseFloat(newSvc.price)
-    if (!name)         { toast.error('Enter a service name'); return }
-    if (isNaN(price) || price <= 0) { toast.error('Enter a valid price'); return }
-    setExtraServices(prev => [
-      ...prev,
-      { id: crypto.randomUUID(), name, description: newSvc.description.trim(), price, per: newSvc.per },
-    ])
+    if (!name)                       { toast.error('Enter a service name'); return }
+    if (isNaN(price) || price <= 0)  { toast.error('Enter a valid price'); return }
+    setExtraServices(prev => [...prev, { id: crypto.randomUUID(), name, description: newSvc.description.trim(), price, per: newSvc.per }])
     setNewSvc({ name: '', description: '', price: '', per: 'flat' })
   }
-
-  const removeService = (id: string) => setExtraServices(prev => prev.filter(s => s.id !== id))
-
+  const removeService    = (id: string) => setExtraServices(prev => prev.filter(s => s.id !== id))
   const saveExtraServices = async () => {
     if (!tenantId) return
     setSavingSvc(true)
@@ -158,174 +211,324 @@ export default function HotelSettingsPage() {
     toast.success('Extra services saved')
   }
 
-  const webhookUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/api/webhooks/whatsapp`
-    : '/api/webhooks/whatsapp'
-
-  const copyWebhook = () => {
-    navigator.clipboard.writeText(webhookUrl)
-    toast.success('Webhook URL copied')
-  }
-
   if (loading) return (
     <div className="flex items-center justify-center h-64">
-      <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
+      <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
     </div>
   )
 
   return (
-    <div className="max-w-3xl space-y-8">
-      {/* Header banner */}
-      <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-indigo-950 via-indigo-900 to-indigo-800 px-6 py-5 sm:px-8">
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-indigo-600/20 blur-3xl" />
-          <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full bg-violet-600/20 blur-3xl" />
-        </div>
-        <div className="relative">
-          <h2 className="text-2xl font-extrabold text-white leading-tight">Hotel Settings</h2>
-          <p className="text-indigo-300 text-sm mt-0.5">Manage your hotel information, visuals and integrations</p>
-        </div>
+    <div className="space-y-8">
+
+      {/* Page header */}
+      <div>
+        <h1 className="text-2xl font-extrabold text-gray-900">Settings</h1>
+        <p className="text-sm text-gray-400 mt-0.5">Hotel profile &amp; preferences</p>
       </div>
 
-      <section className="space-y-4">
-        <h3 className="text-base font-semibold text-gray-800 border-b border-gray-200 pb-2">General</h3>
-        <form onSubmit={hotelForm.handleSubmit(saveHotel)} className="card p-6 space-y-5">
-          <div className="rounded-2xl border border-dashed border-primary-200 bg-primary-50/50 p-4">
-            <div className="flex items-center justify-between gap-3">
+      {/* ── Two-column main area ── */}
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
+
+        {/* ── Left: Hotel Profile ── */}
+        <form onSubmit={hotelForm.handleSubmit(saveHotel)} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+
+          <div className="flex items-center gap-3 pb-1">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+              <Building2 className="h-5 w-5 text-amber-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900 text-base">Hotel Profile</h3>
+              <p className="text-xs text-gray-400 mt-0.5">Used on invoices and guest communications.</p>
+            </div>
+          </div>
+
+          {/* Core fields */}
+          <div className="space-y-4">
+            <div>
+              <label className={lbl}>Hotel Name</label>
+              <input {...hotelForm.register('name')} className={fi} />
+            </div>
+            <div>
+              <label className={lbl}>Tagline</label>
+              <input {...hotelForm.register('description')} className={fi} placeholder="Where every stay becomes a story" />
+            </div>
+            <div>
+              <label className={lbl}>Address</label>
+              <input {...hotelForm.register('address')} className={fi} />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <p className="font-semibold text-gray-900">Hotel visuals</p>
-                <p className="text-sm text-gray-500">Add a cover image or gallery photo for your hotel profile.</p>
+                <label className={lbl}>Phone</label>
+                <PhoneInput
+                  value={(hotelForm.watch('phone') as string) ?? ''}
+                  onChange={v => hotelForm.setValue('phone', v)}
+                />
               </div>
-              <label className="btn-secondary flex cursor-pointer items-center gap-2">
+              <div>
+                <label className={lbl}>Email</label>
+                <input {...hotelForm.register('email')} type="email" className={fi} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={lbl}>Website</label>
+                <input {...hotelForm.register('website')} className={fi} placeholder="www.example.com" />
+              </div>
+              <div>
+                <label className={lbl}>Currency</label>
+                <select {...hotelForm.register('currency')} className={fi}>
+                  {CURRENCIES.map(c => (
+                    <option key={c.code} value={c.code}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={lbl}>Check-in Time</label>
+                <input {...hotelForm.register('check_in_time')} type="time" className={fi} />
+              </div>
+              <div>
+                <label className={lbl}>Check-out Time</label>
+                <input {...hotelForm.register('check_out_time')} type="time" className={fi} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={lbl}>Tax Rate (%)</label>
+                <input {...hotelForm.register('tax_rate')} type="number" min={0} max={100} step={0.01} className={fi} placeholder="10" />
+              </div>
+            </div>
+          </div>
+
+          {/* Location fields */}
+          <div className="border-t border-gray-100 pt-4 space-y-4">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.08em]">Location</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={lbl}>Country</label>
+                <CountrySelect
+                  value={countryCode}
+                  onChange={(isoCode, name) => {
+                    setCountryCode(isoCode)
+                    hotelForm.setValue('country', name)
+                    hotelForm.setValue('city', '')
+                  }}
+                />
+              </div>
+              <div>
+                <label className={lbl}>City</label>
+                <CitySelect
+                  countryCode={countryCode}
+                  value={(hotelForm.watch('city') as string) ?? ''}
+                  onChange={name => hotelForm.setValue('city', name)}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={lbl}>Latitude</label>
+                <input {...hotelForm.register('latitude')} type="number" step="any" placeholder="31.5497" className={fi} />
+              </div>
+              <div>
+                <label className={lbl}>Longitude</label>
+                <input {...hotelForm.register('longitude')} type="number" step="any" placeholder="74.3436" className={fi} />
+              </div>
+            </div>
+            <a
+              href="https://www.google.com/maps"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-medium text-amber-600 underline"
+            >
+              Find coordinates on Google Maps →
+            </a>
+          </div>
+
+          {/* Cover image */}
+          <div className="border-t border-gray-100 pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-sm font-semibold text-gray-700">Cover Image</p>
+                <p className="text-xs text-gray-400">Shown on the public hotel page.</p>
+              </div>
+              <label className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 cursor-pointer transition-colors">
                 <ImagePlus className="h-4 w-4" />
-                {uploadingImage ? 'Uploading...' : 'Add image'}
+                {uploadingImage ? 'Uploading…' : 'Upload'}
                 <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
               </label>
             </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {coverImage ? (
-                <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-                  <img src={coverImage} alt="Hotel cover" className="h-32 w-full object-cover" />
-                </div>
-              ) : (
-                <div className="flex h-32 items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white text-sm text-gray-500">
-                  No cover image yet
-                </div>
-              )}
-              <div className="space-y-2">
-                {hotelImages.length > 0 ? hotelImages.map((image, index) => (
-                  <div key={`${image}-${index}`} className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white p-2">
-                    <img src={image} alt={`Hotel gallery ${index + 1}`} className="h-10 w-10 rounded-lg object-cover" />
-                    <span className="text-sm text-gray-600">Gallery photo {index + 1}</span>
-                  </div>
-                )) : (
-                  <div className="flex h-32 items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white text-sm text-gray-500">
-                    Add photos to showcase your property
-                  </div>
-                )}
+            {coverImage ? (
+              <div className="rounded-xl overflow-hidden border border-gray-100 h-36">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={coverImage} alt="Hotel cover" className="w-full h-full object-cover" />
               </div>
-            </div>
+            ) : (
+              <div className="h-24 rounded-xl border border-dashed border-gray-200 flex items-center justify-center text-xs text-gray-400">
+                No cover image yet
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <label className="label">Hotel Name</label>
-              <input {...hotelForm.register('name')} className="input" />
-            </div>
-            <div className="md:col-span-2">
-              <label className="label">Description</label>
-              <textarea {...hotelForm.register('description')} className="input resize-none h-24" />
-            </div>
-            <div>
-              <label className="label">Email</label>
-              <input {...hotelForm.register('email')} type="email" className="input" />
-            </div>
-            <div>
-              <label className="label">Phone</label>
-              <PhoneInput
-                value={(hotelForm.watch('phone') as string) ?? ''}
-                onChange={v => hotelForm.setValue('phone', v)}
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="label">Address</label>
-              <input {...hotelForm.register('address')} className="input" />
-            </div>
-            <div>
-              <label className="label">Country</label>
-              <CountrySelect
-                value={countryCode}
-                onChange={(isoCode, name) => {
-                  setCountryCode(isoCode)
-                  hotelForm.setValue('country', name)
-                  hotelForm.setValue('city', '')
-                }}
-              />
-            </div>
-            <div>
-              <label className="label">City</label>
-              <CitySelect
-                countryCode={countryCode}
-                value={(hotelForm.watch('city') as string) ?? ''}
-                onChange={name => hotelForm.setValue('city', name)}
-              />
-            </div>
-            <div>
-              <label className="label">Check-in Time</label>
-              <input {...hotelForm.register('check_in_time')} type="time" className="input" />
-            </div>
-            <div>
-              <label className="label">Check-out Time</label>
-              <input {...hotelForm.register('check_out_time')} type="time" className="input" />
-            </div>
-            <div className="md:col-span-2">
-              <label className="label">Currency</label>
-              <select {...hotelForm.register('currency')} className="input">
-                {CURRENCIES.map(c => (
-                  <option key={c.code} value={c.code}>{c.label}</option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-400 mt-1">All prices and revenue across the dashboard will display in this currency.</p>
-            </div>
-
-            <div>
-              <label className="label">Latitude</label>
-              <input {...hotelForm.register('latitude')} type="number" step="any" placeholder="31.5497" className="input" />
-            </div>
-            <div>
-              <label className="label">Longitude</label>
-              <input {...hotelForm.register('longitude')} type="number" step="any" placeholder="74.3436" className="input" />
-            </div>
-            <div className="md:col-span-2 -mt-2">
-              <a
-                href="https://www.google.com/maps"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs font-medium text-primary-600 underline"
-              >
-                Find your coordinates on Google Maps (right-click the pin → copy the numbers shown)
-              </a>
-            </div>
-          </div>
-          <div className="flex justify-end pt-2 border-t border-gray-100">
+          {/* Save */}
+          <div className="pt-1">
             <button
               type="submit"
               disabled={hotelForm.formState.isSubmitting}
-              className="btn-primary flex items-center gap-2"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white font-semibold text-sm transition-colors shadow-sm"
             >
               {hotelForm.formState.isSubmitting
                 ? <Loader2 className="h-4 w-4 animate-spin" />
                 : <Save className="h-4 w-4" />}
-              Save Changes
+              Save Profile
             </button>
           </div>
         </form>
-      </section>
 
+        {/* ── Right column ── */}
+        <div className="space-y-4">
+
+          {/* Appearance */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center gap-2.5 mb-1">
+              <Sparkles className="h-5 w-5 text-amber-500" />
+              <h3 className="font-bold text-gray-900">Appearance</h3>
+            </div>
+            <p className="text-xs text-gray-400 mb-4">Choose how the admin suite looks for you.</p>
+            <div className="flex gap-2 mb-4">
+              <button
+                type="button"
+                onClick={() => toggleDark(false)}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  !darkMode
+                    ? 'bg-amber-50 text-amber-700 border-2 border-amber-200 shadow-sm'
+                    : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                <Sun className="h-4 w-4" /> Light Mode
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleDark(true)}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  darkMode
+                    ? 'bg-gray-800 text-white border-2 border-gray-600 shadow-sm'
+                    : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                <Moon className="h-4 w-4" /> Dark Mode
+              </button>
+            </div>
+            {coverImage ? (
+              <div className="rounded-xl overflow-hidden border border-gray-100 relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={coverImage} alt="Hotel preview" className="w-full h-32 object-cover" />
+                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent px-3 py-2">
+                  <p className="text-white text-xs font-medium truncate">{hotelName}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-gray-200 h-28 flex items-center justify-center text-xs text-gray-400">
+                Upload a cover image to preview
+              </div>
+            )}
+          </div>
+
+          {/* My Account */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center gap-2.5 mb-1">
+              <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                <UserCircle className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900">My Account</h3>
+                <p className="text-xs text-gray-400">Signed in as {userEmail}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              <div>
+                <label className={lbl}>Display Name</label>
+                <input
+                  value={displayName}
+                  onChange={e => setDisplayName(e.target.value)}
+                  className={fi}
+                />
+              </div>
+              <div>
+                <label className={lbl}>Role</label>
+                <input
+                  value={userRole.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  readOnly
+                  className={`${fi} bg-gray-50 text-gray-500 cursor-default`}
+                />
+              </div>
+              <div>
+                <label className={lbl}>New Password</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  placeholder="Leave blank to keep"
+                  className={fi}
+                />
+              </div>
+              <div>
+                <label className={lbl}>Confirm Password</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  placeholder="Repeat new password"
+                  className={fi}
+                />
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={saveAccount}
+              disabled={savingAccount}
+              className="mt-4 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white font-semibold text-sm transition-colors shadow-sm"
+            >
+              {savingAccount ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Save Account
+            </button>
+          </div>
+
+          {/* Danger Zone */}
+          <div className="bg-red-50/50 rounded-2xl border border-red-100 p-5">
+            <div className="flex items-center gap-2.5 mb-1">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              <h3 className="font-bold text-red-600">Danger Zone</h3>
+            </div>
+            <p className="text-xs text-gray-500 mb-4">
+              Permanently removes your hotel and all its data — rooms, bookings, payments, and staff. This cannot be undone.
+            </p>
+            <input
+              value={deleteConfirm}
+              onChange={e => setDeleteConfirm(e.target.value)}
+              placeholder={`Type "${hotelName}" to confirm`}
+              className="w-full px-3.5 py-2.5 text-sm bg-white border border-red-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-300 placeholder:text-gray-300 mb-3"
+            />
+            <button
+              type="button"
+              onClick={deleteHotel}
+              disabled={deleting || deleteConfirm.trim().toLowerCase() !== hotelName.trim().toLowerCase()}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors"
+            >
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              {deleting ? 'Deleting…' : 'Delete Hotel'}
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      {/* ── WhatsApp Integration ── */}
       <section className="space-y-4">
-        <h3 className="text-base font-semibold text-gray-800 border-b border-gray-200 pb-2 flex items-center gap-2">
-          <MessageCircle className="h-4 w-4 text-green-600" /> WhatsApp Integration
-        </h3>
+        <div className="flex items-center gap-2.5">
+          <MessageCircle className="h-5 w-5 text-green-600" />
+          <h3 className="text-base font-bold text-gray-900">WhatsApp Integration</h3>
+        </div>
 
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm space-y-2">
           <p className="font-medium text-green-800">Setup via Meta WhatsApp Business Cloud API</p>
@@ -336,18 +539,15 @@ export default function HotelSettingsPage() {
             <li>Register the webhook URL below in your Meta app dashboard</li>
             <li>Use <strong>{process.env.NEXT_PUBLIC_WHATSAPP_VERIFY_TOKEN ?? 'your verify token'}</strong> as the verify token</li>
           </ol>
-          <a
-            href="https://developers.facebook.com/docs/whatsapp/cloud-api/get-started"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-green-700 underline font-medium"
-          >
+          <a href="https://developers.facebook.com/docs/whatsapp/cloud-api/get-started" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-green-700 underline font-medium">
             Meta Cloud API Docs <ExternalLink className="h-3 w-3" />
           </a>
         </div>
 
         <div>
-          <label className="label">Webhook URL <span className="text-gray-400 font-normal">(paste this in Meta dashboard)</span></label>
+          <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+            Webhook URL <span className="font-normal text-gray-400">(paste this in Meta dashboard)</span>
+          </label>
           <div className="flex gap-2">
             <input value={webhookUrl} readOnly className="input flex-1 bg-gray-50 font-mono text-sm text-gray-600" />
             <button type="button" onClick={copyWebhook} className="btn-secondary flex items-center gap-1.5 shrink-0">
@@ -359,53 +559,35 @@ export default function HotelSettingsPage() {
         <form onSubmit={waForm.handleSubmit(saveWhatsApp)} className="card p-6 space-y-4">
           <div>
             <label className="label">WhatsApp Business Number <span className="text-gray-400 font-normal">(displayed to guests)</span></label>
-            <input
-              {...waForm.register('whatsapp_number')}
-              className="input"
-              placeholder="+1 555 000 0000"
-            />
+            <input {...waForm.register('whatsapp_number')} className="input" placeholder="+1 555 000 0000" />
           </div>
           <div>
             <label className="label">Phone Number ID <span className="text-gray-400 font-normal">(from Meta dashboard)</span></label>
-            <input
-              {...waForm.register('whatsapp_phone_number_id')}
-              className="input font-mono"
-              placeholder="1234567890123456"
-            />
+            <input {...waForm.register('whatsapp_phone_number_id')} className="input font-mono" placeholder="1234567890123456" />
           </div>
           <div>
             <label className="label">Access Token <span className="text-gray-400 font-normal">(system user token)</span></label>
-            <input
-              {...waForm.register('whatsapp_access_token')}
-              type="password"
-              className="input font-mono"
-              placeholder="EAAxxxxxxxxx..."
-            />
+            <input {...waForm.register('whatsapp_access_token')} type="password" className="input font-mono" placeholder="EAAxxxxxxxxx..." />
           </div>
           <div className="flex justify-end pt-2 border-t border-gray-100">
-            <button
-              type="submit"
-              disabled={waForm.formState.isSubmitting}
-              className="btn-primary flex items-center gap-2"
-            >
-              {waForm.formState.isSubmitting
-                ? <Loader2 className="h-4 w-4 animate-spin" />
-                : <Save className="h-4 w-4" />}
+            <button type="submit" disabled={waForm.formState.isSubmitting} className="btn-primary flex items-center gap-2">
+              {waForm.formState.isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               Save WhatsApp Settings
             </button>
           </div>
         </form>
       </section>
-      {/* ── Extra Services ───────────────────────────────────────── */}
+
+      {/* ── Extra Services ── */}
       <section className="space-y-4">
-        <h3 className="text-base font-semibold text-gray-800 border-b border-gray-200 pb-2 flex items-center gap-2">
-          <ShoppingBag className="h-4 w-4 text-indigo-500" /> Extra Services
-        </h3>
+        <div className="flex items-center gap-2.5">
+          <ShoppingBag className="h-5 w-5 text-indigo-500" />
+          <h3 className="text-base font-bold text-gray-900">Extra Services</h3>
+        </div>
         <p className="text-sm text-gray-500">
-          Add optional paid services that guests can select when booking a room (e.g. Breakfast, Airport Transfer, Extra Bed).
+          Add optional paid services that guests can select when booking (e.g. Breakfast, Airport Transfer, Extra Bed).
         </p>
 
-        {/* Existing services */}
         {extraServices.length > 0 && (
           <div className="card divide-y divide-gray-100">
             {extraServices.map(s => (
@@ -420,11 +602,7 @@ export default function HotelSettingsPage() {
                     {s.per === 'flat' ? 'per stay' : s.per === 'per_night' ? 'per night' : 'per person'}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => removeService(s.id)}
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors ml-1"
-                >
+                <button type="button" onClick={() => removeService(s.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors ml-1">
                   <XIcon className="h-4 w-4" />
                 </button>
               </div>
@@ -432,118 +610,43 @@ export default function HotelSettingsPage() {
           </div>
         )}
 
-        {/* Add new service form */}
         <div className="card p-4 space-y-3">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Add a Service</p>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.08em]">Add a Service</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">Name</label>
-              <input
-                value={newSvc.name}
-                onChange={e => setNewSvc(p => ({ ...p, name: e.target.value }))}
-                className="input"
-                placeholder="e.g. Breakfast, Airport Transfer"
-              />
+              <input value={newSvc.name} onChange={e => setNewSvc(p => ({ ...p, name: e.target.value }))} className="input" placeholder="e.g. Breakfast, Airport Transfer" />
             </div>
             <div>
               <label className="label">Description <span className="text-gray-400 font-normal">(optional)</span></label>
-              <input
-                value={newSvc.description}
-                onChange={e => setNewSvc(p => ({ ...p, description: e.target.value }))}
-                className="input"
-                placeholder="Short description shown to guests"
-              />
+              <input value={newSvc.description} onChange={e => setNewSvc(p => ({ ...p, description: e.target.value }))} className="input" placeholder="Short description for guests" />
             </div>
             <div>
-              <label className="label">Price (Rs)</label>
-              <input
-                type="number"
-                min={0}
-                value={newSvc.price}
-                onChange={e => setNewSvc(p => ({ ...p, price: e.target.value }))}
-                className="input"
-                placeholder="500"
-              />
+              <label className="label">Price</label>
+              <input type="number" min={0} value={newSvc.price} onChange={e => setNewSvc(p => ({ ...p, price: e.target.value }))} className="input" placeholder="500" />
             </div>
             <div>
               <label className="label">Charge per</label>
-              <select
-                value={newSvc.per}
-                onChange={e => setNewSvc(p => ({ ...p, per: e.target.value as typeof newSvc.per }))}
-                className="input"
-              >
+              <select value={newSvc.per} onChange={e => setNewSvc(p => ({ ...p, per: e.target.value as typeof newSvc.per }))} className="input">
                 <option value="flat">Per Stay (flat fee)</option>
                 <option value="per_night">Per Night</option>
                 <option value="per_person">Per Person</option>
               </select>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={addService}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold transition-colors"
-          >
+          <button type="button" onClick={addService} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold transition-colors">
             <Plus className="h-4 w-4" /> Add to List
           </button>
         </div>
 
         <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={saveExtraServices}
-            disabled={savingSvc}
-            className="btn-primary flex items-center gap-2"
-          >
+          <button type="button" onClick={saveExtraServices} disabled={savingSvc} className="btn-primary flex items-center gap-2">
             {savingSvc ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Save Extra Services
           </button>
         </div>
       </section>
 
-      {/* ── Danger Zone ──────────────────────────────────────────── */}
-      <section className="space-y-4">
-        <h3 className="text-base font-semibold text-red-600 border-b border-red-100 pb-2 flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4" /> Danger Zone
-        </h3>
-        <div className="card border-red-200 p-6 space-y-4">
-          <div>
-            <p className="font-semibold text-gray-900">Delete this hotel</p>
-            <p className="text-sm text-gray-500 mt-1">
-              Permanently removes your hotel and <strong>all its data</strong> — rooms, room types, bookings, payments, and staff assignments.
-              This action <strong>cannot be undone</strong>.
-            </p>
-          </div>
-          <div className="bg-red-50 border border-red-100 rounded-xl p-4 text-sm text-red-700 space-y-1">
-            <p className="font-semibold">What gets deleted:</p>
-            <ul className="list-disc list-inside space-y-0.5 text-red-600">
-              <li>All rooms and room types</li>
-              <li>All bookings and payment records</li>
-              <li>Staff role assignments for this hotel</li>
-              <li>WhatsApp and integration settings</li>
-            </ul>
-          </div>
-          <div>
-            <label className="label text-gray-700">
-              Type <span className="font-bold text-gray-900">{hotelName}</span> to confirm
-            </label>
-            <input
-              value={deleteConfirm}
-              onChange={e => setDeleteConfirm(e.target.value)}
-              className="input border-red-200 focus:ring-red-400"
-              placeholder={hotelName}
-            />
-          </div>
-          <button
-            type="button"
-            onClick={deleteHotel}
-            disabled={deleting || deleteConfirm.trim().toLowerCase() !== hotelName.trim().toLowerCase()}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors"
-          >
-            {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-            {deleting ? 'Deleting…' : 'Delete hotel permanently'}
-          </button>
-        </div>
-      </section>
     </div>
   )
 }
