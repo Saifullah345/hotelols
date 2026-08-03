@@ -132,13 +132,11 @@ export async function POST(request: Request) {
   const isPaid       = payment_collected !== false
   const paymentStatus = source === 'online' ? 'pending' : (isPaid ? 'completed' : 'pending')
 
-  // A booking that has been paid for is confirmed, whatever the status field
-  // said — leaving it "pending" tells the desk money is still owed when it
-  // isn't, and the guest's own screen would ask them to await payment.
-  const requestedStatus = status ?? 'confirmed'
-  const bookingStatus = paymentStatus === 'completed' && requestedStatus === 'pending'
+  // Admin always collects advance payment at time of booking, so bookings
+  // created from the admin panel are confirmed immediately.
+  const bookingStatus = paymentStatus === 'completed'
     ? 'confirmed'
-    : requestedStatus
+    : (status ?? 'confirmed')
 
   let paymentAmount = total_amount
   if (paymentStatus === 'completed' && advance_amount != null) {

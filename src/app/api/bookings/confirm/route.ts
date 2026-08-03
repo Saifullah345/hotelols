@@ -38,6 +38,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  // Block confirmation until at least one payment has been completed.
+  const { data: payments } = await supabase
+    .from('payments')
+    .select('status')
+    .eq('booking_id', bookingId)
+
+  const hasPaid = (payments ?? []).some(p => p.status === 'completed')
+  if (!hasPaid) {
+    return NextResponse.json(
+      { error: 'Booking cannot be confirmed until payment has been recorded. Please collect advance payment first.' },
+      { status: 422 },
+    )
+  }
+
   const { error: updateError } = await supabase
     .from('bookings')
     .update({ status: 'confirmed' })

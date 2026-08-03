@@ -83,13 +83,22 @@ function PaymentBlockModal({ block, onClose }: { block: PaymentBlock; onClose: (
         <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-100 mx-auto mb-4">
           <AlertTriangle className="h-6 w-6 text-amber-600" />
         </div>
-        <h3 className="text-lg font-bold text-gray-900 text-center mb-2">Payment Still Pending</h3>
+        <h3 className="text-lg font-bold text-gray-900 text-center mb-2">Payment Required</h3>
         <p className="text-sm text-gray-500 text-center mb-1">
-          Checkout cannot be completed because payment is still pending.
+          {block.pendingAmount > 0
+            ? 'Checkout cannot be completed because payment is still pending.'
+            : 'Booking cannot be confirmed until payment has been recorded.'}
         </p>
-        <p className="text-sm font-semibold text-red-600 text-center mb-6">
-          Outstanding: {block.currency} {block.pendingAmount.toLocaleString()}
-        </p>
+        {block.pendingAmount > 0 && (
+          <p className="text-sm font-semibold text-red-600 text-center mb-6">
+            Outstanding: {block.currency} {block.pendingAmount.toLocaleString()}
+          </p>
+        )}
+        {block.pendingAmount === 0 && (
+          <p className="text-sm font-semibold text-red-600 text-center mb-6">
+            Please collect advance payment before confirming.
+          </p>
+        )}
         <div className="flex gap-3">
           <button
             onClick={onClose}
@@ -152,7 +161,15 @@ export default function BookingActions({
           body: JSON.stringify({ bookingId: id }),
         })
         const json = await res.json().catch(() => ({}))
-        if (!res.ok) { toast.error(json.error ?? 'Failed to confirm booking'); return }
+        if (!res.ok) {
+          if (res.status === 422) {
+            close()
+            setPaymentBlock({ pendingAmount: 0, currency: '', primaryId: id })
+          } else {
+            toast.error(json.error ?? 'Failed to confirm booking')
+          }
+          return
+        }
         emailed = emailed || !!json.emailed
       }
       toast.success(emailed ? `Booking confirmed — invoice emailed to guest${suffix}` : `Booking confirmed${suffix}`)
