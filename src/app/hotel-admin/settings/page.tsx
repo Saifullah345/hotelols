@@ -54,9 +54,11 @@ export default function HotelSettingsPage() {
   const hotelForm = useForm()
   const waForm    = useForm()
 
-  // Read current dark mode from DOM on mount
+  // Read dark mode preference from localStorage on mount
   useEffect(() => {
-    setDarkMode(document.documentElement.classList.contains('dark'))
+    try {
+      setDarkMode(localStorage.getItem('theme') === 'dark')
+    } catch {}
   }, [])
 
   useEffect(() => {
