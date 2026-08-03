@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { Toaster } from 'sonner'
-import NextTopLoader from 'nextjs-toploader'
+import { NavigationLoader } from '@/components/NavigationLoader'
 import SmoothScroll from '@/components/SmoothScroll'
 import JsonLd from '@/components/seo/JsonLd'
 import { SITE_URL, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION, absoluteUrl } from '@/lib/seo'
@@ -98,7 +98,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" data-scroll-behavior="smooth">
       <body className="min-h-screen bg-gray-50">
         <JsonLd data={[organizationSchema, websiteSchema]} />
-        <NextTopLoader color="#2563eb" height={3} showSpinner={false} />
+        <NavigationLoader />
         <SmoothScroll />
         {children}
         <Toaster richColors position="top-right" />
