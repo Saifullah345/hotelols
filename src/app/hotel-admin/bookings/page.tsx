@@ -13,6 +13,14 @@ export default async function BookingsPage() {
   const tenantId = profile?.tenant_id
   if (!tenantId) redirect('/login')
 
+  // Auto-mark expired unacted bookings as no_show before loading the list
+  await supabase
+    .from('bookings')
+    .update({ status: 'no_show' })
+    .eq('hotel_id', tenantId)
+    .in('status', ['pending', 'confirmed'])
+    .lt('check_in', new Date().toISOString().slice(0, 10))
+
   const [{ data: bookings }, { data: hotelInfo }, { data: rooms }] = await Promise.all([
     supabase
       .from('bookings')

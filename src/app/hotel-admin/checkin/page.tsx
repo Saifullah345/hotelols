@@ -63,6 +63,15 @@ export default async function CheckInPage() {
 
   const today = new Date().toISOString().split('T')[0]
 
+  // Auto-mark any confirmed/pending bookings whose check-in date has passed
+  // as no_show — runs silently on every page load, best-effort.
+  await supabase
+    .from('bookings')
+    .update({ status: 'no_show' })
+    .eq('hotel_id', tenantId)
+    .in('status', ['pending', 'confirmed'])
+    .lt('check_in', today)
+
   const [
     { data: rawArrivals },
     { data: rawInHouse },
