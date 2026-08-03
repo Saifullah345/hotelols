@@ -77,7 +77,7 @@ function BookingCard({
   const n = nights(booking.check_in, booking.check_out)
 
   return (
-    <div className="px-4 py-3.5 hover:bg-gray-50/80 transition-colors group">
+    <div className="px-4 py-3.5 rounded-xl border border-gray-100 hover:border-gray-200 hover:bg-gray-50/60 transition-colors bg-white">
       <div className="flex gap-3">
         <Avatar name={booking.userName} avatarUrl={booking.userAvatar} />
 
@@ -179,7 +179,7 @@ function Column({
       </div>
 
       {/* Scrollable body — fills remaining column height */}
-      <div className="flex-1 overflow-y-auto divide-y divide-gray-50 overscroll-contain">
+      <div className="flex-1 overflow-y-auto overscroll-contain p-3 space-y-2">
         {count === 0 ? (
           <div className="flex flex-col items-center justify-center h-full min-h-[180px] py-12 px-5 text-center">
             <EmptyIcon className="h-9 w-9 text-gray-200 mb-2" />
