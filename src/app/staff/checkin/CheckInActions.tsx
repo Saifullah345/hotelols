@@ -20,6 +20,34 @@ export default function CheckInActions({ bookingId, action }: Props) {
     const supabase = createClient()
     const newStatus = action === 'check_in' ? 'checked_in' : 'checked_out'
 
+    // Block check-in if no payment has been collected
+    if (action === 'check_in') {
+      const { data: pending } = await supabase
+        .from('payments')
+        .select('amount, currency')
+        .eq('booking_id', bookingId)
+        .eq('status', 'pending')
+
+      if (pending && pending.length > 0) {
+        const { data: completed } = await supabase
+          .from('payments')
+          .select('id')
+          .eq('booking_id', bookingId)
+          .eq('status', 'completed')
+          .limit(1)
+
+        if (!completed || completed.length === 0) {
+          const total    = pending.reduce((s, p) => s + (p.amount ?? 0), 0)
+          const currency = pending[0]?.currency ?? ''
+          toast.error(
+            `Cannot check in: payment of ${currency} ${total.toLocaleString()} is still pending. Please record payment first.`
+          )
+          setLoading(false)
+          return
+        }
+      }
+    }
+
     // Block checkout if there are pending payments
     if (action === 'check_out') {
       const { data: pending } = await supabase

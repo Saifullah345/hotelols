@@ -85,11 +85,18 @@ function toStays(list: Booking[]): Stay[] {
 }
 
 // ── Config ─────────────────────────────────────────────────────────
-const STATUS_TABS = ['all', 'pending', 'confirmed', 'checked_in', 'checked_out', 'cancelled']
+const STATUS_TABS = ['all', 'pending', 'confirmed', 'checked_in', 'checked_out', 'no_show', 'cancelled']
 
 const statusBadge: Record<string, string> = {
   pending: 'badge-yellow', confirmed: 'badge-blue',
-  checked_in: 'badge-green', checked_out: 'badge-gray', cancelled: 'badge-red',
+  checked_in: 'badge-green', checked_out: 'badge-gray',
+  no_show: 'badge-orange', cancelled: 'badge-red',
+}
+
+const STATUS_TAB_LABEL: Record<string, string> = {
+  all: 'All', pending: 'Pending', confirmed: 'Confirmed',
+  checked_in: 'Checked In', checked_out: 'Checked Out',
+  no_show: 'No Show', cancelled: 'Cancelled',
 }
 
 const SOURCES = [
@@ -647,7 +654,7 @@ export default function BookingsClient({
                       : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
                   }`}
                 >
-                  {tab === 'all' ? 'All' : tab.replace('_', ' ')}
+                  {STATUS_TAB_LABEL[tab] ?? tab.replace('_', ' ')}
                 </button>
               ))}
             </div>
@@ -791,7 +798,7 @@ export default function BookingsClient({
                       {/* Status */}
                       <td className="table-cell">
                         <span className={`${statusBadge[b.status] ?? 'badge-gray'} capitalize`}>
-                          {b.status.replace('_', ' ')}
+                          {STATUS_TAB_LABEL[b.status] ?? b.status.replace('_', ' ')}
                         </span>
                       </td>
 
@@ -822,6 +829,7 @@ export default function BookingsClient({
                           <BookingActions
                             bookingIds={stay.bookings.map(bk => bk.id)}
                             currentStatus={b.status}
+                            checkIn={b.check_in}
                             onStatusChange={newStatus =>
                               setBookings(bs => {
                                 const ids = new Set(stay.bookings.map(bk => bk.id))

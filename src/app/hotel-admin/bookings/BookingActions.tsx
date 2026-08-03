@@ -9,11 +9,20 @@ import { ActionMenu } from '@/components/ui/ActionMenu'
 import Link from 'next/link'
 
 const transitions: Record<string, string[]> = {
-  pending: ['confirmed', 'cancelled'],
-  confirmed: ['checked_in', 'cancelled'],
+  pending:    ['confirmed', 'cancelled'],
+  confirmed:  ['checked_in', 'no_show', 'cancelled'],
   checked_in: ['checked_out'],
   checked_out: [],
-  cancelled: [],
+  cancelled:  [],
+  no_show:    [],
+}
+
+const ACTION_LABEL: Record<string, string> = {
+  confirmed:   'Confirm',
+  checked_in:  'Check In',
+  checked_out: 'Check Out',
+  no_show:     'No Show',
+  cancelled:   'Cancel',
 }
 
 const roomStatusForBooking: Record<string, string> = {
@@ -124,6 +133,7 @@ export default function BookingActions({
   bookingId,
   bookingIds,
   currentStatus,
+  checkIn,
   onStatusChange,
 }: {
   /** Single booking. Ignored when `bookingIds` is given. */
@@ -131,6 +141,8 @@ export default function BookingActions({
   /** Every row of one stay — a status change applies to all of them. */
   bookingIds?: string[]
   currentStatus: string
+  /** ISO date string (YYYY-MM-DD) used to detect expired bookings. */
+  checkIn?: string
   onStatusChange?: (newStatus: string) => void
 }) {
   const router = useRouter()
@@ -180,6 +192,34 @@ export default function BookingActions({
     }
 
     const supabase = createClient()
+
+    // Block check-in if the booking date has already passed (expired → no show)
+    if (status === 'checked_in' && checkIn) {
+      const today = new Date().toISOString().slice(0, 10)
+      if (checkIn < today) {
+        toast.error(
+          `Check-in date (${checkIn}) has already passed. Please mark this booking as "No Show" instead.`
+        )
+        close()
+        return
+      }
+    }
+
+    // Block check-in if no payment has been collected
+    if (status === 'checked_in') {
+      const { data: completed } = await supabase
+        .from('payments')
+        .select('id')
+        .in('booking_id', ids)
+        .eq('status', 'completed')
+        .limit(1)
+
+      if (!completed || completed.length === 0) {
+        close()
+        setPaymentBlock({ pendingAmount: 0, currency: '', primaryId: bookingId ?? ids[0] })
+        return
+      }
+    }
 
     // Block checkout if any payment on any of the booking rows is still pending
     if (status === 'checked_out') {
@@ -253,11 +293,13 @@ export default function BookingActions({
                 key={status}
                 role="menuitem"
                 onClick={() => updateStatus(status, close)}
-                className={`w-full px-4 py-2 text-sm text-left hover:bg-gray-50 capitalize ${
-                  status === 'cancelled' ? 'text-red-700' : 'text-gray-700'
+                className={`w-full px-4 py-2 text-sm text-left hover:bg-gray-50 ${
+                  status === 'cancelled' ? 'text-red-700 hover:bg-red-50'
+                    : status === 'no_show' ? 'text-orange-700 hover:bg-orange-50'
+                    : 'text-gray-700'
                 }`}
               >
-                {status.replace('_', ' ')}
+                {ACTION_LABEL[status] ?? status.replace('_', ' ')}
               </button>
             ))}
             {showRecordPayment && (

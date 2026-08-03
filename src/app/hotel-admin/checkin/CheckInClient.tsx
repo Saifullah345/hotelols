@@ -198,6 +198,7 @@ type PaymentBlock = {
   guestName: string
   pendingAmount: number
   currency: string
+  action: 'check_in' | 'check_out'
 }
 
 export default function CheckInClient({ arrivals, inHouse, upcoming, departuresToday }: Props) {
@@ -208,6 +209,39 @@ export default function CheckInClient({ arrivals, inHouse, upcoming, departuresT
   const doAction = async (bookingId: string, action: 'check_in' | 'check_out') => {
     setLoadingId(bookingId)
     const supabase = createClient()
+
+    // ── Check-in: block if no payment has been collected ────────────────
+    if (action === 'check_in') {
+      const { data: pending } = await supabase
+        .from('payments')
+        .select('amount, currency')
+        .eq('booking_id', bookingId)
+        .eq('status', 'pending')
+
+      if (pending && pending.length > 0) {
+        const { data: completed } = await supabase
+          .from('payments')
+          .select('id')
+          .eq('booking_id', bookingId)
+          .eq('status', 'completed')
+          .limit(1)
+
+        if (!completed || completed.length === 0) {
+          const total    = pending.reduce((s, p) => s + (p.amount ?? 0), 0)
+          const currency = pending[0]?.currency ?? ''
+          const guest    = arrivals.find(b => b.id === bookingId)
+          setPaymentBlock({
+            bookingId,
+            guestName:     guest?.userName ?? 'this guest',
+            pendingAmount: total,
+            currency,
+            action:        'check_in',
+          })
+          setLoadingId(null)
+          return
+        }
+      }
+    }
 
     // ── Checkout: block if any payment is still pending ──────────────────
     if (action === 'check_out') {
@@ -226,6 +260,7 @@ export default function CheckInClient({ arrivals, inHouse, upcoming, departuresT
           guestName:     guest?.userName ?? 'this guest',
           pendingAmount: total,
           currency,
+          action:        'check_out',
         })
         setLoadingId(null)
         return
@@ -365,7 +400,7 @@ export default function CheckInClient({ arrivals, inHouse, upcoming, departuresT
                   {paymentBlock.currency} {paymentBlock.pendingAmount.toLocaleString()}
                 </span>.
                 <br />
-                Please record the payment before checking out.
+                Please record the payment before checking {paymentBlock.action === 'check_in' ? 'in' : 'out'}.
               </p>
             </div>
             <button

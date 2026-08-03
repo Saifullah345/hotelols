@@ -14,11 +14,12 @@ import GuestAvatar from '@/components/admin/GuestAvatar'
 type Ctx = { params: Promise<{ id: string }> }
 
 const statusConfig: Record<string, { label: string; cls: string }> = {
-  pending:     { label: 'Pending',      cls: 'bg-amber-50  text-amber-700  border-amber-200'    },
-  confirmed:   { label: 'Confirmed',    cls: 'bg-blue-50   text-blue-700   border-blue-200'     },
-  checked_in:  { label: 'Checked In',   cls: 'bg-emerald-50 text-emerald-700 border-emerald-200'},
-  checked_out: { label: 'Checked Out',  cls: 'bg-gray-100  text-gray-600   border-gray-200'    },
-  cancelled:   { label: 'Cancelled',    cls: 'bg-red-50    text-red-700    border-red-200'      },
+  pending:     { label: 'Pending',      cls: 'bg-amber-50   text-amber-700   border-amber-200'   },
+  confirmed:   { label: 'Confirmed',    cls: 'bg-blue-50    text-blue-700    border-blue-200'    },
+  checked_in:  { label: 'Checked In',   cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  checked_out: { label: 'Checked Out',  cls: 'bg-gray-100   text-gray-600    border-gray-200'   },
+  cancelled:   { label: 'Cancelled',    cls: 'bg-red-50     text-red-700     border-red-200'     },
+  no_show:     { label: 'No Show',      cls: 'bg-orange-50  text-orange-700  border-orange-200'  },
 }
 
 const sourceConfig: Record<string, { label: string; Icon: typeof DoorOpen }> = {
@@ -158,7 +159,7 @@ export default async function ViewBookingPage({ params }: Ctx) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <BookingActions bookingIds={rows.map(r => r.id)} currentStatus={booking.status} />
+          <BookingActions bookingIds={rows.map(r => r.id)} currentStatus={booking.status} checkIn={booking.check_in} />
           <Link
             href={`/hotel-admin/bookings/${id}/edit`}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
