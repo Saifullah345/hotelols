@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import {
   LayoutDashboard, BedDouble, CalendarCheck, Users, BarChart3,
   CreditCard, Star, LogOut, Settings, Hotel, ClipboardList, UserCheck, Search,
-  MessageCircle, X, DoorOpen, Sparkles,
+  MessageCircle, X, DoorOpen, Sparkles, Heart,
 } from 'lucide-react'
 import { LogoMark } from '@/components/layout/Logo'
 
@@ -49,9 +49,10 @@ const staffNav: NavItem[] = [
 ]
 
 const customerNav: NavItem[] = [
-  { label: 'Find Hotels', href: '/', icon: Search },
-  { label: 'My Bookings', href: '/customer/bookings', icon: CalendarCheck },
-  { label: 'Profile', href: '/customer/profile', icon: Users },
+  { label: 'Find Hotels',  href: '/',                 icon: Search },
+  { label: 'My Bookings',  href: '/customer/bookings', icon: CalendarCheck },
+  { label: 'Saved Hotels', href: '/customer/saved',    icon: Heart },
+  { label: 'Profile',      href: '/customer/profile',  icon: Users },
 ]
 
 const navMap: Record<string, NavItem[]> = {
