@@ -13,13 +13,16 @@ export default async function RoomsPage() {
   const tenantId = profile?.tenant_id
   if (!tenantId) redirect('/login')
 
-  const [{ data: rooms }, { data: roomTypes }, { data: hotelInfo }] = await Promise.all([
+  const PAGE_SIZE = 4
+
+  const [{ data: rooms }, { data: roomTypes }, { data: hotelInfo }, { data: allStatuses }] = await Promise.all([
     supabase
       .from('rooms')
       .select('*, room_type:room_types(id, name, capacity), images')
       .eq('hotel_id', tenantId)
       .order('sort_order', { ascending: true })
-      .order('room_number'),
+      .order('room_number')
+      .range(0, PAGE_SIZE - 1),
     supabase
       .from('room_types')
       .select('id, name')
@@ -30,9 +33,15 @@ export default async function RoomsPage() {
       .select('currency')
       .eq('id', tenantId)
       .single(),
+    // Lightweight: just status field for header count chips
+    supabase
+      .from('rooms')
+      .select('status')
+      .eq('hotel_id', tenantId),
   ])
 
   const currency = (hotelInfo as { currency?: string } | null)?.currency ?? 'USD'
+  const statuses = (allStatuses ?? []) as { status: string }[]
 
   return (
     <RoomsClient
@@ -40,6 +49,11 @@ export default async function RoomsPage() {
       roomTypes={roomTypes ?? []}
       currency={currency}
       hotelId={tenantId}
+      pageSize={PAGE_SIZE}
+      totalAvailable={statuses.filter(r => r.status === 'available').length}
+      totalBooked={statuses.filter(r => r.status === 'booked').length}
+      totalMaintenance={statuses.filter(r => r.status === 'maintenance').length}
+      totalRooms={statuses.length}
     />
   )
 }

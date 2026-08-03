@@ -1,6 +1,6 @@
-﻿'use client'
+'use client'
 
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { Plus, BedDouble, Search, Pencil, Users, X, GripVertical, Wrench, BookOpen, CalendarSearch, Loader2, CheckCircle2, XCircle, ArrowRight, LayoutGrid, LayoutList } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -147,11 +147,21 @@ export default function RoomsClient({
   roomTypes,
   currency,
   hotelId,
+  pageSize,
+  totalAvailable,
+  totalBooked,
+  totalMaintenance,
+  totalRooms,
 }: {
   rooms: Room[]
   roomTypes: RoomType[]
   currency: string
   hotelId: string
+  pageSize: number
+  totalAvailable: number
+  totalBooked: number
+  totalMaintenance: number
+  totalRooms: number
 }) {
   const [rooms, setRooms]       = useState<Room[]>(initialRooms)
   const [saving, setSaving]     = useState(false)
@@ -242,30 +252,79 @@ export default function RoomsClient({
     [rooms, rangeActive, occupancy],
   )
 
-  // â”€â”€ Infinite scroll â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const BATCH = 20
-  const [visibleCount, setVisibleCount] = useState(BATCH)
-  const sentinelRef = useRef<HTMLDivElement>(null)
+  // Server-side infinite scroll
+  const offsetRef    = useRef(initialRooms.length)
+  const fetchingRef  = useRef(false)
+  const hasMoreRef   = useRef(initialRooms.length === pageSize)
+  const sentinelRef  = useRef<HTMLDivElement>(null)
+  const [fetchingMore, setFetchingMore] = useState(false)
+  const [hasMore, setHasMore]           = useState(initialRooms.length === pageSize)
 
-  useEffect(() => { setVisibleCount(BATCH) }, [q, status, typeId, rangeActive, freeOnly])
+  const loadMore = useCallback(async (reset = false) => {
+    if (fetchingRef.current && !reset) return
+    fetchingRef.current = true
+    setFetchingMore(true)
 
-  const visible = filtered.slice(0, visibleCount)
-  const hasMore = visibleCount < filtered.length
+    const from = reset ? 0 : offsetRef.current
+    const to   = from + pageSize - 1
 
+    let q2 = createClient()
+      .from('rooms')
+      .select('*, room_type:room_types(id, name, capacity), images')
+      .eq('hotel_id', hotelId)
+      .order('sort_order', { ascending: true })
+      .order('room_number')
+      .range(from, to)
+
+    if (status) q2 = q2.eq('status', status)
+    if (typeId) q2 = q2.eq('room_type_id', typeId)
+
+    const { data } = await q2
+    const fetched = (data ?? []) as Room[]
+
+    if (reset) {
+      setRooms(fetched)
+      offsetRef.current = fetched.length
+    } else {
+      setRooms(prev => [...prev, ...fetched])
+      offsetRef.current = from + fetched.length
+    }
+
+    const more = fetched.length === pageSize
+    hasMoreRef.current = more
+    setHasMore(more)
+    fetchingRef.current = false
+    setFetchingMore(false)
+  }, [hotelId, status, typeId, pageSize])
+
+  // Reset + reload when server-side filters change
+  const isFirstRender = useRef(true)
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return }
+    loadMore(true)
+  }, [loadMore])
+
+  // Sentinel: load next page when scrolled into view
   useEffect(() => {
     const el = sentinelRef.current
     if (!el) return
     const observer = new IntersectionObserver(
-      entries => { if (entries[0].isIntersecting && hasMore) setVisibleCount(n => n + BATCH) },
-      { rootMargin: '200px' },
+      entries => {
+        if (entries[0].isIntersecting && hasMoreRef.current && !fetchingRef.current) {
+          loadMore(false)
+        }
+      },
+      { rootMargin: '300px' },
     )
     observer.observe(el)
     return () => observer.disconnect()
-  }, [hasMore])
+  }, [loadMore])
 
-  const available   = rooms.filter(r => r.status === 'available').length
-  const booked      = rooms.filter(r => r.status === 'booked').length
-  const maintenance = rooms.filter(r => r.status === 'maintenance').length
+  const visible = filtered
+
+  const available   = totalAvailable
+  const booked      = totalBooked
+  const maintenance = totalMaintenance
 
   const clearAll = () => { setQ(''); setStatus(''); setTypeId('') }
 
