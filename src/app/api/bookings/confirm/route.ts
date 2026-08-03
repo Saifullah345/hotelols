@@ -39,12 +39,12 @@ export async function POST(request: Request) {
   }
 
   // Block confirmation until at least one payment has been completed.
-  const { data: payments } = await supabase
+  const { data: paymentStatuses } = await supabase
     .from('payments')
     .select('status')
     .eq('booking_id', bookingId)
 
-  const hasPaid = (payments ?? []).some(p => p.status === 'completed')
+  const hasPaid = (paymentStatuses ?? []).some(p => p.status === 'completed')
   if (!hasPaid) {
     return NextResponse.json(
       { error: 'Booking cannot be confirmed until payment has been recorded. Please collect advance payment first.' },
