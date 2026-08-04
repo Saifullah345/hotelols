@@ -103,6 +103,10 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
 
   async function handleAdd() {
     if (!form.name.trim()) { toast.error('Name is required'); return }
+    if (form.phone && !/^\+92\d{10}$/.test(form.phone)) {
+      toast.error('Phone must be exactly 10 digits after +92')
+      return
+    }
     setSaving(true)
     try {
       const supabase = createClient()
@@ -137,6 +141,10 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
 
   async function handleEdit() {
     if (!editing) return
+    if (editing.is_manual && form.phone && !/^\+92\d{10}$/.test(form.phone)) {
+      toast.error('Phone must be exactly 10 digits after +92')
+      return
+    }
     setSaving(true)
     try {
       const supabase = createClient()
@@ -219,6 +227,8 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
       router.refresh()
     } finally { setSaving(false) }
   }
+
+  const phoneInputError = form.phone !== '' && !/^\+92\d{10}$/.test(form.phone)
 
   return (
     <div className="space-y-6">
@@ -432,13 +442,36 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
                 </div>
                 <div>
                   <label className={lbl}>Phone</label>
-                  <input
-                    value={form.phone}
-                    onChange={e => setField('phone', e.target.value)}
-                    readOnly={modal === 'edit' && !editing?.is_manual}
-                    className={`${fi} ${modal === 'edit' && !editing?.is_manual ? 'bg-gray-50 text-gray-500 cursor-default' : ''}`}
-                    placeholder="+1 555 0000"
-                  />
+                  <div className={`flex overflow-hidden rounded-xl border transition-shadow ${
+                    modal === 'edit' && !editing?.is_manual
+                      ? 'border-gray-200 bg-gray-50'
+                      : phoneInputError
+                        ? 'border-red-300 bg-white focus-within:ring-2 focus-within:ring-red-300'
+                        : 'border-gray-200 bg-white focus-within:ring-2 focus-within:ring-amber-300 focus-within:border-transparent'
+                  }`}>
+                    <span className="flex items-center px-3 text-sm font-semibold text-gray-500 bg-gray-50 border-r border-gray-200 select-none flex-shrink-0">
+                      +92
+                    </span>
+                    <input
+                      value={form.phone.startsWith('+92') ? form.phone.slice(3) : ''}
+                      onChange={e => {
+                        const digits = e.target.value.replace(/\D/g, '').slice(0, 10)
+                        setField('phone', digits ? '+92' + digits : '')
+                      }}
+                      readOnly={modal === 'edit' && !editing?.is_manual}
+                      inputMode="numeric"
+                      maxLength={10}
+                      className={`flex-1 px-3 py-2.5 text-sm bg-transparent focus:outline-none ${
+                        modal === 'edit' && !editing?.is_manual
+                          ? 'text-gray-500 cursor-default'
+                          : 'text-gray-900 placeholder-gray-400'
+                      }`}
+                      placeholder="3001234567"
+                    />
+                  </div>
+                  {phoneInputError && (
+                    <p className="text-red-500 text-xs mt-1.5">Enter exactly 10 digits (e.g. 3001234567)</p>
+                  )}
                 </div>
                 <div>
                   <label className={lbl}>Country</label>
