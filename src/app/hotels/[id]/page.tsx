@@ -1,3 +1,5 @@
+export const revalidate = 30
+
 import type { Metadata } from 'next'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'

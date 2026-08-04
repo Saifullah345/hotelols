@@ -10,6 +10,8 @@ export type PlanFeatures = {
 // Shape of the raw plan row returned from Supabase
 export type PlanDbData = {
   name?: string | null
+  max_rooms?: number | null
+  max_staff?: number | null
   feature_housekeeping?:     boolean | null
   feature_reviews?:          boolean | null
   feature_online_booking?:   boolean | null

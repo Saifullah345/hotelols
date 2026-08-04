@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { getCachedHotel, getCachedRoomTypes } from '@/lib/cache'
 import RoomsClient from './RoomsClient'
 
 export const metadata = { title: 'Rooms' }
@@ -15,7 +16,7 @@ export default async function RoomsPage() {
 
   const PAGE_SIZE = 4
 
-  const [{ data: rooms }, { data: roomTypes }, { data: hotelInfo }, { data: allStatuses }] = await Promise.all([
+  const [{ data: rooms }, { data: allStatuses }, hotelData, roomTypes] = await Promise.all([
     supabase
       .from('rooms')
       .select('*, room_type:room_types(id, name, capacity), images')
@@ -23,26 +24,17 @@ export default async function RoomsPage() {
       .order('sort_order', { ascending: true })
       .order('room_number')
       .range(0, PAGE_SIZE - 1),
-    supabase
-      .from('room_types')
-      .select('id, name')
-      .eq('hotel_id', tenantId)
-      .order('name'),
-    supabase
-      .from('hotels')
-      .select('currency, plan:plans(max_rooms, name)')
-      .eq('id', tenantId)
-      .single(),
     // Lightweight: just status field for header count chips
     supabase
       .from('rooms')
       .select('status')
       .eq('hotel_id', tenantId),
+    getCachedHotel(tenantId),
+    getCachedRoomTypes(tenantId),
   ])
 
-  const hotelData = hotelInfo as { currency?: string; plan?: { max_rooms?: number; name?: string } } | null
-  const currency    = hotelData?.currency ?? 'USD'
-  const planMaxRooms = hotelData?.plan?.max_rooms ?? -1
+  const currency     = hotelData?.currency ?? 'USD'
+  const planMaxRooms = (hotelData?.plan?.max_rooms ?? -1)
   const planName     = hotelData?.plan?.name ?? ''
   const statuses = (allStatuses ?? []) as { status: string }[]
 

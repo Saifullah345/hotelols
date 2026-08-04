@@ -3,7 +3,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { AdminShell } from '@/components/layout/AdminShell'
 import { noIndexMetadata } from '@/lib/seo'
-import { getPlanFeatures, type PlanDbData } from '@/lib/plan-features'
+import { getPlanFeatures } from '@/lib/plan-features'
+import { getCachedHotel } from '@/lib/cache'
 
 export const metadata = noIndexMetadata
 
@@ -29,22 +30,19 @@ export default async function HotelAdminLayout({ children }: { children: React.R
 
   if (!roleRow) redirect('/select-role')
 
-  const [{ data: profile }, { data: hotel }] = await Promise.all([
+  const [{ data: profile }, hotel] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user.id).single(),
-    supabase.from('hotels').select(
-      'name, plan:plans(name, feature_housekeeping, feature_reviews, feature_online_booking, feature_advanced_reports, feature_api_access, feature_multi_property)'
-    ).eq('id', activeTenantId).single(),
+    getCachedHotel(activeTenantId),
   ])
 
-  const hotelData = hotel as { name?: string; plan?: PlanDbData } | null
-  const planFeatures = getPlanFeatures(hotelData?.plan)
+  const planFeatures = getPlanFeatures(hotel?.plan ?? null)
 
   return (
     <AdminShell
       role="hotel-admin"
-      hotelName={hotelData?.name}
+      hotelName={hotel?.name}
       planFeatures={planFeatures}
-      title={hotelData?.name ?? 'Hotel Management'}
+      title={hotel?.name ?? 'Hotel Management'}
       profile={profile}
     >
       {children}
