@@ -382,11 +382,11 @@ export default function NewBookingPage() {
 
   const onlineForm = useForm<OnlineForm>({
     resolver: zodResolver(onlineSchema),
-    defaultValues: { adults: 1, children: 0, status: 'confirmed' },
+    defaultValues: { adults: 1, children: 0, status: 'pending' },
   })
   const offlineForm = useForm<OfflineForm>({
     resolver: zodResolver(offlineSchema),
-    defaultValues: { adults: 1, children: 0, status: 'confirmed' },
+    defaultValues: { adults: 1, children: 0, status: 'pending' },
   })
   const guestNameField = offlineForm.register('guest_name')
 
@@ -598,11 +598,9 @@ export default function NewBookingPage() {
   // paid by the guest afterwards, so it can still be left pending.
   const paymentTaken = payNow && isOffline
 
-  // When payment is collected, status must be confirmed — pending makes no sense.
+  // Sync booking status with whether payment is actually being collected.
   useEffect(() => {
-    if (paymentTaken) {
-      offlineForm.setValue('status', 'confirmed')
-    }
+    offlineForm.setValue('status', paymentTaken ? 'confirmed' : 'pending')
   }, [paymentTaken]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const today = new Date().toISOString().split('T')[0]
