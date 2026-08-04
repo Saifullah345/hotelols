@@ -152,6 +152,8 @@ export default function RoomsClient({
   totalBooked,
   totalMaintenance,
   totalRooms,
+  planMaxRooms = -1,
+  planName = '',
 }: {
   rooms: Room[]
   roomTypes: RoomType[]
@@ -162,6 +164,8 @@ export default function RoomsClient({
   totalBooked: number
   totalMaintenance: number
   totalRooms: number
+  planMaxRooms?: number
+  planName?: string
 }) {
   const [rooms, setRooms]       = useState<Room[]>(initialRooms)
   const [saving, setSaving]     = useState(false)
@@ -413,9 +417,24 @@ export default function RoomsClient({
                 <p className="text-primary-300 text-xs leading-none mt-0.5">Maintenance</p>
               </div>
             </div>
-            <Link href="/hotel-admin/rooms/new" className="flex items-center gap-2 bg-white text-primary-700 font-semibold text-sm px-4 py-2 rounded-xl hover:bg-primary-50 transition-colors shadow-sm">
-              <Plus className="h-4 w-4" /> Add Room
-            </Link>
+            {planMaxRooms !== -1 && (
+              <div className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm ${totalRooms >= planMaxRooms ? 'bg-red-500/20' : 'bg-white/10 backdrop-blur'}`}>
+                <BedDouble className={`h-4 w-4 ${totalRooms >= planMaxRooms ? 'text-red-300' : 'text-white/60'}`} />
+                <div>
+                  <p className="text-white font-bold leading-none">{totalRooms} / {planMaxRooms}</p>
+                  <p className="text-primary-300 text-xs leading-none mt-0.5 capitalize">{planName} limit</p>
+                </div>
+              </div>
+            )}
+            {totalRooms >= planMaxRooms && planMaxRooms !== -1 ? (
+              <span className="flex items-center gap-2 bg-white/20 text-white/60 font-semibold text-sm px-4 py-2 rounded-xl cursor-not-allowed text-center" title={`Room limit reached (${planMaxRooms}). Upgrade your plan.`}>
+                <Plus className="h-4 w-4" /> Add Room
+              </span>
+            ) : (
+              <Link href="/hotel-admin/rooms/new" className="flex items-center gap-2 bg-white text-primary-700 font-semibold text-sm px-4 py-2 rounded-xl hover:bg-primary-50 transition-colors shadow-sm">
+                <Plus className="h-4 w-4" /> Add Room
+              </Link>
+            )}
           </div>
         </div>
       </div>

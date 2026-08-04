@@ -50,6 +50,23 @@ export async function POST(request: Request) {
     .ilike('email', email)
     .limit(1)
 
+  // Enforce plan staff limit when adding a new staff member
+  if (role === 'staff' && effectiveHotelId) {
+    const { data: hotelPlan } = await adminClient
+      .from('hotels').select('plan:plans(max_staff, name)').eq('id', effectiveHotelId).single()
+    const { count: staffCount } = await adminClient
+      .from('staff').select('*', { count: 'exact', head: true })
+      .eq('hotel_id', effectiveHotelId).eq('is_active', true)
+    const maxStaff = (hotelPlan?.plan as { max_staff?: number } | null)?.max_staff ?? 0
+    const planName = (hotelPlan?.plan as { name?: string }      | null)?.name ?? 'current'
+
+    if (maxStaff !== -1 && (staffCount ?? 0) >= maxStaff) {
+      return NextResponse.json({
+        error: `Staff limit reached. Your ${planName} plan allows up to ${maxStaff} active staff members. Upgrade your plan to add more.`,
+      }, { status: 403 })
+    }
+  }
+
   if (existingProfiles && existingProfiles.length > 0) {
     const existingUserId = existingProfiles[0].id
 

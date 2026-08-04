@@ -1,5 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import { Sparkles } from 'lucide-react'
+import { getPlanFeatures } from '@/lib/plan-features'
 import HousekeepingClient from './HousekeepingClient'
 
 export const metadata = { title: 'Housekeeping' }
@@ -32,6 +35,35 @@ export default async function HousekeepingPage() {
     .single()
   const tenantId = profile?.tenant_id
   if (!tenantId) redirect('/login')
+
+  const { data: hotelPlan } = await supabase
+    .from('hotels').select(
+      'plan:plans(name, feature_housekeeping, feature_reviews, feature_online_booking, feature_advanced_reports, feature_api_access, feature_multi_property)'
+    ).eq('id', tenantId).single()
+  const planDbData = (hotelPlan?.plan ?? null) as import('@/lib/plan-features').PlanDbData | null
+  const planName = planDbData?.name ?? ''
+  if (!getPlanFeatures(planDbData).housekeeping) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
+        <div className="rounded-2xl border border-gray-100 bg-white p-10 shadow-sm max-w-md w-full">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50 mx-auto">
+            <Sparkles className="h-7 w-7 text-primary-600" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900">Housekeeping is a Growth feature</h2>
+          <p className="mt-2 text-sm text-gray-500">
+            Your current <span className="font-medium capitalize">{planName || 'Starter'}</span> plan does not include the Housekeeping module.
+            Upgrade to Growth or higher to unlock task management, room tracking, and staff assignments.
+          </p>
+          <Link
+            href="/hotel-admin/settings"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary-700 transition-colors"
+          >
+            View Plan Options
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   const [{ data: rawTasks }, { data: rooms }, { data: staffRows }] = await Promise.all([
     supabase.from('housekeeping_tasks')

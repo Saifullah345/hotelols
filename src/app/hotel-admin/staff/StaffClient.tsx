@@ -402,7 +402,17 @@ function StaffCard({ member, onEdit, onDelete }: {
 const PER_PAGE = 10
 
 // ── Main component ────────────────────────────────────────────────────
-export default function StaffClient({ staff }: { staff: StaffMember[] }) {
+export default function StaffClient({
+  staff,
+  planMaxStaff = -1,
+  planName = '',
+  totalActiveStaff = 0,
+}: {
+  staff: StaffMember[]
+  planMaxStaff?: number
+  planName?: string
+  totalActiveStaff?: number
+}) {
   const router = useRouter()
   const [view,     setView]     = useState<'table' | 'grid'>('table')
   const [adding,   setAdding]   = useState(false)
@@ -423,12 +433,33 @@ export default function StaffClient({ staff }: { staff: StaffMember[] }) {
     <>
       {/* Toolbar: Add button + view toggle */}
       <div className="flex items-center justify-between mb-3">
-        <button
-          onClick={() => setAdding(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold transition-colors shadow-sm"
-        >
-          <Plus className="h-4 w-4" /> Add Staff Member
-        </button>
+        <div className="flex items-center gap-3">
+          {planMaxStaff !== -1 && (
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border ${
+              totalActiveStaff >= planMaxStaff
+                ? 'bg-red-50 text-red-700 border-red-200'
+                : 'bg-primary-50 text-primary-700 border-primary-100'
+            }`}>
+              {totalActiveStaff} / {planMaxStaff} staff
+              {planName && <span className="font-normal opacity-70 capitalize">· {planName}</span>}
+            </span>
+          )}
+          {totalActiveStaff >= planMaxStaff && planMaxStaff !== -1 ? (
+            <span
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-200 text-gray-400 text-sm font-semibold cursor-not-allowed"
+              title={`Staff limit reached (${planMaxStaff}). Upgrade your plan.`}
+            >
+              <Plus className="h-4 w-4" /> Add Staff Member
+            </span>
+          ) : (
+            <button
+              onClick={() => setAdding(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold transition-colors shadow-sm"
+            >
+              <Plus className="h-4 w-4" /> Add Staff Member
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-xl">
           <button onClick={() => setView('table')}
             className={`p-1.5 rounded-lg transition-colors ${view === 'table' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-400 hover:text-gray-600'}`}>

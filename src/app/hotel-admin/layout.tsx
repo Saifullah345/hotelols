@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { AdminShell } from '@/components/layout/AdminShell'
 import { noIndexMetadata } from '@/lib/seo'
+import { getPlanFeatures, type PlanDbData } from '@/lib/plan-features'
 
 export const metadata = noIndexMetadata
 
@@ -30,14 +31,20 @@ export default async function HotelAdminLayout({ children }: { children: React.R
 
   const [{ data: profile }, { data: hotel }] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user.id).single(),
-    supabase.from('hotels').select('name').eq('id', activeTenantId).single(),
+    supabase.from('hotels').select(
+      'name, plan:plans(name, feature_housekeeping, feature_reviews, feature_online_booking, feature_advanced_reports, feature_api_access, feature_multi_property)'
+    ).eq('id', activeTenantId).single(),
   ])
+
+  const hotelData = hotel as { name?: string; plan?: PlanDbData } | null
+  const planFeatures = getPlanFeatures(hotelData?.plan)
 
   return (
     <AdminShell
       role="hotel-admin"
-      hotelName={hotel?.name}
-      title={hotel?.name ?? 'Hotel Management'}
+      hotelName={hotelData?.name}
+      planFeatures={planFeatures}
+      title={hotelData?.name ?? 'Hotel Management'}
       profile={profile}
     >
       {children}

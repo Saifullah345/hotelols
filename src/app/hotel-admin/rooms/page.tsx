@@ -30,7 +30,7 @@ export default async function RoomsPage() {
       .order('name'),
     supabase
       .from('hotels')
-      .select('currency')
+      .select('currency, plan:plans(max_rooms, name)')
       .eq('id', tenantId)
       .single(),
     // Lightweight: just status field for header count chips
@@ -40,7 +40,10 @@ export default async function RoomsPage() {
       .eq('hotel_id', tenantId),
   ])
 
-  const currency = (hotelInfo as { currency?: string } | null)?.currency ?? 'USD'
+  const hotelData = hotelInfo as { currency?: string; plan?: { max_rooms?: number; name?: string } } | null
+  const currency    = hotelData?.currency ?? 'USD'
+  const planMaxRooms = hotelData?.plan?.max_rooms ?? -1
+  const planName     = hotelData?.plan?.name ?? ''
   const statuses = (allStatuses ?? []) as { status: string }[]
 
   return (
@@ -54,6 +57,8 @@ export default async function RoomsPage() {
       totalBooked={statuses.filter(r => r.status === 'booked').length}
       totalMaintenance={statuses.filter(r => r.status === 'maintenance').length}
       totalRooms={statuses.length}
+      planMaxRooms={planMaxRooms}
+      planName={planName}
     />
   )
 }

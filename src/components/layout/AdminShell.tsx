@@ -4,16 +4,18 @@ import { useState } from 'react'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { Profile } from '@/types'
+import { type PlanFeatures } from '@/lib/plan-features'
 
 interface AdminShellProps {
   children: React.ReactNode
   role: string
   hotelName?: string
+  planFeatures?: PlanFeatures
   title: string
   profile?: Profile | null
 }
 
-export function AdminShell({ children, role, hotelName, title, profile }: AdminShellProps) {
+export function AdminShell({ children, role, hotelName, planFeatures, title, profile }: AdminShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
@@ -21,6 +23,7 @@ export function AdminShell({ children, role, hotelName, title, profile }: AdminS
       <Sidebar
         role={role}
         hotelName={hotelName}
+        planFeatures={planFeatures}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />

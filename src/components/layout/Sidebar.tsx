@@ -11,11 +11,13 @@ import {
   MessageCircle, X, DoorOpen, Sparkles, Heart,
 } from 'lucide-react'
 import { LogoMark } from '@/components/layout/Logo'
+import { type PlanFeatures } from '@/lib/plan-features'
 
 interface NavItem {
   label: string
   href: string
   icon: React.ElementType
+  feature?: keyof PlanFeatures
 }
 
 const superAdminNav: NavItem[] = [
@@ -32,11 +34,11 @@ const hotelAdminNav: NavItem[] = [
   { label: 'Bookings', href: '/hotel-admin/bookings', icon: CalendarCheck },
   { label: 'Guests',       href: '/hotel-admin/guests',   icon: Users },
   { label: 'Check-In / Out',  href: '/hotel-admin/checkin',       icon: DoorOpen },
-  { label: 'Housekeeping',    href: '/hotel-admin/housekeeping',  icon: Sparkles },
+  { label: 'Housekeeping',    href: '/hotel-admin/housekeeping',  icon: Sparkles, feature: 'housekeeping' },
   { label: 'WhatsApp',        href: '/hotel-admin/whatsapp',      icon: MessageCircle },
   { label: 'Staff',    href: '/hotel-admin/staff',    icon: UserCheck },
   { label: 'Reports', href: '/hotel-admin/reports', icon: BarChart3 },
-  { label: 'Reviews', href: '/hotel-admin/reviews', icon: Star },
+  { label: 'Reviews', href: '/hotel-admin/reviews', icon: Star, feature: 'reviews' },
   { label: 'Payments', href: '/hotel-admin/payments', icon: CreditCard },
   { label: 'Settings', href: '/hotel-admin/settings', icon: Settings },
 ]
@@ -69,17 +71,24 @@ const titleMap: Record<string, string> = {
   customer: 'My Account',
 }
 
+const ALL_FEATURES: PlanFeatures = {
+  housekeeping: true, reviews: true, onlineBooking: true,
+  advancedReports: true, apiAccess: false, multiProperty: false,
+}
+
 interface SidebarProps {
   role: string
   hotelName?: string
+  planFeatures?: PlanFeatures
   isOpen?: boolean
   onClose?: () => void
 }
 
-export function Sidebar({ role, hotelName, isOpen = false, onClose }: SidebarProps) {
+export function Sidebar({ role, hotelName, planFeatures, isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const navItems = navMap[role] ?? []
+  const features = planFeatures ?? ALL_FEATURES
+  const navItems = (navMap[role] ?? []).filter(item => !item.feature || features[item.feature])
 
   const handleLogout = async () => {
     // Clear the active role cookie before signing out

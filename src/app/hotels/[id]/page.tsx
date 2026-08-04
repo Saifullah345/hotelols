@@ -16,6 +16,7 @@ import JsonLd from '@/components/seo/JsonLd'
 import { pageMetadata, absoluteUrl, SITE_URL, SITE_NAME } from '@/lib/seo'
 import { formatCurrency } from '@/lib/currency'
 import { hasValidRange, nightsBetween, getBookedRoomIds } from '@/lib/search'
+import { getPlanFeatures } from '@/lib/plan-features'
 
 /** Trims DB copy to a clean meta description without cutting a word in half. */
 function truncate(text: string, max = 155) {
@@ -117,12 +118,14 @@ export default async function PublicHotelDetailPage({
 
   const { data: hotel } = await supabase
     .from('hotels')
-    .select('*')
+    .select('*, plan:plans(name, feature_housekeeping, feature_reviews, feature_online_booking, feature_advanced_reports, feature_api_access, feature_multi_property)')
     .eq('id', id)
     .eq('status', 'active')
     .single()
 
   if (!hotel) notFound()
+
+  const { onlineBooking } = getPlanFeatures((hotel.plan ?? null) as import('@/lib/plan-features').PlanDbData | null)
 
   const [{ data: allRooms }, { data: reviews }] = await Promise.all([
     supabase
@@ -352,39 +355,67 @@ export default async function PublicHotelDetailPage({
             <div id="rooms" className="scroll-mt-36">
               <div className="mb-4 flex items-baseline justify-between">
                 <h2 className="text-xl font-bold text-gray-900">Available Rooms</h2>
-                <span className="text-sm text-gray-500">{rooms.length} room{rooms.length === 1 ? '' : 's'}</span>
+                {onlineBooking && (
+                  <span className="text-sm text-gray-500">{rooms.length} room{rooms.length === 1 ? '' : 's'}</span>
+                )}
               </div>
 
-              {datesApplied && (
-                <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-primary-100 bg-primary-50/60 px-4 py-2.5 text-sm text-primary-900">
-                  <Clock className="h-4 w-4 flex-shrink-0 text-primary-600" />
-                  <span className="font-medium">
-                    {new Date(check_in!).toLocaleDateString('en', { day: 'numeric', month: 'short' })} –{' '}
-                    {new Date(check_out!).toLocaleDateString('en', { day: 'numeric', month: 'short' })} · {nights} night{nights === 1 ? '' : 's'}
-                    {guests > 0 ? ` · ${guests} guest${guests === 1 ? '' : 's'}` : ''}
-                  </span>
-                  {unavailableCount > 0 && (
-                    <span className="text-primary-700/70">
-                      ({unavailableCount} room{unavailableCount === 1 ? '' : 's'} already booked for these dates)
-                    </span>
+              {onlineBooking ? (
+                <>
+                  {datesApplied && (
+                    <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-primary-100 bg-primary-50/60 px-4 py-2.5 text-sm text-primary-900">
+                      <Clock className="h-4 w-4 flex-shrink-0 text-primary-600" />
+                      <span className="font-medium">
+                        {new Date(check_in!).toLocaleDateString('en', { day: 'numeric', month: 'short' })} –{' '}
+                        {new Date(check_out!).toLocaleDateString('en', { day: 'numeric', month: 'short' })} · {nights} night{nights === 1 ? '' : 's'}
+                        {guests > 0 ? ` · ${guests} guest${guests === 1 ? '' : 's'}` : ''}
+                      </span>
+                      {unavailableCount > 0 && (
+                        <span className="text-primary-700/70">
+                          ({unavailableCount} room{unavailableCount === 1 ? '' : 's'} already booked for these dates)
+                        </span>
+                      )}
+                    </div>
                   )}
+                  <RoomsSection
+                    rooms={rooms}
+                    hotelId={id}
+                    isLoggedIn={!!user}
+                    currency={currency}
+                    defaultCheckIn={datesApplied ? check_in : undefined}
+                    defaultCheckOut={datesApplied ? check_out : undefined}
+                    defaultAdults={adults || undefined}
+                    emptyMessage={
+                      datesApplied
+                        ? 'No rooms free for those dates — try a different range.'
+                        : undefined
+                    }
+                  />
+                </>
+              ) : (
+                <div className="rounded-2xl border border-gray-100 bg-white p-10 text-center shadow-sm">
+                  <p className="text-base font-medium text-gray-700">Online booking is not available for this property.</p>
+                  <p className="mt-1 text-sm text-gray-500">Please contact the hotel directly to make a reservation.</p>
+                  <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+                    {hotel.phone && (
+                      <a
+                        href={`tel:${hotel.phone}`}
+                        className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary-700 transition-colors"
+                      >
+                        <Phone className="h-4 w-4" /> {hotel.phone}
+                      </a>
+                    )}
+                    {hotel.email && (
+                      <a
+                        href={`mailto:${hotel.email}`}
+                        className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
+                      >
+                        <Mail className="h-4 w-4" /> {hotel.email}
+                      </a>
+                    )}
+                  </div>
                 </div>
               )}
-
-              <RoomsSection
-                rooms={rooms}
-                hotelId={id}
-                isLoggedIn={!!user}
-                currency={currency}
-                defaultCheckIn={datesApplied ? check_in : undefined}
-                defaultCheckOut={datesApplied ? check_out : undefined}
-                defaultAdults={adults || undefined}
-                emptyMessage={
-                  datesApplied
-                    ? 'No rooms free for those dates — try a different range.'
-                    : undefined
-                }
-              />
             </div>
 
             {/* Reviews */}

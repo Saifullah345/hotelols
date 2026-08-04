@@ -23,6 +23,11 @@ export default async function StaffPage({
   const tenantId = profile?.tenant_id
   if (!tenantId) redirect('/login')
 
+  const { data: hotelPlan } = await supabase
+    .from('hotels').select('plan:plans(max_staff, name)').eq('id', tenantId).single()
+  const planMaxStaff = (hotelPlan?.plan as { max_staff?: number } | null)?.max_staff ?? -1
+  const planName     = (hotelPlan?.plan as { name?: string }      | null)?.name ?? ''
+
   let query = supabase
     .from('staff')
     .select('id, user_id, name, email, phone, department, position, is_active, status, shift, salary, user:profiles(full_name, email, phone)')
@@ -132,7 +137,12 @@ export default async function StaffPage({
         )}
       </AutoFilterForm>
 
-      <StaffClient staff={(filtered ?? []) as unknown as StaffMember[]} />
+      <StaffClient
+        staff={(filtered ?? []) as unknown as StaffMember[]}
+        planMaxStaff={planMaxStaff}
+        planName={planName}
+        totalActiveStaff={activeCount}
+      />
     </div>
   )
 }

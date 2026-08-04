@@ -17,7 +17,22 @@ const planSchema = z.object({
   price_yearly: z.number().positive('Must be a positive number'),
   features: z.string().transform(v => v.split('\n').filter(f => f.trim())),
   is_active: z.boolean(),
+  feature_housekeeping:     z.boolean().default(true),
+  feature_reviews:          z.boolean().default(true),
+  feature_online_booking:   z.boolean().default(true),
+  feature_advanced_reports: z.boolean().default(true),
+  feature_api_access:       z.boolean().default(false),
+  feature_multi_property:   z.boolean().default(false),
 })
+
+const MODULE_FLAGS = [
+  { field: 'feature_housekeeping'     as const, label: 'Housekeeping',          desc: 'Task management & room tracking' },
+  { field: 'feature_reviews'          as const, label: 'Reviews',               desc: 'Guest feedback & review management' },
+  { field: 'feature_online_booking'   as const, label: 'Online Booking Page',   desc: 'Public room booking on hotel page' },
+  { field: 'feature_advanced_reports' as const, label: 'Advanced Reports',      desc: 'Detailed analytics & exports' },
+  { field: 'feature_api_access'       as const, label: 'API Access',            desc: 'REST API for integrations' },
+  { field: 'feature_multi_property'   as const, label: 'Multi-property',        desc: 'Manage multiple hotel properties' },
+]
 
 type PlanForm = z.infer<typeof planSchema>
 
@@ -56,6 +71,12 @@ export default function EditPlanPage() {
           price_yearly: data.price_yearly,
           features: (data.features || []).join('\n'),
           is_active: data.is_active,
+          feature_housekeeping:     data.feature_housekeeping     ?? true,
+          feature_reviews:          data.feature_reviews          ?? true,
+          feature_online_booking:   data.feature_online_booking   ?? true,
+          feature_advanced_reports: data.feature_advanced_reports ?? true,
+          feature_api_access:       data.feature_api_access       ?? false,
+          feature_multi_property:   data.feature_multi_property   ?? false,
         })
       } catch (error) {
         console.error('Failed to fetch plan:', error)
@@ -81,6 +102,12 @@ export default function EditPlanPage() {
           price_yearly: data.price_yearly,
           features: data.features,
           is_active: data.is_active,
+          feature_housekeeping:     data.feature_housekeeping,
+          feature_reviews:          data.feature_reviews,
+          feature_online_booking:   data.feature_online_booking,
+          feature_advanced_reports: data.feature_advanced_reports,
+          feature_api_access:       data.feature_api_access,
+          feature_multi_property:   data.feature_multi_property,
         })
         .eq('id', id)
 
@@ -195,6 +222,25 @@ export default function EditPlanPage() {
             placeholder="Priority support&#10;Custom reports&#10;API access"
           />
           {errors.features && <p className="text-red-600 text-sm mt-1">{errors.features.message}</p>}
+        </div>
+
+        <div>
+          <label className="label mb-2">Module Permissions</label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-xl border border-gray-200 p-4">
+            {MODULE_FLAGS.map(({ field, label, desc }) => (
+              <label key={field} className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  {...register(field)}
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <span>
+                  <span className="text-sm font-medium text-gray-800 group-hover:text-gray-900">{label}</span>
+                  <span className="block text-xs text-gray-500">{desc}</span>
+                </span>
+              </label>
+            ))}
+          </div>
         </div>
 
         <div className="flex gap-3 pt-4 border-t">
