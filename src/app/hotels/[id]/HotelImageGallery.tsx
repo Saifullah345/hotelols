@@ -10,7 +10,6 @@ interface Props {
   location: string
   rating?: number | null
   reviewCount?: number | null
-  /** Off when the page shows the name and location in its own sticky card. */
   showHeader?: boolean
 }
 
@@ -19,10 +18,11 @@ export default function HotelImageGallery({
 }: Props) {
   const [active, setActive] = useState(0)
 
-  // Name, location and rating live under the photo rather than on top of it —
-  // an overlay + dark gradient is what was washing the cover image out.
+  const prev = () => setActive(i => (i - 1 + images.length) % images.length)
+  const next = () => setActive(i => (i + 1) % images.length)
+
   const header = !showHeader ? null : (
-    <div className="flex flex-wrap items-start justify-between gap-3 px-5 py-4">
+    <div className="flex flex-wrap items-start justify-between gap-3 px-1 pt-4 pb-2">
       <div className="min-w-0">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">{hotelName}</h1>
         {location && (
@@ -44,7 +44,7 @@ export default function HotelImageGallery({
   if (!images.length) {
     return (
       <div>
-        <div className="flex h-64 sm:h-80 items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 text-8xl">
+        <div className="flex h-72 sm:h-96 w-full items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-8xl">
           🏨
         </div>
         {header}
@@ -52,26 +52,61 @@ export default function HotelImageGallery({
     )
   }
 
-  const prev = () => setActive(i => (i - 1 + images.length) % images.length)
-  const next = () => setActive(i => (i + 1) % images.length)
-
   return (
     <div>
-      {/* Pagination strip — above the photo, so nothing covers the image */}
-      {images.length > 1 && (
-        <div className="flex items-center gap-2 overflow-x-auto border-b border-gray-100 bg-gray-50 p-3">
-          <span className="shrink-0 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-semibold text-gray-600">
+      {/* ── Main image ── */}
+      <div className="relative w-full overflow-hidden rounded-2xl" style={{ aspectRatio: '16/9' }}>
+        <Image
+          src={images[active]}
+          alt={`${hotelName} photo ${active + 1}`}
+          fill
+          className="object-cover transition-opacity duration-300"
+          unoptimized
+          priority
+        />
+
+        {/* Subtle bottom gradient so counter/arrows don't clash with bright skies */}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+
+        {/* Counter */}
+        {images.length > 1 && (
+          <span className="absolute bottom-3 left-3 rounded-full bg-black/50 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
             {active + 1} / {images.length}
           </span>
+        )}
+
+        {/* Prev / Next */}
+        {images.length > 1 && (
+          <>
+            <button
+              onClick={prev}
+              aria-label="Previous photo"
+              className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-800 shadow-lg backdrop-blur-sm transition hover:bg-white hover:scale-105"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <button
+              onClick={next}
+              aria-label="Next photo"
+              className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-800 shadow-lg backdrop-blur-sm transition hover:bg-white hover:scale-105"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* ── Thumbnail strip ── */}
+      {images.length > 1 && (
+        <div className="mt-2.5 flex gap-2 overflow-x-auto pb-1">
           {images.map((src, i) => (
             <button
               key={i}
               onClick={() => setActive(i)}
               aria-label={`Show photo ${i + 1}`}
-              aria-current={i === active}
-              className={`relative h-14 w-20 shrink-0 overflow-hidden rounded-lg transition-all ${
+              className={`relative h-16 w-24 shrink-0 overflow-hidden rounded-xl transition-all duration-200 ${
                 i === active
-                  ? 'opacity-100 ring-2 ring-indigo-500 ring-offset-1'
+                  ? 'ring-2 ring-primary-600 ring-offset-2 opacity-100'
                   : 'opacity-60 hover:opacity-90'
               }`}
             >
@@ -80,38 +115,6 @@ export default function HotelImageGallery({
           ))}
         </div>
       )}
-
-      {/* Main image — shown whole, nothing layered over it */}
-      <div className="relative aspect-[16/10] sm:aspect-[2/1] bg-gray-100">
-        <Image
-          src={images[active]}
-          alt={`${hotelName} photo ${active + 1}`}
-          fill
-          className="object-contain"
-          unoptimized
-          priority
-        />
-
-        {/* Prev / Next — kept off the photo itself, on the letterbox edges */}
-        {images.length > 1 && (
-          <>
-            <button
-              onClick={prev}
-              aria-label="Previous photo"
-              className="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white/95 text-gray-700 shadow-md transition-colors hover:bg-white"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <button
-              onClick={next}
-              aria-label="Next photo"
-              className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white/95 text-gray-700 shadow-md transition-colors hover:bg-white"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </>
-        )}
-      </div>
 
       {header}
     </div>
