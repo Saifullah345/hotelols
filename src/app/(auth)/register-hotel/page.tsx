@@ -38,6 +38,7 @@ export default function RegisterHotelPage() {
   const [step, setStep]           = useState<1 | 2>(1)
   const [showPass, setShowPass]   = useState(false)
   const [done, setDone]           = useState(false)
+  const [emailSent, setEmailSent] = useState(true)
   const [countryCode, setCountryCode] = useState('PK')
 
   const {
@@ -82,6 +83,7 @@ export default function RegisterHotelPage() {
         return
       }
 
+      setEmailSent(json.emailSent !== false)
       setDone(true)
     } catch {
       toast.error('Something went wrong. Please try again.')
@@ -91,19 +93,33 @@ export default function RegisterHotelPage() {
   if (done) {
     return (
       <div className="text-center py-4">
-        <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <MailCheck className="h-7 w-7 text-emerald-600" />
+        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 ${emailSent ? 'bg-emerald-100' : 'bg-amber-100'}`}>
+          <MailCheck className={`h-7 w-7 ${emailSent ? 'text-emerald-600' : 'text-amber-600'}`} />
         </div>
-        <h2 className="text-xl font-bold text-gray-900 mb-2">Check your email</h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-2">
+          {emailSent ? 'Check your email' : 'Account created!'}
+        </h2>
         <p className="text-gray-500 text-sm leading-relaxed max-w-xs mx-auto">
-          We sent a confirmation link to your inbox. Click it to activate your account and access your hotel dashboard.
+          {emailSent
+            ? 'We sent a confirmation link to your inbox. Click it to activate your account and access your hotel dashboard.'
+            : 'Your hotel account was created successfully. The verification email could not be sent — please contact your platform administrator to activate your account, or try signing in directly.'}
         </p>
-        <div className="mt-6 rounded-xl bg-indigo-50 border border-indigo-100 px-4 py-3 text-sm text-indigo-700 text-left">
+        <div className={`mt-6 rounded-xl border px-4 py-3 text-sm text-left ${emailSent ? 'bg-indigo-50 border-indigo-100 text-indigo-700' : 'bg-amber-50 border-amber-100 text-amber-700'}`}>
           <p className="font-semibold mb-1">What happens next?</p>
-          <ol className="list-decimal list-inside space-y-1 text-indigo-600">
-            <li>Verify your email address</li>
-            <li>Sign in and complete your hotel setup</li>
-            <li>Add rooms, staff, and start accepting bookings</li>
+          <ol className="list-decimal list-inside space-y-1">
+            {emailSent ? (
+              <>
+                <li>Verify your email address</li>
+                <li>Sign in and complete your hotel setup</li>
+                <li>Add rooms, staff, and start accepting bookings</li>
+              </>
+            ) : (
+              <>
+                <li>Contact your administrator to activate your account</li>
+                <li>Or try signing in directly with your email and password</li>
+                <li>Add rooms, staff, and start accepting bookings</li>
+              </>
+            )}
           </ol>
         </div>
         <Link href="/login" className="mt-6 inline-block text-sm text-primary-600 hover:text-primary-700 font-medium">

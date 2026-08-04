@@ -102,19 +102,21 @@ export async function POST(request: Request) {
       .eq('role', 'hotel_admin')
       .is('tenant_id', null)
 
+    let emailSent = true
     try {
       const { subject, html } = confirmEmailTemplate(full_name, verifyUrl)
       await sendEmail({ to: email, subject, html })
-    } catch {
-      return NextResponse.json(
-        { error: 'Account created but verification email could not be sent. Please contact support.' },
-        { status: 502 },
-      )
+    } catch (emailErr) {
+      emailSent = false
+      console.error('Verification email failed (account was created successfully):', emailErr)
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Registration submitted. Check your email to verify and activate your account.',
+      emailSent,
+      message: emailSent
+        ? 'Registration submitted. Check your email to verify and activate your account.'
+        : 'Account created successfully. Verification email could not be sent — please ask your super admin to activate your account, or try logging in directly.',
     })
   } catch (error) {
     console.error('Hotel signup error:', error)
