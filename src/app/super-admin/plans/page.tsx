@@ -38,8 +38,8 @@ export default async function PlansPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {plans?.map(plan => (
-          <div key={plan.id} className={`card p-6 relative ${plan.name === 'pro' ? 'border-primary-400 ring-2 ring-primary-100' : ''}`}>
-            {plan.name === 'pro' && (
+          <div key={plan.id} className={`card p-6 relative ${plan.name === 'growth' ? 'border-primary-400 ring-2 ring-primary-100' : ''}`}>
+            {plan.name === 'growth' && (
               <div className="flex items-center gap-1 mb-3">
                 <Zap className="h-4 w-4 text-primary-600" />
                 <span className="text-xs font-semibold text-primary-600 uppercase">Most Popular</span>
@@ -47,8 +47,14 @@ export default async function PlansPage() {
             )}
             <h3 className="text-xl font-bold text-gray-900 capitalize">{plan.name}</h3>
             <div className="mt-2 mb-6">
-              <span className="text-3xl font-bold text-gray-900">${plan.price_monthly}</span>
-              <span className="text-gray-500">/month</span>
+              {plan.name === 'enterprise' ? (
+                <span className="text-3xl font-bold text-gray-900">Custom</span>
+              ) : (
+                <>
+                  <span className="text-3xl font-bold text-gray-900">${plan.price_monthly}</span>
+                  <span className="text-gray-500">/month</span>
+                </>
+              )}
             </div>
 
             <div className="space-y-2 mb-6">
