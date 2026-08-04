@@ -96,7 +96,7 @@ function PaymentBlockModal({ block, onClose }: { block: PaymentBlock; onClose: (
         <h3 className="text-lg font-bold text-gray-900 text-center mb-2">Payment Required</h3>
         <p className="text-sm text-gray-500 text-center mb-1">
           {block.pendingAmount > 0
-            ? 'Checkout cannot be completed because payment is still pending.'
+            ? 'Checkout cannot be completed — the guest has an outstanding balance.'
             : 'Booking cannot be confirmed until payment has been recorded.'}
         </p>
         {block.pendingAmount > 0 && (
@@ -222,19 +222,21 @@ export default function BookingActions({
       }
     }
 
-    // Block checkout if any payment on any of the booking rows is still pending
+    // Block checkout if the guest has an outstanding balance (paid < total)
     if (status === 'checked_out') {
-      const { data: pending } = await supabase
-        .from('payments')
-        .select('amount, currency')
-        .in('booking_id', ids)
-        .eq('status', 'pending')
+      const [{ data: bookingRows }, { data: completedPayments }] = await Promise.all([
+        supabase.from('bookings').select('total_amount').in('id', ids),
+        supabase.from('payments').select('amount, currency').in('booking_id', ids).eq('status', 'completed'),
+      ])
 
-      if (pending && pending.length > 0) {
-        const total    = pending.reduce((s, p) => s + (p.amount ?? 0), 0)
-        const currency = pending[0]?.currency ?? ''
+      const totalDue  = (bookingRows ?? []).reduce((s, b) => s + Number(b.total_amount ?? 0), 0)
+      const totalPaid = (completedPayments ?? []).reduce((s, p) => s + Number(p.amount ?? 0), 0)
+      const outstanding = Math.round((totalDue - totalPaid) * 100) / 100
+
+      if (outstanding > 0) {
+        const currency = completedPayments?.[0]?.currency ?? ''
         close()
-        setPaymentBlock({ pendingAmount: total, currency, primaryId: bookingId ?? ids[0] })
+        setPaymentBlock({ pendingAmount: outstanding, currency, primaryId: bookingId ?? ids[0] })
         return
       }
     }
