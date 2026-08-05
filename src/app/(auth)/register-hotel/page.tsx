@@ -9,7 +9,7 @@ import { toast } from 'sonner'
 import {
   Loader2, Eye, EyeOff, MailCheck,
   User, Building2, ArrowRight, ArrowLeft, CheckCircle2,
-  Globe, ShoppingCart, LayoutDashboard,
+  Globe, ShoppingCart, LayoutDashboard, AlertCircle,
 } from 'lucide-react'
 import { nameSchema } from '@/lib/validation'
 import PhoneInput from '@/components/ui/PhoneInput'
@@ -57,6 +57,7 @@ export default function RegisterHotelPage() {
   const [plans, setPlans]         = useState<Plan[]>([])
   const [plansLoading, setPlansLoading] = useState(false)
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
+  const [inlineError, setInlineError] = useState<string | null>(null)
 
   const {
     register,
@@ -96,6 +97,7 @@ export default function RegisterHotelPage() {
   }
 
   const onSubmit = async (data: FormData) => {
+    setInlineError(null)
     if (!selectedPlanId) {
       toast.error('Please select a plan to continue')
       return
@@ -120,7 +122,12 @@ export default function RegisterHotelPage() {
 
       const json = await res.json()
       if (!res.ok) {
-        toast.error(json.error ?? 'Registration failed')
+        if (res.status === 409) {
+          setInlineError(json.error)
+          setStep(1)
+        } else {
+          toast.error(json.error ?? 'Registration failed')
+        }
         return
       }
 
@@ -175,6 +182,20 @@ export default function RegisterHotelPage() {
           Get the full hotel management platform for your property.
         </p>
       </div>
+
+      {/* Inline conflict error */}
+      {inlineError && (
+        <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 mb-2">
+          <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-amber-500" />
+          <div>
+            <p className="font-semibold">Account already exists</p>
+            <p className="mt-0.5 text-amber-700">{inlineError}</p>
+            <Link href="/login" className="mt-1.5 inline-block font-semibold text-amber-800 underline underline-offset-2 hover:text-amber-900">
+              Sign in →
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Step indicator */}
       <div className="flex items-center gap-2 mb-7">

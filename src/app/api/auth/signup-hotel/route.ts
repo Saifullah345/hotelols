@@ -25,9 +25,16 @@ export async function POST(request: Request) {
 
   const admin = await createAdminClient()
 
-  const { data: existing } = await admin.from('profiles').select('id').ilike('email', email).limit(1)
+  const { data: existing } = await admin.from('profiles').select('id, role').ilike('email', email).limit(1)
   if (existing && existing.length > 0) {
-    return NextResponse.json({ error: 'An account with this email already exists' }, { status: 409 })
+    const role = existing[0].role
+    let error = 'An account with this email already exists. Please sign in instead.'
+    if (role === 'customer') {
+      error = 'You already have a customer account with this email. Sign in and use "List Your Property" in your dashboard to register a hotel — no new account needed.'
+    } else if (role === 'hotel_admin') {
+      error = 'A hotel account is already registered with this email. Please sign in to access your hotel dashboard.'
+    }
+    return NextResponse.json({ error }, { status: 409 })
   }
 
   // Use the plan the hotel owner selected, fallback to the first active plan

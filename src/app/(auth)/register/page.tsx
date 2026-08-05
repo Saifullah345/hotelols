@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { Loader2, Eye, EyeOff, MailCheck, ArrowRight, Check } from 'lucide-react'
+import { Loader2, Eye, EyeOff, MailCheck, ArrowRight, Check, AlertCircle } from 'lucide-react'
 import { nameSchema } from '@/lib/validation'
 
 const schema = z.object({
@@ -55,12 +55,14 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
   const [passwordValue, setPasswordValue] = useState('')
+  const [inlineError, setInlineError] = useState<string | null>(null)
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
 
   const onSubmit = async (data: FormData) => {
+    setInlineError(null)
     try {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
@@ -68,7 +70,14 @@ export default function RegisterPage() {
         body: JSON.stringify({ full_name: data.full_name, email: data.email, password: data.password }),
       })
       const json = await res.json()
-      if (!res.ok) { toast.error(json.error ?? 'Failed to create account'); return }
+      if (!res.ok) {
+        if (res.status === 409) {
+          setInlineError(json.error)
+        } else {
+          toast.error(json.error ?? 'Failed to create account')
+        }
+        return
+      }
       setConfirmed(true)
     } catch {
       toast.error('An error occurred. Please try again.')
@@ -107,6 +116,19 @@ export default function RegisterPage() {
         <h1 className="text-2xl font-bold text-gray-900">Create your account</h1>
         <p className="mt-1.5 text-sm text-gray-500">Free to start — no credit card required.</p>
       </div>
+
+      {inlineError && (
+        <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 mb-4">
+          <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-amber-500" />
+          <div>
+            <p className="font-semibold">Account already exists</p>
+            <p className="mt-0.5 text-amber-700">{inlineError}</p>
+            <Link href="/login" className="mt-1.5 inline-block font-semibold text-amber-800 underline underline-offset-2 hover:text-amber-900">
+              Sign in →
+            </Link>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Field label="Full name" error={errors.full_name?.message}>
