@@ -72,7 +72,7 @@ const titleMap: Record<string, string> = {
 }
 
 const ALL_FEATURES: PlanFeatures = {
-  housekeeping: true, reviews: true, onlineBooking: true,
+  listing: true, housekeeping: true, reviews: true, onlineBooking: true,
   advancedReports: true, apiAccess: false, multiProperty: false,
 }
 

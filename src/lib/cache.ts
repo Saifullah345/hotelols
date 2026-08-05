@@ -34,7 +34,7 @@ export function getCachedHotel(hotelId: string): Promise<HotelCached | null> {
           id, name, currency, status,
           plan:plans(
             name, max_rooms, max_staff,
-            feature_housekeeping, feature_reviews, feature_online_booking,
+            feature_listing, feature_housekeeping, feature_reviews, feature_online_booking,
             feature_advanced_reports, feature_api_access, feature_multi_property
           )
         `)

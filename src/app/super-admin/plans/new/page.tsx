@@ -16,6 +16,7 @@ const planSchema = z.object({
   price_yearly: z.number().positive('Must be a positive number'),
   features: z.string().transform(v => v.split('\n').filter(f => f.trim())),
   is_active: z.boolean().default(true),
+  feature_listing:          z.boolean().default(true),
   feature_housekeeping:     z.boolean().default(true),
   feature_reviews:          z.boolean().default(true),
   feature_online_booking:   z.boolean().default(true),
@@ -24,13 +25,17 @@ const planSchema = z.object({
   feature_multi_property:   z.boolean().default(false),
 })
 
-const MODULE_FLAGS = [
-  { field: 'feature_housekeeping'     as const, label: 'Housekeeping',          desc: 'Task management & room tracking' },
-  { field: 'feature_reviews'          as const, label: 'Reviews',               desc: 'Guest feedback & review management' },
-  { field: 'feature_online_booking'   as const, label: 'Online Booking Page',   desc: 'Public room booking on hotel page' },
-  { field: 'feature_advanced_reports' as const, label: 'Advanced Reports',      desc: 'Detailed analytics & exports' },
-  { field: 'feature_api_access'       as const, label: 'API Access',            desc: 'REST API for integrations' },
-  { field: 'feature_multi_property'   as const, label: 'Multi-property',        desc: 'Manage multiple hotel properties' },
+const CUSTOMER_FLAGS = [
+  { field: 'feature_listing'        as const, label: 'Listed on Website',   desc: 'Hotel appears on the public search & listing page — customers can find it' },
+  { field: 'feature_online_booking' as const, label: 'Online Booking',      desc: 'Customers can book rooms directly online through the hotel page' },
+]
+
+const INTERNAL_FLAGS = [
+  { field: 'feature_housekeeping'     as const, label: 'Housekeeping',       desc: 'Task management & room cleaning tracking' },
+  { field: 'feature_reviews'          as const, label: 'Reviews',            desc: 'Guest feedback & review management' },
+  { field: 'feature_advanced_reports' as const, label: 'Advanced Reports',   desc: 'Detailed analytics & data exports' },
+  { field: 'feature_api_access'       as const, label: 'API Access',         desc: 'REST API for third-party integrations' },
+  { field: 'feature_multi_property'   as const, label: 'Multi-property',     desc: 'Manage multiple hotel properties under one account' },
 ]
 
 type PlanForm = z.infer<typeof planSchema>
@@ -47,6 +52,7 @@ export default function NewPlanPage() {
     resolver: zodResolver(planSchema),
     defaultValues: {
       is_active: true,
+      feature_listing:          true,
       feature_housekeeping:     true,
       feature_reviews:          true,
       feature_online_booking:   true,
@@ -68,6 +74,7 @@ export default function NewPlanPage() {
           price_yearly: data.price_yearly,
           features: data.features,
           is_active: data.is_active,
+          feature_listing:          data.feature_listing,
           feature_housekeeping:     data.feature_housekeeping,
           feature_reviews:          data.feature_reviews,
           feature_online_booking:   data.feature_online_booking,
@@ -181,10 +188,14 @@ export default function NewPlanPage() {
           {errors.features && <p className="text-red-600 text-sm mt-1">{errors.features.message}</p>}
         </div>
 
-        <div>
-          <label className="label mb-2">Module Permissions</label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-xl border border-gray-200 p-4">
-            {MODULE_FLAGS.map(({ field, label, desc }) => (
+        <div className="space-y-4">
+          <label className="label">Module Permissions</label>
+
+          {/* Customer visibility */}
+          <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4 space-y-3">
+            <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Customer Visibility</p>
+            <p className="text-xs text-blue-600">Controls whether customers can find and book this hotel online.</p>
+            {CUSTOMER_FLAGS.map(({ field, label, desc }) => (
               <label key={field} className="flex items-start gap-3 cursor-pointer group">
                 <input
                   type="checkbox"
@@ -197,6 +208,26 @@ export default function NewPlanPage() {
                 </span>
               </label>
             ))}
+          </div>
+
+          {/* Internal modules */}
+          <div className="rounded-xl border border-gray-200 p-4 space-y-3">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Internal Management Modules</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {INTERNAL_FLAGS.map(({ field, label, desc }) => (
+                <label key={field} className="flex items-start gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    {...register(field)}
+                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span>
+                    <span className="text-sm font-medium text-gray-800 group-hover:text-gray-900">{label}</span>
+                    <span className="block text-xs text-gray-500">{desc}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
           </div>
         </div>
 

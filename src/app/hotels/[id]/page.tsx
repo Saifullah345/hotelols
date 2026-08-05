@@ -120,7 +120,7 @@ export default async function PublicHotelDetailPage({
 
   const { data: hotel } = await supabase
     .from('hotels')
-    .select('*, plan:plans(name, feature_housekeeping, feature_reviews, feature_online_booking, feature_advanced_reports, feature_api_access, feature_multi_property)')
+    .select('*, plan:plans(name, feature_listing, feature_housekeeping, feature_reviews, feature_online_booking, feature_advanced_reports, feature_api_access, feature_multi_property)')
     .eq('id', id)
     .eq('status', 'active')
     .single()

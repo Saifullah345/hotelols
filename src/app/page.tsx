@@ -69,7 +69,7 @@ export default async function LandingPage({
 
   let q = supabase
     .from('hotels')
-    .select('id, name, city, country, address, currency, cover_image, rating, amenities, review_count')
+    .select('id, name, city, country, address, currency, cover_image, rating, amenities, review_count, plan:plans(feature_listing)')
     .eq('status', 'active')
     .order('rating', { ascending: false, nullsFirst: false })
     // Room-level filters run below, so fetch a wider pool when searching and
@@ -110,6 +110,10 @@ export default async function LandingPage({
 
   const hotelList: Hotel[] = (hotels ?? [])
     .filter(h => {
+      // Hide hotels whose plan has listing disabled (feature_listing = false).
+      // If the column doesn't exist yet (pre-migration), the field is undefined → allow.
+      const plan = (h as any).plan
+      if (plan && plan.feature_listing === false) return false
       // Without dates or a party size, keep listing hotels that have no rooms
       // loaded yet — they still deserve a browse. Once the guest asks for
       // something specific, only hotels that can honour it are shown.

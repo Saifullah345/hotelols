@@ -1,4 +1,5 @@
 export type PlanFeatures = {
+  listing: boolean
   housekeeping: boolean
   reviews: boolean
   onlineBooking: boolean
@@ -12,6 +13,7 @@ export type PlanDbData = {
   name?: string | null
   max_rooms?: number | null
   max_staff?: number | null
+  feature_listing?:          boolean | null
   feature_housekeeping?:     boolean | null
   feature_reviews?:          boolean | null
   feature_online_booking?:   boolean | null
@@ -22,13 +24,13 @@ export type PlanDbData = {
 
 export function getPlanFeatures(plan: PlanDbData | null | undefined): PlanFeatures {
   if (!plan) {
-    // No plan attached — grant all standard features so hotels without a plan don't break.
-    return { housekeeping: true, reviews: true, onlineBooking: true, advancedReports: true, apiAccess: false, multiProperty: false }
+    return { listing: true, housekeeping: true, reviews: true, onlineBooking: true, advancedReports: true, apiAccess: false, multiProperty: false }
   }
 
   // Post-migration: DB feature flag columns are present — trust them over the name.
   if (plan.feature_housekeeping !== null && plan.feature_housekeeping !== undefined) {
     return {
+      listing:         plan.feature_listing          ?? true,
       housekeeping:    plan.feature_housekeeping     ?? true,
       reviews:         plan.feature_reviews          ?? true,
       onlineBooking:   plan.feature_online_booking   ?? true,
@@ -43,6 +45,7 @@ export function getPlanFeatures(plan: PlanDbData | null | undefined): PlanFeatur
   const isStarter = name === 'starter'
   const isProPlus = name === 'pro' || name === 'enterprise'
   return {
+    listing:         true,
     housekeeping:    !isStarter,
     reviews:         !isStarter,
     onlineBooking:   !isStarter,
