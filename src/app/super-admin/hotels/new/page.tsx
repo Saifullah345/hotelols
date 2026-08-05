@@ -10,15 +10,15 @@ import { createClient } from '@/lib/supabase/client'
 import { Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 import { CURRENCIES } from '@/lib/currency'
-import { phoneSchema, nameSchema } from '@/lib/validation'
+import { nameSchema } from '@/lib/validation'
 import PhoneInput from '@/components/ui/PhoneInput'
 import { CountrySelect, CitySelect } from '@/components/ui/CountryCitySelect'
 
 const schema = z.object({
   name: z.string().min(2, 'Hotel name required'),
-  email: z.string().email(),
-  phone: phoneSchema,
-  address: z.string().min(5),
+  email: z.union([z.string().email('Invalid email'), z.literal('')]).optional(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
   city: z.string().min(2),
   country: z.string().min(2),
   check_in_time: z.string(),
@@ -83,9 +83,9 @@ export default function NewHotelPage() {
     const { error } = await supabase.from('hotels').insert({
       id: hotelId,
       name: data.name,
-      email: data.email,
-      phone: data.phone,
-      address: data.address,
+      email: data.email || '',
+      phone: data.phone || '',
+      address: data.address || '',
       city: data.city,
       country: data.country,
       check_in_time: data.check_in_time,
@@ -140,13 +140,13 @@ export default function NewHotelPage() {
           </div>
 
           <div>
-            <label className="label">Hotel Email</label>
+            <label className="label">Hotel Email <span className="text-gray-400 font-normal">(optional)</span></label>
             <input {...register('email')} type="email" className="input" placeholder="info@hotel.com" />
             {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
           </div>
 
           <div>
-            <label className="label">Phone</label>
+            <label className="label">Phone <span className="text-gray-400 font-normal">(optional)</span></label>
             <PhoneInput
               value={watch('phone') ?? ''}
               onChange={v => setValue('phone', v, { shouldValidate: true })}
@@ -155,7 +155,7 @@ export default function NewHotelPage() {
           </div>
 
           <div className="md:col-span-2">
-            <label className="label">Address</label>
+            <label className="label">Address <span className="text-gray-400 font-normal">(optional)</span></label>
             <input {...register('address')} className="input" placeholder="123 Main Street" />
             {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address.message}</p>}
           </div>

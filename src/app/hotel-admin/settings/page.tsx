@@ -214,7 +214,7 @@ export default function HotelSettingsPage() {
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
 
         {/* ── Left: Hotel Profile ── */}
-        <form onSubmit={hotelForm.handleSubmit(saveHotel)} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+        <form onSubmit={hotelForm.handleSubmit(saveHotel)} noValidate className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
 
           <div className="flex items-center gap-3 pb-1">
             <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
@@ -242,14 +242,14 @@ export default function HotelSettingsPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className={lbl}>Phone</label>
+                <label className={lbl}>Phone <span className="normal-case font-normal text-gray-300">(optional)</span></label>
                 <PhoneInput
                   value={(hotelForm.watch('phone') as string) ?? ''}
                   onChange={v => hotelForm.setValue('phone', v)}
                 />
               </div>
               <div>
-                <label className={lbl}>Email</label>
+                <label className={lbl}>Email <span className="normal-case font-normal text-gray-300">(optional)</span></label>
                 <input {...hotelForm.register('email')} type="email" className={fi} />
               </div>
             </div>
