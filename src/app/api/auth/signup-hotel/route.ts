@@ -17,6 +17,7 @@ export async function POST(request: Request) {
   const hotel_phone  = typeof body?.hotel_phone  === 'string' ? body.hotel_phone.trim()                  : ''
   const hotel_email  = typeof body?.hotel_email  === 'string' ? body.hotel_email.trim().toLowerCase()    : email
   const cover_image  = typeof body?.cover_image  === 'string' ? body.cover_image                          : null
+  const selected_plan_id = typeof body?.plan_id  === 'string' ? body.plan_id                             : null
 
   if (!full_name || !email || !password || !hotel_name || !city) {
     return NextResponse.json({ error: 'full_name, email, password, hotel_name, and city are required' }, { status: 400 })
@@ -29,9 +30,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'An account with this email already exists' }, { status: 409 })
   }
 
-  const { data: plan } = await admin.from('plans').select('id').eq('name', 'starter').single()
+  // Use the plan the hotel owner selected, fallback to the first active plan
+  let plan: { id: string } | null = null
+  if (selected_plan_id) {
+    const { data } = await admin.from('plans').select('id').eq('id', selected_plan_id).eq('is_active', true).single()
+    plan = data
+  }
   if (!plan) {
-    return NextResponse.json({ error: 'Could not find a starter plan. Please contact support.' }, { status: 500 })
+    const { data } = await admin.from('plans').select('id').eq('is_active', true).order('price_monthly').limit(1).single()
+    plan = data
+  }
+  if (!plan) {
+    return NextResponse.json({ error: 'No active plans found. Please contact support.' }, { status: 500 })
   }
 
   const slug =
