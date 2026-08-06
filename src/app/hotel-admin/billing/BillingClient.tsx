@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Check, Zap, CreditCard, RefreshCw, XCircle, Loader2, AlertTriangle } from 'lucide-react'
-import { getPaddle } from '@/components/paddle/PaddleProvider'
+import { getPaddle, SUBSCRIPTION_EVENT } from '@/components/paddle/PaddleProvider'
 import { createClient } from '@/lib/supabase/client'
 
 type Plan = {
@@ -40,11 +41,55 @@ const STATUS_BADGE: Record<string, string> = {
 }
 
 export default function BillingClient({ hotel, currentPlan, plans }: Props) {
+  const router = useRouter()
   const [billing, setBilling]   = useState<'monthly' | 'yearly'>('monthly')
   const [busy, setBusy]         = useState(false)
   const [canceling, setCanceling] = useState(false)
+  const [syncing, setSyncing]   = useState(false)
 
   const hotelId = hotel?.id
+
+  /**
+   * Pulls the subscription straight from Paddle and applies it.
+   *
+   * The webhook is the normal route, but it can't reach a local dev server and
+   * can be missed in production — this is how a paid plan still lands.
+   */
+  const syncFromPaddle = async (opts: { quiet?: boolean } = {}) => {
+    setSyncing(true)
+    try {
+      const res  = await fetch('/api/paddle/confirm', { method: 'POST' })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        if (!opts.quiet) toast.error(json.error ?? 'Could not sync with Paddle')
+        return
+      }
+      toast.success(json.planName ? `Your plan is now ${json.planName}` : 'Subscription updated')
+      if (json.warning) toast.warning(json.warning)
+      router.refresh()
+    } catch {
+      if (!opts.quiet) toast.error('Could not reach Paddle')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  // Checkout finished: the provider already confirmed it server-side, so all
+  // that's left is to show the result and re-read the page.
+  useEffect(() => {
+    const onUpdated = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { ok?: boolean; planName?: string; error?: string; warning?: string }
+      if (detail?.ok) {
+        toast.success(detail.planName ? `Your plan is now ${detail.planName}` : 'Payment received — plan activated')
+        if (detail.warning) toast.warning(detail.warning)
+        router.refresh()
+      } else {
+        toast.error(detail?.error ?? 'Payment went through, but the plan could not be applied. Try "Sync from Paddle".')
+      }
+    }
+    window.addEventListener(SUBSCRIPTION_EVENT, onUpdated)
+    return () => window.removeEventListener(SUBSCRIPTION_EVENT, onUpdated)
+  }, [router])
 
   async function openCheckout(plan: Plan) {
     const priceId = billing === 'monthly'
@@ -157,8 +202,21 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
           </div>
         )}
 
-        {isActive && hotel.paddle_subscription_id && (
-          <div className="mt-5 pt-5 border-t border-gray-100 flex items-center gap-3 flex-wrap">
+        <div className="mt-5 pt-5 border-t border-gray-100 flex items-center gap-3 flex-wrap">
+          {/* Paid but the plan still looks wrong? Pull the subscription
+              straight from Paddle instead of waiting for a webhook that a
+              local dev server can never receive. */}
+          <button
+            onClick={() => syncFromPaddle()}
+            disabled={syncing}
+            title="Fetch the latest subscription from Paddle and apply it"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-60"
+          >
+            <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing…' : 'Sync from Paddle'}
+          </button>
+
+          {isActive && hotel?.paddle_subscription_id && (
             <button
               onClick={handleCancel}
               disabled={canceling}
@@ -167,8 +225,8 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
               {canceling ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
               Cancel Subscription
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* ── Plan selection ── */}

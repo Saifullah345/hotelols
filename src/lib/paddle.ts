@@ -99,6 +99,27 @@ export async function getPaddlePrice(priceId: string) {
   return paddleJson<PaddlePrice & { unit_price?: { amount: string; currency_code: string } }>(`/prices/${priceId}`)
 }
 
+// ── Lookups used to confirm a checkout without waiting for a webhook ──
+
+export async function getPaddleTransaction(transactionId: string) {
+  return paddleJson<Record<string, unknown>>(`/transactions/${transactionId}`)
+}
+
+/** Paddle customer for an email address, if one exists. */
+export async function findPaddleCustomer(email: string) {
+  const res = await paddleJson<Array<{ id: string; email: string }>>(
+    `/customers?email=${encodeURIComponent(email)}`,
+  )
+  return { data: res.data?.[0], error: res.error }
+}
+
+/** Subscriptions belonging to a customer, newest first. */
+export async function listPaddleSubscriptions(customerId: string) {
+  return paddleJson<Array<Record<string, unknown>>>(
+    `/subscriptions?customer_id=${encodeURIComponent(customerId)}&order_by=created_at[DESC]`,
+  )
+}
+
 export async function getPaddleSubscription(subscriptionId: string) {
   const res = await paddleFetch(`/subscriptions/${subscriptionId}`)
   if (!res.ok) return null
