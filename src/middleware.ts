@@ -35,7 +35,20 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  let user = null
+  try {
+    const { data, error } = await supabase.auth.getUser()
+    if (error) {
+      // Expired / revoked refresh token — clear cookies and treat as logged out
+      if (error.status === 400 || error.message?.toLowerCase().includes('refresh token')) {
+        await supabase.auth.signOut()
+      }
+    } else {
+      user = data.user
+    }
+  } catch {
+    // Network or unexpected error — treat as unauthenticated
+  }
   const pathname = request.nextUrl.pathname
   const activeRole = request.cookies.get(ROLE_COOKIE)?.value
 

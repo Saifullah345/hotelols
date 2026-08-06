@@ -44,7 +44,8 @@ export default function LoginPage() {
   const [timedOut, setTimedOut] = useState(false)
 
   useEffect(() => {
-    if (sessionStorage.getItem('hotelos:logoutReason') === 'timeout') {
+    const reason = sessionStorage.getItem('hotelos:logoutReason')
+    if (reason === 'timeout' || reason === 'expired') {
       sessionStorage.removeItem('hotelos:logoutReason')
       setTimedOut(true)
     }
@@ -209,7 +210,7 @@ export default function LoginPage() {
       {timedOut && (
         <div className="mb-6 flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
           <span className="mt-0.5 text-amber-500">⏱</span>
-          <p><strong>Session expired.</strong> You were signed out after 8 hours of inactivity. Please sign in again.</p>
+          <p><strong>Session expired.</strong> Your session is no longer valid. Please sign in again.</p>
         </div>
       )}
       <div className="mb-8">

@@ -40,6 +40,7 @@ const hotelAdminNav: NavItem[] = [
   { label: 'Reports', href: '/hotel-admin/reports', icon: BarChart3 },
   { label: 'Reviews', href: '/hotel-admin/reviews', icon: Star, feature: 'reviews' },
   { label: 'Payments', href: '/hotel-admin/payments', icon: CreditCard },
+  { label: 'Billing', href: '/hotel-admin/billing', icon: Sparkles },
   { label: 'Settings', href: '/hotel-admin/settings', icon: Settings },
 ]
 

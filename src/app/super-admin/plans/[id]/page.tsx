@@ -17,6 +17,8 @@ const planSchema = z.object({
   price_yearly: z.number().positive('Must be a positive number'),
   features: z.string().transform(v => v.split('\n').filter(f => f.trim())),
   is_active: z.boolean(),
+  paddle_price_id_monthly: z.string().optional(),
+  paddle_price_id_yearly:  z.string().optional(),
   feature_listing:          z.boolean().default(true),
   feature_housekeeping:     z.boolean().default(true),
   feature_reviews:          z.boolean().default(true),
@@ -76,6 +78,8 @@ export default function EditPlanPage() {
           price_yearly: data.price_yearly,
           features: (data.features || []).join('\n'),
           is_active: data.is_active,
+          paddle_price_id_monthly: data.paddle_price_id_monthly ?? '',
+          paddle_price_id_yearly:  data.paddle_price_id_yearly  ?? '',
           feature_listing:          data.feature_listing          ?? true,
           feature_housekeeping:     data.feature_housekeeping     ?? true,
           feature_reviews:          data.feature_reviews          ?? true,
@@ -108,6 +112,8 @@ export default function EditPlanPage() {
           price_yearly: data.price_yearly,
           features: data.features,
           is_active: data.is_active,
+          paddle_price_id_monthly: data.paddle_price_id_monthly || null,
+          paddle_price_id_yearly:  data.paddle_price_id_yearly  || null,
           feature_listing:          data.feature_listing,
           feature_housekeeping:     data.feature_housekeeping,
           feature_reviews:          data.feature_reviews,
@@ -217,6 +223,32 @@ export default function EditPlanPage() {
               placeholder="990"
             />
             {errors.price_yearly && <p className="text-red-600 text-sm mt-1">{errors.price_yearly.message}</p>}
+          </div>
+        </div>
+
+        {/* Paddle Price IDs */}
+        <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 space-y-3">
+          <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide">Paddle Price IDs</p>
+          <p className="text-xs text-indigo-600">Copy Price IDs from Paddle Dashboard → Catalog → Prices (starts with <code>pri_</code>)</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Monthly Price ID</label>
+              <input
+                type="text"
+                {...register('paddle_price_id_monthly')}
+                className="input font-mono text-xs"
+                placeholder="pri_01abc..."
+              />
+            </div>
+            <div>
+              <label className="label">Yearly Price ID</label>
+              <input
+                type="text"
+                {...register('paddle_price_id_yearly')}
+                className="input font-mono text-xs"
+                placeholder="pri_01xyz..."
+              />
+            </div>
           </div>
         </div>
 
