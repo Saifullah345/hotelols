@@ -15,6 +15,90 @@ function paddleFetch(path: string, init?: RequestInit) {
   })
 }
 
+/** False when the server has no Paddle credentials — callers degrade instead of throwing. */
+export function paddleConfigured(): boolean {
+  return Boolean(process.env.PADDLE_API_KEY)
+}
+
+async function paddleJson<T>(path: string, init?: RequestInit): Promise<{ data?: T; error?: string }> {
+  try {
+    const res = await paddleFetch(path, init)
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      // Paddle returns { error: { detail, code } }
+      const detail = json?.error?.detail ?? json?.error?.code ?? `Paddle returned ${res.status}`
+      return { error: String(detail) }
+    }
+    return { data: json.data as T }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Could not reach Paddle' }
+  }
+}
+
+// ── Catalogue: a plan is one product with a price per billing cycle ──
+
+export type PaddleProduct = { id: string; name: string; status: string }
+export type PaddlePrice   = { id: string; product_id: string; status: string }
+
+export async function createPaddleProduct(name: string, description?: string) {
+  return paddleJson<PaddleProduct>('/products', {
+    method: 'POST',
+    body: JSON.stringify({
+      name,
+      // Paddle rejects an empty string here, so only send real copy.
+      ...(description?.trim() ? { description: description.trim() } : {}),
+      tax_category: 'standard',
+    }),
+  })
+}
+
+export async function updatePaddleProduct(productId: string, patch: { name?: string; status?: 'active' | 'archived' }) {
+  return paddleJson<PaddleProduct>(`/products/${productId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  })
+}
+
+/**
+ * Creates a recurring price.
+ *
+ * Paddle amounts are minor units of the currency as a string ("2900" = $29.00),
+ * and a price's amount is immutable — changing what a plan costs means creating
+ * a new price and archiving the old one, which `syncPlanPrice` does.
+ */
+export async function createPaddlePrice(opts: {
+  productId: string
+  amount: number
+  currency: string
+  interval: 'month' | 'year'
+  description: string
+}) {
+  return paddleJson<PaddlePrice>('/prices', {
+    method: 'POST',
+    body: JSON.stringify({
+      product_id: opts.productId,
+      description: opts.description,
+      unit_price: {
+        amount: String(Math.round(opts.amount * 100)),
+        currency_code: opts.currency,
+      },
+      billing_cycle: { interval: opts.interval, frequency: 1 },
+      tax_mode: 'account_setting',
+    }),
+  })
+}
+
+export async function archivePaddlePrice(priceId: string) {
+  return paddleJson<PaddlePrice>(`/prices/${priceId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status: 'archived' }),
+  })
+}
+
+export async function getPaddlePrice(priceId: string) {
+  return paddleJson<PaddlePrice & { unit_price?: { amount: string; currency_code: string } }>(`/prices/${priceId}`)
+}
+
 export async function getPaddleSubscription(subscriptionId: string) {
   const res = await paddleFetch(`/subscriptions/${subscriptionId}`)
   if (!res.ok) return null

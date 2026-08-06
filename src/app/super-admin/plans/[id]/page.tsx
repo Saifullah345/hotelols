@@ -100,34 +100,27 @@ export default function EditPlanPage() {
     fetchPlan()
   }, [id, supabase, reset, router])
 
+  // Through the API so Paddle stays in step: a rename renames the product, and
+  // a price change creates a new Paddle price and archives the old one (Paddle
+  // prices are immutable, so they can't simply be edited).
   const onSubmit = async (data: PlanForm) => {
     try {
-      const { error } = await supabase
-        .from('plans')
-        .update({
-          name: data.name,
-          max_rooms: data.max_rooms,
-          max_staff: data.max_staff,
-          price_monthly: data.price_monthly,
-          price_yearly: data.price_yearly,
-          features: data.features,
-          is_active: data.is_active,
-          paddle_price_id_monthly: data.paddle_price_id_monthly || null,
-          paddle_price_id_yearly:  data.paddle_price_id_yearly  || null,
-          feature_listing:          data.feature_listing,
-          feature_housekeeping:     data.feature_housekeeping,
-          feature_reviews:          data.feature_reviews,
-          feature_online_booking:   data.feature_online_booking,
-          feature_advanced_reports: data.feature_advanced_reports,
-          feature_api_access:       data.feature_api_access,
-          feature_multi_property:   data.feature_multi_property,
-        })
-        .eq('id', id)
+      const res = await fetch(`/api/admin/plans/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      const json = await res.json().catch(() => ({}))
 
-      if (error) throw error
+      if (!res.ok) {
+        toast.error(json.error ?? 'Failed to update plan')
+        return
+      }
 
-      toast.success('Plan updated successfully')
+      toast.success('Plan updated')
+      if (json.warning) toast.warning(json.warning)
       router.push('/super-admin/plans')
+      router.refresh()
     } catch (error) {
       console.error('Failed to update plan:', error)
       toast.error('Failed to update plan')

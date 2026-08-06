@@ -19,6 +19,7 @@ import { pageMetadata, absoluteUrl, SITE_URL, SITE_NAME } from '@/lib/seo'
 import { formatCurrency } from '@/lib/currency'
 import { hasValidRange, nightsBetween, getBookedRoomIds } from '@/lib/search'
 import { getPlanFeatures } from '@/lib/plan-features'
+import { getSubscription } from '@/lib/subscription'
 
 /** Trims DB copy to a clean meta description without cutting a word in half. */
 function truncate(text: string, max = 155) {
@@ -126,6 +127,10 @@ export default async function PublicHotelDetailPage({
     .single()
 
   if (!hotel) notFound()
+
+  // A hotel whose plan has lapsed comes off the public site entirely — not just
+  // out of the listing, or the direct link would still take bookings.
+  if (!getSubscription(hotel).publiclyVisible) notFound()
 
   const { onlineBooking } = getPlanFeatures((hotel.plan ?? null) as import('@/lib/plan-features').PlanDbData | null)
 
@@ -254,7 +259,7 @@ export default async function PublicHotelDetailPage({
         </Link>
 
         {/* Gallery — scrolls away; the identity card below stays. */}
-        <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+        <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-200">
           <HotelImageGallery
             images={uniqueImages}
             hotelName={hotel.name}
@@ -269,7 +274,7 @@ export default async function PublicHotelDetailPage({
             The grey band spans the container padding so rooms scrolling beneath
             it stay hidden instead of peeking around the card's corners. */}
         <div className="sticky top-16 z-30 -mx-4 bg-gray-50 px-4 py-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-2xl border border-gray-100 bg-white px-5 py-3 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-2xl border border-gray-200 bg-white px-5 py-3 shadow-sm">
             <div className="min-w-0">
               <h1 className="truncate text-xl font-bold leading-tight text-gray-900 sm:text-2xl">{hotel.name}</h1>
               <p className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-500">
@@ -320,7 +325,7 @@ export default async function PublicHotelDetailPage({
 
         {/* Description + amenities */}
         {(hotel.description || (hotel.amenities as string[] | null)?.length) ? (
-          <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
             {hotel.description && (
               <div className="px-5 py-4">
                 <p className="text-sm leading-6 text-gray-600">{hotel.description}</p>
@@ -395,7 +400,7 @@ export default async function PublicHotelDetailPage({
                   />
                 </>
               ) : (
-                <div className="rounded-2xl border border-gray-100 bg-white p-10 text-center shadow-sm">
+                <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center shadow-sm">
                   <p className="text-base font-medium text-gray-700">Online booking is not available for this property.</p>
                   <p className="mt-1 text-sm text-gray-500">Please contact the hotel directly to make a reservation.</p>
                   <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
@@ -434,7 +439,7 @@ export default async function PublicHotelDetailPage({
               {reviews && reviews.length > 0 ? (
                 <div className="grid gap-4 sm:grid-cols-2">
                   {reviews.map(review => (
-                    <div key={review.id} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+                    <div key={review.id} className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
                       <div className="mb-2 flex items-center justify-between">
                         <span className="font-medium text-gray-900">{(review.user as { full_name?: string })?.full_name || 'Guest'}</span>
                         <div className="flex">
@@ -448,7 +453,7 @@ export default async function PublicHotelDetailPage({
                   ))}
                 </div>
               ) : (
-                <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-gray-500">
+                <div className="bg-white rounded-2xl border border-gray-200 p-10 text-center text-gray-500">
                   No reviews yet — be the first to stay and share your experience.
                 </div>
               )}
@@ -458,7 +463,7 @@ export default async function PublicHotelDetailPage({
           {/* Sticky sidebar */}
           <div className="order-1 lg:order-2 lg:col-span-1">
             {/* Sits below the sticky information bar rather than under it. */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4 lg:sticky lg:top-36">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4 lg:sticky lg:top-36">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="text-xs uppercase tracking-wide text-gray-500">Starting from</p>

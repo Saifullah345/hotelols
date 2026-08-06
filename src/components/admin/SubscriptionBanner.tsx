@@ -1,0 +1,55 @@
+import Link from 'next/link'
+import { AlertTriangle, Clock, CreditCard } from 'lucide-react'
+import { subscriptionMessage, type SubscriptionInfo } from '@/lib/subscription'
+
+/**
+ * Warns the hotel before its plan lapses, and says plainly what has stopped
+ * working once it has. Silent while the subscription is healthy.
+ */
+export default function SubscriptionBanner({
+  info, planName,
+}: {
+  info: SubscriptionInfo
+  planName?: string | null
+}) {
+  const message = subscriptionMessage(info, planName)
+  if (!message) return null
+
+  const tone = info.state === 'expired' || info.state === 'past_due'
+    ? {
+        wrap: 'border-red-200 bg-red-50',
+        icon: 'text-red-500',
+        title: 'text-red-800',
+        body: 'text-red-700',
+        button: 'bg-red-600 hover:bg-red-700',
+        Icon: info.state === 'past_due' ? CreditCard : AlertTriangle,
+        heading: info.state === 'past_due' ? 'Payment failed' : 'Subscription expired',
+      }
+    : {
+        wrap: 'border-amber-200 bg-amber-50',
+        icon: 'text-amber-500',
+        title: 'text-amber-800',
+        body: 'text-amber-700',
+        button: 'bg-amber-600 hover:bg-amber-700',
+        Icon: Clock,
+        heading: 'Subscription ending soon',
+      }
+
+  const { Icon } = tone
+
+  return (
+    <div className={`flex flex-wrap items-start gap-3 rounded-2xl border px-4 py-3 ${tone.wrap}`}>
+      <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${tone.icon}`} />
+      <div className="min-w-0 flex-1">
+        <p className={`text-sm font-semibold ${tone.title}`}>{tone.heading}</p>
+        <p className={`mt-0.5 text-xs ${tone.body}`}>{message}</p>
+      </div>
+      <Link
+        href="/hotel-admin/billing"
+        className={`shrink-0 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-colors ${tone.button}`}
+      >
+        {info.state === 'past_due' ? 'Update payment' : 'Renew now'}
+      </Link>
+    </div>
+  )
+}

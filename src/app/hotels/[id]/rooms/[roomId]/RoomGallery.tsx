@@ -28,7 +28,9 @@ export default function RoomGallery({ images, roomName }: Props) {
 
   return (
     <>
-      <div className="rounded-2xl overflow-hidden bg-gray-100 shadow-sm">
+      {/* A border, not just a shadow — on a light page the card had no visible
+          edge, so the photo appeared to bleed into the page. */}
+      <div className="rounded-2xl overflow-hidden bg-white border border-gray-200 shadow-sm">
         {/* Main image */}
         <div className="relative h-64 sm:h-[420px] group cursor-pointer" onClick={() => setLightbox(true)}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -72,15 +74,19 @@ export default function RoomGallery({ images, roomName }: Props) {
 
         {/* Thumbnail strip */}
         {images.length > 1 && (
-          <div className="flex gap-2 p-3 overflow-x-auto bg-gray-50 border-t border-gray-100">
+          <div className="flex gap-2 p-3 overflow-x-auto bg-gray-50 border-t border-gray-200">
             {images.map((src, i) => (
+              // The selected outline is a border rather than a ring: a ring is
+              // drawn outside the box and the scrolling strip clips it away.
               <button
                 key={i}
                 onClick={() => setActive(i)}
-                className={`relative flex-shrink-0 h-16 w-24 rounded-lg overflow-hidden transition-all ${
+                aria-label={`Show photo ${i + 1}`}
+                aria-current={i === active}
+                className={`relative flex-shrink-0 h-16 w-24 rounded-lg overflow-hidden border-2 transition-all ${
                   i === active
-                    ? 'ring-2 ring-indigo-500 ring-offset-1 opacity-100'
-                    : 'opacity-55 hover:opacity-85'
+                    ? 'border-indigo-500 opacity-100'
+                    : 'border-gray-200 opacity-60 hover:opacity-90 hover:border-gray-300'
                 }`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}

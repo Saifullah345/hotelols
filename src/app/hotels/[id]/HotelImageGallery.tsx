@@ -98,16 +98,20 @@ export default function HotelImageGallery({
 
       {/* ── Thumbnail strip ── */}
       {images.length > 1 && (
-        <div className="mt-2.5 flex gap-2 overflow-x-auto pb-1">
+        <div className="mt-2.5 flex gap-2 overflow-x-auto p-1">
           {images.map((src, i) => (
+            // The selection is drawn as a border, not a ring: a ring sits
+            // outside the element's box and the scrolling strip clips it, which
+            // left the outline half-drawn on the selected thumbnail.
             <button
               key={i}
               onClick={() => setActive(i)}
               aria-label={`Show photo ${i + 1}`}
-              className={`relative h-16 w-24 shrink-0 overflow-hidden rounded-xl transition-all duration-200 ${
+              aria-current={i === active}
+              className={`relative h-16 w-24 shrink-0 overflow-hidden rounded-xl border-2 transition-all duration-200 ${
                 i === active
-                  ? 'ring-2 ring-primary-600 ring-offset-2 opacity-100'
-                  : 'opacity-60 hover:opacity-90'
+                  ? 'border-primary-600 opacity-100'
+                  : 'border-gray-200 opacity-60 hover:border-gray-300 hover:opacity-90'
               }`}
             >
               <Image src={src} alt={`${hotelName} thumbnail ${i + 1}`} fill className="object-cover" unoptimized />

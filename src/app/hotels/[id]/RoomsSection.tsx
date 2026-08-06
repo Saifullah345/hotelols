@@ -181,7 +181,7 @@ export default function RoomsSection({
 
   if (!rooms.length) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-gray-500">
+      <div className="bg-white rounded-2xl border border-gray-200 p-10 text-center text-gray-500">
         {emptyMessage ?? 'No rooms available at this time — check back soon.'}
       </div>
     )

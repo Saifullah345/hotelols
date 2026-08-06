@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { isProfileComplete, missingProfileFields, PROFILE_INCOMPLETE } from '@/lib/profile'
+import { blockIfExpired } from '@/lib/subscription-guard'
 
 export async function GET(request: Request) {
   const supabase = await createClient()
@@ -77,6 +78,16 @@ export async function POST(request: Request) {
   }
   if (new Date(check_out) <= new Date(check_in)) {
     return NextResponse.json({ error: 'Check-out must be after check-in' }, { status: 400 })
+  }
+
+  // A hotel whose plan has lapsed can't take bookings, even from a page that
+  // was already open when it expired.
+  const expired = await blockIfExpired(hotel_id)
+  if (expired) {
+    return NextResponse.json(
+      { error: 'This hotel is not accepting bookings right now.' },
+      { status: 409 },
+    )
   }
 
   // `overlaps` matches a room wherever it appears on another booking, not just

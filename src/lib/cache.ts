@@ -17,6 +17,11 @@ export type HotelCached = {
   name: string
   currency: string
   status: string
+  // Billing state, so every hotel-admin page knows whether the plan is paid up
+  // without a second query.
+  subscription_status: string | null
+  plan_expires_at: string | null
+  paddle_subscription_id: string | null
   plan: PlanDbData | null
 }
 
@@ -32,6 +37,7 @@ export function getCachedHotel(hotelId: string): Promise<HotelCached | null> {
         .from('hotels')
         .select(`
           id, name, currency, status,
+          subscription_status, plan_expires_at, paddle_subscription_id,
           plan:plans(
             name, max_rooms, max_staff,
             feature_listing, feature_housekeeping, feature_reviews, feature_online_booking,

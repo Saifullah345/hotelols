@@ -14,6 +14,10 @@ const protectedRoutes = ['/super-admin', '/hotel-admin', '/staff', '/customer']
 const authOnlyRoutes  = ['/login', '/register', '/register-hotel']
 
 export async function middleware(request: NextRequest) {
+  // Server components can't read the current path. The hotel-admin layout needs
+  // it to keep billing reachable while the rest of the dashboard is locked.
+  request.headers.set('x-pathname', request.nextUrl.pathname)
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(

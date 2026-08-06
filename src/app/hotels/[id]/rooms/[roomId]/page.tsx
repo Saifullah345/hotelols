@@ -144,7 +144,7 @@ export default async function RoomDetailPage({
           <div className="space-y-5 lg:col-span-2 order-2 lg:order-1">
 
             {/* Room title card */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
               {roomType?.name && (
                 <span className="inline-block mb-3 px-3 py-1 rounded-full bg-indigo-100 text-indigo-700 text-xs font-semibold tracking-wide uppercase">
                   {roomType.name}
@@ -188,7 +188,7 @@ export default async function RoomDetailPage({
 
             {/* Description */}
             {roomType?.description && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
                 <h2 className="text-base font-bold text-gray-900 mb-3">About this room</h2>
                 <p className="text-sm text-gray-600 leading-6">{roomType.description}</p>
               </div>
@@ -196,13 +196,13 @@ export default async function RoomDetailPage({
 
             {/* Amenities */}
             {allAmenities.length > 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
                 <h2 className="text-base font-bold text-gray-900 mb-4">What&apos;s included</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {allAmenities.map(a => {
                     const Icon = getAmenityIcon(a)
                     return (
-                      <div key={a} className="flex items-center gap-3 p-2.5 rounded-xl bg-gray-50 border border-gray-100">
+                      <div key={a} className="flex items-center gap-3 p-2.5 rounded-xl bg-gray-50 border border-gray-200">
                         <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
                           <Icon className="h-4 w-4 text-indigo-600" />
                         </div>
@@ -217,11 +217,11 @@ export default async function RoomDetailPage({
 
             {/* Extra services info (mobile) */}
             {extraServices.length > 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 lg:hidden">
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 lg:hidden">
                 <h2 className="text-base font-bold text-gray-900 mb-4">Available Add-On Services</h2>
                 <div className="space-y-3">
                   {extraServices.map(s => (
-                    <div key={s.id} className="flex items-start justify-between gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50">
+                    <div key={s.id} className="flex items-start justify-between gap-3 p-3 rounded-xl border border-gray-200 bg-gray-50">
                       <div>
                         <p className="text-sm font-semibold text-gray-900">{s.name}</p>
                         {s.description && <p className="text-xs text-gray-500 mt-0.5">{s.description}</p>}
@@ -240,7 +240,7 @@ export default async function RoomDetailPage({
             )}
 
             {/* Room details grid */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
               <h2 className="text-base font-bold text-gray-900 mb-4">Room Details</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
                 <div className="p-3 rounded-xl bg-gray-50">
@@ -273,7 +273,7 @@ export default async function RoomDetailPage({
             </div>
 
             {/* Policies */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
               <h2 className="text-base font-bold text-gray-900 mb-4">Hotel Policies</h2>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="flex items-start gap-3">

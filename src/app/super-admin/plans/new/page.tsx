@@ -62,31 +62,29 @@ export default function NewPlanPage() {
     },
   })
 
+  // Saved through the API rather than straight to the database: the same
+  // request publishes the plan to Paddle as a product with a monthly and a
+  // yearly price, and stores the ids the checkout needs.
   const onSubmit = async (data: PlanForm) => {
     try {
-      const { error } = await supabase
-        .from('plans')
-        .insert({
-          name: data.name,
-          max_rooms: data.max_rooms,
-          max_staff: data.max_staff,
-          price_monthly: data.price_monthly,
-          price_yearly: data.price_yearly,
-          features: data.features,
-          is_active: data.is_active,
-          feature_listing:          data.feature_listing,
-          feature_housekeeping:     data.feature_housekeeping,
-          feature_reviews:          data.feature_reviews,
-          feature_online_booking:   data.feature_online_booking,
-          feature_advanced_reports: data.feature_advanced_reports,
-          feature_api_access:       data.feature_api_access,
-          feature_multi_property:   data.feature_multi_property,
-        })
+      const res = await fetch('/api/admin/plans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      const json = await res.json().catch(() => ({}))
 
-      if (error) throw error
+      if (!res.ok) {
+        toast.error(json.error ?? 'Failed to create plan')
+        return
+      }
 
-      toast.success('Plan created successfully')
+      toast.success('Plan created and published to Paddle')
+      // Paddle refused or isn't configured — the plan saved, but it can't be
+      // sold until it's re-synced, so say so rather than failing silently.
+      if (json.warning) toast.warning(json.warning)
       router.push('/super-admin/plans')
+      router.refresh()
     } catch (error) {
       console.error('Failed to create plan:', error)
       toast.error('Failed to create plan')

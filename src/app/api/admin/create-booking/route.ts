@@ -1,6 +1,7 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { nameSchema } from '@/lib/validation'
+import { blockIfExpired } from '@/lib/subscription-guard'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -19,6 +20,11 @@ export async function POST(request: Request) {
 
   const hotelId = profile.tenant_id
   if (!hotelId) return NextResponse.json({ error: 'No hotel assigned to your account' }, { status: 400 })
+
+  // A hotel with a lapsed plan is read-only — the dashboard hides itself, and
+  // this stops a stale tab or a direct request writing anyway.
+  const expired = await blockIfExpired(hotelId)
+  if (expired) return expired
 
   const body = await request.json()
   const {

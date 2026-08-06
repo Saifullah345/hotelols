@@ -12,6 +12,7 @@ import JsonLd from '@/components/seo/JsonLd'
 import { absoluteUrl } from '@/lib/seo'
 import { formatCurrency } from '@/lib/currency'
 import { tokenize, buildOrFilter, relevance, hasValidRange, nightsBetween, getBookedRoomIds } from '@/lib/search'
+import { getSubscription } from '@/lib/subscription'
 import { MapPin, Star, Wifi, Car, Coffee, Building2, ChevronRight } from 'lucide-react'
 
 type Hotel = {
@@ -69,7 +70,7 @@ export default async function LandingPage({
 
   let q = supabase
     .from('hotels')
-    .select('id, name, city, country, address, currency, cover_image, rating, amenities, review_count, plan:plans(feature_listing)')
+    .select('id, name, city, country, address, currency, cover_image, rating, amenities, review_count, subscription_status, plan_expires_at, plan:plans(feature_listing)')
     .eq('status', 'active')
     .order('rating', { ascending: false, nullsFirst: false })
     // Room-level filters run below, so fetch a wider pool when searching and
@@ -114,6 +115,9 @@ export default async function LandingPage({
       // If the column doesn't exist yet (pre-migration), the field is undefined → allow.
       const plan = (h as any).plan
       if (plan && plan.feature_listing === false) return false
+      // A lapsed subscription takes the hotel off the public site. Hotels with
+      // no subscription on record are legacy and stay listed.
+      if (!getSubscription(h).publiclyVisible) return false
       // Without dates or a party size, keep listing hotels that have no rooms
       // loaded yet — they still deserve a browse. Once the guest asks for
       // something specific, only hotels that can honour it are shown.
