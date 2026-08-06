@@ -95,8 +95,27 @@ export async function archivePaddlePrice(priceId: string) {
   })
 }
 
+export type PaddlePriceDetail = PaddlePrice & {
+  name?: string | null
+  unit_price?: { amount: string; currency_code: string }
+  billing_cycle?: { interval: string; frequency: number } | null
+  /** Present when the price gives a free trial — the reason a first charge is 0. */
+  trial_period?: { interval: string; frequency: number } | null
+}
+
 export async function getPaddlePrice(priceId: string) {
-  return paddleJson<PaddlePrice & { unit_price?: { amount: string; currency_code: string } }>(`/prices/${priceId}`)
+  return paddleJson<PaddlePriceDetail>(`/prices/${priceId}`)
+}
+
+/** Removes (or sets) the free trial on a price. */
+export async function setPaddlePriceTrial(
+  priceId: string,
+  trial: { interval: 'day' | 'week' | 'month' | 'year'; frequency: number } | null,
+) {
+  return paddleJson<PaddlePriceDetail>(`/prices/${priceId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ trial_period: trial }),
+  })
 }
 
 // ── Lookups used to confirm a checkout without waiting for a webhook ──

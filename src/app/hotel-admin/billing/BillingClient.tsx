@@ -46,8 +46,26 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
   const [busy, setBusy]         = useState(false)
   const [canceling, setCanceling] = useState(false)
   const [syncing, setSyncing]   = useState(false)
+  const [checking, setChecking] = useState(false)
+  const [problems, setProblems] = useState<string[] | null>(null)
 
   const hotelId = hotel?.id
+
+  /** Asks the server what Paddle actually has configured, and lists what's wrong. */
+  const checkSetup = async () => {
+    setChecking(true)
+    try {
+      const res  = await fetch('/api/paddle/diagnostics')
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) { toast.error(json.error ?? 'Could not run the check'); return }
+      setProblems(json.problems ?? [])
+      if (!json.problems?.length) toast.success('Paddle setup looks correct')
+    } catch {
+      toast.error('Could not run the check')
+    } finally {
+      setChecking(false)
+    }
+  }
 
   /**
    * Pulls the subscription straight from Paddle and applies it.
@@ -216,6 +234,16 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
             {syncing ? 'Syncing…' : 'Sync from Paddle'}
           </button>
 
+          <button
+            onClick={checkSetup}
+            disabled={checking}
+            title="Check what Paddle has configured for these plans"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-60"
+          >
+            {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
+            Check Paddle setup
+          </button>
+
           {isActive && hotel?.paddle_subscription_id && (
             <button
               onClick={handleCancel}
@@ -227,6 +255,27 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
             </button>
           )}
         </div>
+
+        {/* Findings from the setup check — the actual reasons a payment came
+            through as 0.00 or a plan didn't move. */}
+        {problems !== null && (
+          <div className="mt-4">
+            {problems.length === 0 ? (
+              <p className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700">
+                Paddle setup looks correct — prices exist, none carry a free trial, and the server is configured.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {problems.map((p, i) => (
+                  <li key={i} className="flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                    <span>{p}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Plan selection ── */}
