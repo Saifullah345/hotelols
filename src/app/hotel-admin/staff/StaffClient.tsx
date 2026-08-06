@@ -56,6 +56,15 @@ function StatusBadge({ status }: { status: StaffStatus }) {
   return <span className="badge-red">Inactive</span>
 }
 
+// ── Input sanitization ────────────────────────────────────────────────
+function sanitizeText(value: string) {
+  return value.replace(/<[^>]*>/g, '').replace(/[<>]/g, '')
+}
+
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+
 // ── Shared form fields ────────────────────────────────────────────────
 function StaffFields({
   name, setName,
@@ -92,8 +101,8 @@ function StaffFields({
         <div className="sm:col-span-2">
           <label className="label">Email</label>
           <input
-            type="email" value={email}
-            onChange={e => setEmail(e.target.value)}
+            value={email}
+            onChange={e => setEmail(sanitizeText(e.target.value))}
             className="input" placeholder="jane@hotel.com (optional)"
           />
         </div>
@@ -109,7 +118,7 @@ function StaffFields({
         </div>
         <div>
           <label className="label">Position / Role <span className="text-red-400">*</span></label>
-          <input value={position} onChange={e => setPosition(e.target.value)} className="input" placeholder="Head Chef" />
+          <input value={position} onChange={e => setPosition(sanitizeText(e.target.value))} className="input" placeholder="Head Chef" />
         </div>
         <div>
           <label className="label">Shift</label>
@@ -143,15 +152,19 @@ function AddStaffModal({ onClose, onAdded }: { onClose: () => void; onAdded: () 
   const [saving,     setSaving]     = useState(false)
 
   const save = async () => {
-    if (!name.trim())       { toast.error('Name is required');       return }
-    if (!department)        { toast.error('Department is required'); return }
-    if (!position.trim())   { toast.error('Position is required');   return }
+    if (!name.trim())                             { toast.error('Name is required');                          return }
+    if (!department)                              { toast.error('Department is required');                    return }
+    const posText = position.trim()
+    if (!posText)                                 { toast.error('Position is required');                      return }
+    if (!/[a-zA-Z]/.test(posText))               { toast.error('Position must contain letters');             return }
+    const emailText = email.trim()
+    if (emailText && !isValidEmail(emailText))    { toast.error('Enter a valid email address (or leave it blank)'); return }
 
     setSaving(true)
     const res = await fetch('/api/admin/staff', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, phone, department, position, shift: shift || null, salary: parseFloat(salary) || 0 }),
+      body: JSON.stringify({ name, email: emailText || null, phone, department, position: posText, shift: shift || null, salary: parseFloat(salary) || 0 }),
     })
     const json = await res.json().catch(() => ({}))
     setSaving(false)
@@ -212,14 +225,18 @@ function EditStaffModal({ member, onClose, onSaved }: {
   const [saving,     setSaving]     = useState(false)
 
   const save = async () => {
-    if (!name.trim())     { toast.error('Name is required');     return }
-    if (!position.trim()) { toast.error('Position is required'); return }
+    if (!name.trim())                             { toast.error('Name is required');                          return }
+    const posText = position.trim()
+    if (!posText)                                 { toast.error('Position is required');                      return }
+    if (!/[a-zA-Z]/.test(posText))               { toast.error('Position must contain letters');             return }
+    const emailText = email.trim()
+    if (emailText && !isValidEmail(emailText))    { toast.error('Enter a valid email address (or leave it blank)'); return }
 
     setSaving(true)
     const res = await fetch(`/api/admin/staff/${member.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email: email || null, phone: phone || null, department, position, shift: shift || null, salary: parseFloat(salary) || 0, status }),
+      body: JSON.stringify({ name, email: emailText || null, phone: phone || null, department, position: posText, shift: shift || null, salary: parseFloat(salary) || 0, status }),
     })
     const json = await res.json().catch(() => ({}))
     setSaving(false)

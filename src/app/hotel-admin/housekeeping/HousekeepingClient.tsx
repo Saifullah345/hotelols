@@ -10,6 +10,17 @@ import {
 } from 'lucide-react'
 import type { HKTask, RoomOption, StaffOption } from './page'
 
+// ── Input sanitization ────────────────────────────────────────────────────
+function sanitizeText(value: string) {
+  // Strip HTML/script tags and angle brackets before saving
+  return value.replace(/<[^>]*>/g, '').replace(/[<>]/g, '')
+}
+
+function hasMeaningfulContent(value: string) {
+  // Must contain at least one letter or digit — rejects pure special-char input
+  return /[a-zA-Z0-9À-ɏ]/.test(value)
+}
+
 // ── Badge styles ──────────────────────────────────────────────────────────
 const PRIORITY_CLS: Record<string, string> = {
   normal: 'bg-blue-50  text-blue-600  border border-blue-200',
@@ -79,21 +90,26 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
 
   // ── Add task ─────────────────────────────────────────────────────────
   const handleAdd = async () => {
-    if (!form.task.trim()) { toast.error('Task description is required'); return }
-    if (!form.due_date)    { toast.error('Due date is required'); return }
+    const taskText = sanitizeText(form.task.trim())
+    if (!taskText)                        { toast.error('Task description is required'); return }
+    if (taskText.length < 3)              { toast.error('Task description is too short'); return }
+    if (!hasMeaningfulContent(taskText))  { toast.error('Task description must contain meaningful text'); return }
+    if (!form.assignee)                   { toast.error('Please assign this task to a staff member'); return }
+    if (!form.due_date)                   { toast.error('Due date is required'); return }
     setSaving(true)
     const supabase = createClient()
     const roomMatch = rooms.find(r => r.id === form.room_id)
     const roomNum   = roomMatch ? (roomMatch.name ?? `Room ${roomMatch.room_number}`) : '—'
+    const notesText = sanitizeText(form.notes.trim())
 
     const { data, error } = await supabase.from('housekeeping_tasks').insert({
       hotel_id:  tenantId,
       room_id:   form.room_id || null,
-      task:      form.task.trim(),
+      task:      taskText,
       priority:  form.priority,
-      assignee:  form.assignee.trim() || null,
+      assignee:  form.assignee.trim(),
       due_date:  form.due_date,
-      notes:     form.notes.trim() || null,
+      notes:     notesText || null,
       status:    'dirty',
     }).select().single()
 
@@ -102,9 +118,9 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
     setTasks(prev => [{
       id: data.id, hotel_id: tenantId,
       room_id: form.room_id || null, room_number: roomNum,
-      task: form.task.trim(), priority: form.priority,
+      task: taskText, priority: form.priority,
       assignee: form.assignee.trim(), due_date: form.due_date,
-      status: 'dirty', notes: form.notes.trim(),
+      status: 'dirty', notes: notesText,
     }, ...prev])
     toast.success('Task added')
     setModal(false)
@@ -416,7 +432,8 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
                 <label className={lbl}>Task Description *</label>
                 <input
                   value={form.task}
-                  onChange={e => setF('task', e.target.value)}
+                  onChange={e => setF('task', sanitizeText(e.target.value))}
+                  maxLength={200}
                   className={fi}
                   placeholder="Full turnover clean, Linen change…"
                 />
@@ -446,7 +463,7 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
 
               {/* Assignee */}
               <div>
-                <label className={lbl}>Assignee</label>
+                <label className={lbl}>Assignee *</label>
                 {staff.length > 0 ? (
                   <select value={form.assignee} onChange={e => setF('assignee', e.target.value)} className={fi}>
                     <option value="">Unassigned</option>
@@ -469,8 +486,9 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
                 <label className={lbl}>Notes</label>
                 <textarea
                   value={form.notes}
-                  onChange={e => setF('notes', e.target.value)}
+                  onChange={e => setF('notes', sanitizeText(e.target.value))}
                   rows={2}
+                  maxLength={500}
                   className={`${fi} resize-none`}
                   placeholder="Additional instructions…"
                 />

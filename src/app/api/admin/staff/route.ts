@@ -18,18 +18,27 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
   const { name, email, phone, department, position, shift, salary } = body
 
-  if (!name?.trim())     return NextResponse.json({ error: 'Name is required' },       { status: 400 })
-  if (!department?.trim()) return NextResponse.json({ error: 'Department is required' }, { status: 400 })
-  if (!position?.trim()) return NextResponse.json({ error: 'Position is required' },   { status: 400 })
+  const strip = (v: unknown) => typeof v === 'string' ? v.replace(/<[^>]*>/g, '').replace(/[<>]/g, '') : ''
+
+  const cleanName     = strip(name).trim()
+  const cleanEmail    = strip(email).trim()
+  const cleanPosition = strip(position).trim()
+  const cleanDept     = strip(department).trim()
+
+  if (!cleanName)     return NextResponse.json({ error: 'Name is required' },       { status: 400 })
+  if (!cleanDept)     return NextResponse.json({ error: 'Department is required' }, { status: 400 })
+  if (!cleanPosition) return NextResponse.json({ error: 'Position is required' },   { status: 400 })
+  if (cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail))
+    return NextResponse.json({ error: 'Invalid email address' }, { status: 400 })
 
   const admin = await createAdminClient()
   const { data, error } = await admin.from('staff').insert({
     hotel_id:   hotelId,
-    name:       name.trim(),
-    email:      email?.trim() || null,
-    phone:      phone?.trim() || null,
-    department: department.trim(),
-    position:   position.trim(),
+    name:       cleanName,
+    email:      cleanEmail || null,
+    phone:      typeof phone === 'string' ? phone.trim() || null : null,
+    department: cleanDept,
+    position:   cleanPosition,
     shift:      shift || null,
     salary:     parseFloat(salary) || 0,
     status:     'active',

@@ -39,25 +39,32 @@ export async function PATCH(request: Request, { params }: Ctx) {
   const body = await request.json().catch(() => ({}))
   const { name, email, phone, department, position, shift, salary, status } = body
 
+  const strip = (v: unknown) => typeof v === 'string' ? v.replace(/<[^>]*>/g, '').replace(/[<>]/g, '') : ''
+
   const updates: Record<string, unknown> = {}
 
   if (name !== undefined)
-    updates.name = typeof name === 'string' ? name.trim() || null : null
+    updates.name = strip(name).trim() || null
 
-  if (email !== undefined)
-    updates.email = typeof email === 'string' && email.trim() ? email.trim() : null
+  if (email !== undefined) {
+    const cleanEmail = strip(email).trim()
+    if (cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail))
+      return NextResponse.json({ error: 'Invalid email address' }, { status: 400 })
+    updates.email = cleanEmail || null
+  }
 
   if (phone !== undefined)
     updates.phone = typeof phone === 'string' && phone.trim() ? phone.trim() : null
 
   if (department !== undefined) {
-    if (typeof department !== 'string' || !department.trim())
+    const cleanDept = strip(department).trim()
+    if (!cleanDept)
       return NextResponse.json({ error: 'Department is required' }, { status: 400 })
-    updates.department = department.trim()
+    updates.department = cleanDept
   }
 
   if (position !== undefined) {
-    const trimmed = typeof position === 'string' ? position.trim() : ''
+    const trimmed = strip(position).trim()
     if (!trimmed) return NextResponse.json({ error: 'Position is required' }, { status: 400 })
     updates.position = trimmed
   }
