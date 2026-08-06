@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -41,6 +41,14 @@ export default function LoginPage() {
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null)
   const [resending, setResending] = useState(false)
   const [redirecting, setRedirecting] = useState(false)
+  const [timedOut, setTimedOut] = useState(false)
+
+  useEffect(() => {
+    if (sessionStorage.getItem('hotelos:logoutReason') === 'timeout') {
+      sessionStorage.removeItem('hotelos:logoutReason')
+      setTimedOut(true)
+    }
+  }, [])
 
   const [forgotStep, setForgotStep] = useState<'none' | 'request' | 'confirm'>('none')
   const [forgotEmail, setForgotEmail] = useState('')
@@ -198,6 +206,12 @@ export default function LoginPage() {
   const busy = isSubmitting || redirecting
   return (
     <div>
+      {timedOut && (
+        <div className="mb-6 flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
+          <span className="mt-0.5 text-amber-500">⏱</span>
+          <p><strong>Session expired.</strong> You were signed out after 8 hours of inactivity. Please sign in again.</p>
+        </div>
+      )}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
         <p className="mt-1.5 text-sm text-gray-500">Sign in to your account to continue.</p>

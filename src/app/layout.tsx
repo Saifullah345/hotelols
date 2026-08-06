@@ -3,6 +3,7 @@ import './globals.css'
 import { Toaster } from 'sonner'
 import { NavigationLoader } from '@/components/NavigationLoader'
 import SmoothScroll from '@/components/SmoothScroll'
+import SessionTimeout from '@/components/auth/SessionTimeout'
 import JsonLd from '@/components/seo/JsonLd'
 import { SITE_URL, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION, absoluteUrl } from '@/lib/seo'
 
@@ -100,6 +101,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <JsonLd data={[organizationSchema, websiteSchema]} />
         <NavigationLoader />
         <SmoothScroll />
+        <SessionTimeout />
         {children}
         <Toaster richColors position="top-right" />
       </body>
