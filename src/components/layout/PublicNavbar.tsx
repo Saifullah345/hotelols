@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState, useEffect, useRef } from 'react'
-import { Menu, X, CalendarDays, User, LogOut, ChevronDown } from 'lucide-react'
+import { Menu, X, CalendarDays, User, LogOut, ChevronDown, Building2 } from 'lucide-react'
 import Logo from '@/components/layout/Logo'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -155,6 +155,14 @@ export default function PublicNavbar() {
                       <User className="h-4 w-4 text-gray-400" />
                       My Profile
                     </Link>
+                    <Link
+                      href="/customer/register-hotel"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <Building2 className="h-4 w-4 text-gray-400" />
+                      List Your Property
+                    </Link>
                     <div className="border-t border-gray-100 mt-1 pt-1">
                       <button
                         type="button"
@@ -215,6 +223,9 @@ export default function PublicNavbar() {
                 </Link>
                 <Link href="/customer/profile" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50">
                   <User className="h-4 w-4 text-gray-400" /> My Profile
+                </Link>
+                <Link href="/customer/register-hotel" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50">
+                  <Building2 className="h-4 w-4 text-gray-400" /> List Your Property
                 </Link>
                 <button
                   type="button"
