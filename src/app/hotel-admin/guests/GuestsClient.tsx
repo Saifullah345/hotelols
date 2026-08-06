@@ -31,10 +31,34 @@ type GuestForm = {
   name: string; email: string; phone: string; country: string
   passport_id: string; notes: string; is_vip: boolean
 }
+type FormErrors = Partial<Record<keyof GuestForm, string>>
 
 const EMPTY_FORM: GuestForm = {
   name: '', email: '', phone: '', country: '',
   passport_id: '', notes: '', is_vip: false,
+}
+
+function validateGuest(f: GuestForm): FormErrors {
+  const errs: FormErrors = {}
+  const name = f.name.trim()
+  if (!name) errs.name = 'Name is required'
+  else if (name.length < 2) errs.name = 'Name must be at least 2 characters'
+  else if (!/[a-zA-ZÀ-ɏ]/.test(name)) errs.name = 'Name must contain at least one letter'
+
+  const email = f.email.trim()
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = 'Enter a valid email address'
+
+  if (f.phone && !/^\+92\d{10}$/.test(f.phone)) errs.phone = 'Phone must be exactly 10 digits after +92'
+
+  const country = f.country.trim()
+  if (country && !/^[a-zA-ZÀ-ɏ\s'\-.]+$/.test(country)) errs.country = 'Country name can only contain letters'
+
+  return errs
+}
+
+function sanitizeId(value: string) {
+  // Strip HTML tags and angle brackets to prevent script injection in ID field
+  return value.replace(/<[^>]*>/g, '').replace(/[<>"'`\\]/g, '')
 }
 
 // Warm amber/gold palette matching the Aurelia Grand Admin Suite
@@ -70,6 +94,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
   const [editing, setEditing]   = useState<GuestRecord | null>(null)
   const [form, setForm]         = useState<GuestForm>(EMPTY_FORM)
   const [saving, setSaving]     = useState(false)
+  const [formErrors, setFormErrors] = useState<FormErrors>({})
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -96,17 +121,14 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
     setModal('edit')
   }
   function openDelete(g: GuestRecord) { setEditing(g); setModal('delete') }
-  function closeModal() { setModal(null); setEditing(null); setForm(EMPTY_FORM) }
+  function closeModal() { setModal(null); setEditing(null); setForm(EMPTY_FORM); setFormErrors({}) }
   function setField<K extends keyof GuestForm>(k: K, v: GuestForm[K]) {
     setForm(f => ({ ...f, [k]: v }))
   }
 
   async function handleAdd() {
-    if (!form.name.trim()) { toast.error('Name is required'); return }
-    if (form.phone && !/^\+92\d{10}$/.test(form.phone)) {
-      toast.error('Phone must be exactly 10 digits after +92')
-      return
-    }
+    const errs = validateGuest(form)
+    if (Object.keys(errs).length > 0) { setFormErrors(errs); return }
     setSaving(true)
     try {
       const supabase = createClient()
@@ -141,10 +163,8 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
 
   async function handleEdit() {
     if (!editing) return
-    if (editing.is_manual && form.phone && !/^\+92\d{10}$/.test(form.phone)) {
-      toast.error('Phone must be exactly 10 digits after +92')
-      return
-    }
+    const errs = validateGuest(form)
+    if (Object.keys(errs).length > 0) { setFormErrors(errs); return }
     setSaving(true)
     try {
       const supabase = createClient()
@@ -227,8 +247,6 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
       router.refresh()
     } finally { setSaving(false) }
   }
-
-  const phoneInputError = form.phone !== '' && !/^\+92\d{10}$/.test(form.phone)
 
   return (
     <div className="space-y-6">
@@ -423,29 +441,31 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
                   <label className={lbl}>Full Name{modal === 'add' ? ' *' : ''}</label>
                   <input
                     value={form.name}
-                    onChange={e => setField('name', e.target.value)}
+                    onChange={e => { setField('name', e.target.value); setFormErrors(p => ({ ...p, name: undefined })) }}
                     readOnly={modal === 'edit' && !editing?.is_manual}
-                    className={`${fi} ${modal === 'edit' && !editing?.is_manual ? 'bg-gray-50 text-gray-500 cursor-default' : ''}`}
+                    maxLength={100}
+                    className={`${fi} ${modal === 'edit' && !editing?.is_manual ? 'bg-gray-50 text-gray-500 cursor-default' : formErrors.name ? 'border-red-300 focus:ring-red-300' : ''}`}
                     placeholder="Olivia Bennett"
                   />
+                  {formErrors.name && <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>}
                 </div>
                 <div>
                   <label className={lbl}>Email</label>
                   <input
-                    type="email"
                     value={form.email}
-                    onChange={e => setField('email', e.target.value)}
+                    onChange={e => { setField('email', e.target.value); setFormErrors(p => ({ ...p, email: undefined })) }}
                     readOnly={modal === 'edit' && !editing?.is_manual}
-                    className={`${fi} ${modal === 'edit' && !editing?.is_manual ? 'bg-gray-50 text-gray-500 cursor-default' : ''}`}
+                    className={`${fi} ${modal === 'edit' && !editing?.is_manual ? 'bg-gray-50 text-gray-500 cursor-default' : formErrors.email ? 'border-red-300 focus:ring-red-300' : ''}`}
                     placeholder="guest@email.com"
                   />
+                  {formErrors.email && <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>}
                 </div>
                 <div>
                   <label className={lbl}>Phone</label>
                   <div className={`flex overflow-hidden rounded-xl border transition-shadow ${
                     modal === 'edit' && !editing?.is_manual
                       ? 'border-gray-200 bg-gray-50'
-                      : phoneInputError
+                      : formErrors.phone
                         ? 'border-red-300 bg-white focus-within:ring-2 focus-within:ring-red-300'
                         : 'border-gray-200 bg-white focus-within:ring-2 focus-within:ring-amber-300 focus-within:border-transparent'
                   }`}>
@@ -457,6 +477,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
                       onChange={e => {
                         const digits = e.target.value.replace(/\D/g, '').slice(0, 10)
                         setField('phone', digits ? '+92' + digits : '')
+                        setFormErrors(p => ({ ...p, phone: undefined }))
                       }}
                       readOnly={modal === 'edit' && !editing?.is_manual}
                       inputMode="numeric"
@@ -469,25 +490,31 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
                       placeholder="3001234567"
                     />
                   </div>
-                  {phoneInputError && (
-                    <p className="text-red-500 text-xs mt-1.5">Enter exactly 10 digits (e.g. 3001234567)</p>
-                  )}
+                  {formErrors.phone && <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>}
                 </div>
                 <div>
                   <label className={lbl}>Country</label>
                   <input
                     value={form.country}
-                    onChange={e => setField('country', e.target.value)}
+                    onChange={e => {
+                      // Only allow letters, spaces, hyphens, apostrophes, periods
+                      const val = e.target.value.replace(/[^a-zA-ZÀ-ɏ\s'\-.]/g, '')
+                      setField('country', val)
+                      setFormErrors(p => ({ ...p, country: undefined }))
+                    }}
                     readOnly={modal === 'edit' && !editing?.is_manual}
-                    className={`${fi} ${modal === 'edit' && !editing?.is_manual ? 'bg-gray-50 text-gray-500 cursor-default' : ''}`}
+                    maxLength={60}
+                    className={`${fi} ${modal === 'edit' && !editing?.is_manual ? 'bg-gray-50 text-gray-500 cursor-default' : formErrors.country ? 'border-red-300 focus:ring-red-300' : ''}`}
                     placeholder="United States"
                   />
+                  {formErrors.country && <p className="text-red-500 text-xs mt-1">{formErrors.country}</p>}
                 </div>
                 <div>
                   <label className={lbl}>Passport / ID</label>
                   <input
                     value={form.passport_id}
-                    onChange={e => setField('passport_id', e.target.value)}
+                    onChange={e => setField('passport_id', sanitizeId(e.target.value))}
+                    maxLength={50}
                     className={`${fi} font-mono`}
                     placeholder="US-1234-5678"
                   />
