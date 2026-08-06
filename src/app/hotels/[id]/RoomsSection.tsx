@@ -55,6 +55,7 @@ export default function RoomsSection({
   const [checkIn,  setCheckIn]  = useState(defaultCheckIn)
   const [checkOut, setCheckOut] = useState(defaultCheckOut)
   const [adults,   setAdults]   = useState(Math.max(1, defaultAdults ?? 1))
+  const [children, setChildren] = useState(0)
   const [loading,  setLoading]  = useState(false)
 
   // Resolved after mount — "today" depends on the viewer's timezone, and
@@ -68,13 +69,14 @@ export default function RoomsSection({
     if (!stored) return
     sessionStorage.removeItem(PENDING_KEY(hotelId))
     try {
-      const saved = JSON.parse(stored) as { roomIds?: string[]; checkIn?: string; checkOut?: string; adults?: number }
+      const saved = JSON.parse(stored) as { roomIds?: string[]; checkIn?: string; checkOut?: string; adults?: number; children?: number }
       const stillListed = (saved.roomIds ?? []).filter(id => rooms.some(r => r.id === id))
       if (!stillListed.length) return
       setSelected(new Set(stillListed))
-      if (saved.checkIn)  setCheckIn(saved.checkIn)
-      if (saved.checkOut) setCheckOut(saved.checkOut)
-      if (saved.adults)   setAdults(saved.adults)
+      if (saved.checkIn)         setCheckIn(saved.checkIn)
+      if (saved.checkOut)        setCheckOut(saved.checkOut)
+      if (saved.adults)          setAdults(saved.adults)
+      if (saved.children != null) setChildren(saved.children)
       toast.info('Your rooms are still selected — finish your booking below')
     } catch {
       // A malformed entry just means starting fresh.
@@ -99,10 +101,18 @@ export default function RoomsSection({
     ? Math.max(1, selectedRooms.reduce((sum, r) => sum + (r.max_adults || 0), 0))
     : Infinity
 
+  const maxChildren = selectedRooms.length
+    ? selectedRooms.reduce((sum, r) => sum + (r.max_children || 0), 0)
+    : 0
+
   // Selecting a smaller room pulls an over-sized party back down to what fits.
   useEffect(() => {
     setAdults(v => Math.min(Math.max(1, v), maxAdults))
   }, [maxAdults])
+
+  useEffect(() => {
+    setChildren(v => Math.min(v, maxChildren))
+  }, [maxChildren])
 
   const toggle = (id: string) => setSelected(prev => {
     const next = new Set(prev)
@@ -132,7 +142,7 @@ export default function RoomsSection({
         .from('profiles').select('full_name, phone').eq('id', user.id).single()
       if (!isProfileComplete(profile)) {
         sessionStorage.setItem(PENDING_KEY(hotelId), JSON.stringify({
-          roomIds: selectedRooms.map(r => r.id), checkIn, checkOut, adults,
+          roomIds: selectedRooms.map(r => r.id), checkIn, checkOut, adults, children,
         }))
         toast.info(`Add your ${missingProfileFields(profile).join(' and ')} to finish this booking`)
         router.push(`/customer/profile?next=${encodeURIComponent(`/hotels/${hotelId}#rooms`)}`)
@@ -152,7 +162,7 @@ export default function RoomsSection({
           check_in:  checkIn,
           check_out: checkOut,
           adults,
-          children:  0,
+          children,
         }),
       })
       const json = await res.json().catch(() => ({}))
@@ -387,6 +397,33 @@ export default function RoomsSection({
                   </div>
                   <p className="mt-1 text-[11px] text-gray-400">Max {maxAdults} in total</p>
                 </div>
+
+                {/* Children counter — only when selected rooms allow children */}
+                {maxChildren > 0 && (
+                  <div className="shrink-0">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Children</p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setChildren(v => Math.max(0, v - 1))}
+                        disabled={children <= 0}
+                        className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+                      >
+                        <Minus className="h-3.5 w-3.5" />
+                      </button>
+                      <span className="text-sm font-bold text-gray-900 w-5 text-center">{children}</span>
+                      <button
+                        type="button"
+                        onClick={() => setChildren(v => Math.min(maxChildren, v + 1))}
+                        disabled={children >= maxChildren}
+                        className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <p className="mt-1 text-[11px] text-gray-400">Max {maxChildren} in total</p>
+                  </div>
+                )}
 
                 {/* Total + book button */}
                 <div className="w-full sm:w-auto sm:text-right shrink-0">
