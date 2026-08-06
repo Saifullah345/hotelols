@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import ReportsClient from './ReportsClient'
+import { getPlanFeatures, type PlanDbData } from '@/lib/plan-features'
 import type { PaymentRow, BookingRow, RoomRow, ReviewRow } from '@/lib/reports'
 
 export const metadata = { title: 'Reports & Analytics' }
@@ -28,13 +29,15 @@ export default async function ReportsPage() {
     supabase.from('bookings').select('created_at, check_in, check_out, status, total_amount, source').eq('hotel_id', tenantId),
     supabase.from('rooms').select('status').eq('hotel_id', tenantId),
     supabase.from('reviews').select('rating, created_at').eq('hotel_id', tenantId),
-    supabase.from('hotels').select('currency').eq('id', tenantId).single(),
+    supabase.from('hotels').select('currency, plan:plans(feature_advanced_reports, feature_housekeeping, feature_reviews, feature_online_booking, feature_listing, feature_api_access, feature_multi_property)').eq('id', tenantId).single(),
     supabase.from('bookings').select('total_amount, room_id, user_id, status').eq('hotel_id', tenantId),
     supabase.from('rooms').select('id, room_type_id').eq('hotel_id', tenantId),
     supabase.from('room_types').select('id, name').eq('hotel_id', tenantId),
   ])
 
-  const currency = (hotelInfo as { currency?: string } | null)?.currency ?? 'USD'
+  const hotel = hotelInfo as { currency?: string; plan?: PlanDbData | null } | null
+  const currency = hotel?.currency ?? 'USD'
+  const advancedReports = getPlanFeatures(hotel?.plan).advancedReports
 
   // Room type revenue: join bookings → rooms → room_types
   const roomTypeIdToName = new Map(
@@ -91,6 +94,8 @@ export default async function ReportsPage() {
       serverToday={new Date().toISOString().slice(0, 10)}
       roomTypeRevenue={roomTypeRevenue}
       topGuests={topGuests}
+      advancedReports={advancedReports}
+      totalRooms={rooms?.length ?? 0}
     />
   )
 }
