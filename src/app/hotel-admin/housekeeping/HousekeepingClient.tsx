@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import {
   Plus, LayoutList, LayoutGrid, Trash2, Play,
-  CheckCircle2, Loader2, X, Sparkles,
+  CheckCircle2, Loader2, X, Sparkles, Pencil,
 } from 'lucide-react'
 import type { HKTask, RoomOption, StaffOption } from './page'
 
@@ -74,12 +74,15 @@ function fmtDate(d: string) {
 
 export default function HousekeepingClient({ initialTasks, rooms, staff, tenantId }: Props) {
   const router = useRouter()
-  const [tasks, setTasks]     = useState<HKTask[]>(initialTasks)
-  const [view, setView]       = useState<'list' | 'grid'>('list')
-  const [modal, setModal]     = useState(false)
-  const [form, setForm]       = useState<TaskForm>(EMPTY)
-  const [saving, setSaving]   = useState(false)
-  const [busyId, setBusyId]   = useState<string | null>(null)
+  const [tasks, setTasks]       = useState<HKTask[]>(initialTasks)
+  const [view, setView]         = useState<'list' | 'grid'>('list')
+  const [modal, setModal]       = useState(false)
+  const [form, setForm]         = useState<TaskForm>(EMPTY)
+  const [editModal, setEditModal]   = useState(false)
+  const [editTarget, setEditTarget] = useState<HKTask | null>(null)
+  const [editForm, setEditForm]     = useState<TaskForm>(EMPTY)
+  const [saving, setSaving]     = useState(false)
+  const [busyId, setBusyId]     = useState<string | null>(null)
 
   const openTasks    = tasks.filter(t => t.status !== 'clean').length
   const awaitClean   = tasks.filter(t => t.status === 'dirty').length
@@ -163,6 +166,62 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
       toast.success('Task removed')
     }
     setBusyId(null)
+  }
+
+  // ── Edit task ─────────────────────────────────────────────────────────
+  function openEdit(task: HKTask) {
+    setEditTarget(task)
+    setEditForm({
+      room_id:   task.room_id ?? '',
+      task:      task.task,
+      priority:  task.priority as TaskForm['priority'],
+      assignee:  task.assignee,
+      due_date:  task.due_date,
+      notes:     task.notes ?? '',
+    })
+    setEditModal(true)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editTarget) return
+    const taskText = sanitizeText(editForm.task.trim())
+    if (!taskText)                        { toast.error('Task description is required'); return }
+    if (taskText.length < 3)             { toast.error('Task description is too short'); return }
+    if (!hasMeaningfulContent(taskText)) { toast.error('Task description must contain meaningful text'); return }
+    if (!editForm.assignee)              { toast.error('Please assign this task to a staff member'); return }
+    if (!editForm.due_date)              { toast.error('Due date is required'); return }
+    const notesText = sanitizeText(editForm.notes.trim())
+    setSaving(true)
+    const supabase = createClient()
+    const { error } = await supabase.from('housekeeping_tasks').update({
+      room_id:  editForm.room_id || null,
+      task:     taskText,
+      priority: editForm.priority,
+      assignee: editForm.assignee.trim(),
+      due_date: editForm.due_date,
+      notes:    notesText || null,
+    }).eq('id', editTarget.id)
+    if (error) { toast.error(error.message); setSaving(false); return }
+    const roomMatch = rooms.find(r => r.id === editForm.room_id)
+    const roomNum   = roomMatch ? (roomMatch.name ?? `Room ${roomMatch.room_number}`) : editTarget.room_number
+    setTasks(prev => prev.map(t => t.id !== editTarget.id ? t : {
+      ...t,
+      room_id:     editForm.room_id || null,
+      room_number: roomNum,
+      task:        taskText,
+      priority:    editForm.priority,
+      assignee:    editForm.assignee.trim(),
+      due_date:    editForm.due_date,
+      notes:       notesText,
+    }))
+    toast.success('Task updated')
+    setEditModal(false)
+    setEditTarget(null)
+    setSaving(false)
+  }
+
+  function setEF<K extends keyof TaskForm>(k: K, v: TaskForm[K]) {
+    setEditForm(f => ({ ...f, [k]: v }))
   }
 
   // ── Shared input styles ───────────────────────────────────────────────
@@ -310,6 +369,14 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
                         <div className="flex items-center justify-end gap-2">
                           <ActionBtn task={task} />
                           <button
+                            onClick={() => openEdit(task)}
+                            disabled={busy}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
+                            title="Edit task"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
                             onClick={() => deleteTask(task.id)}
                             disabled={busy}
                             className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
@@ -382,6 +449,14 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
                         Done
                       </button>
                     )}
+                    <button
+                      onClick={() => openEdit(task)}
+                      disabled={busy}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                      title="Edit task"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
                     <button
                       onClick={() => deleteTask(task.id)}
                       disabled={busy}
@@ -509,6 +584,123 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
               >
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />}
                 Add Task
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ EDIT TASK MODAL ══════════════════════════════════════════════ */}
+      {editModal && editTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+              <h3 className="font-bold text-gray-900 text-lg">Edit Task</h3>
+              <button
+                onClick={() => { setEditModal(false); setEditTarget(null) }}
+                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-4">
+              {/* Room */}
+              <div>
+                <label className={lbl}>Room</label>
+                <select value={editForm.room_id} onChange={e => setEF('room_id', e.target.value)} className={fi}>
+                  <option value="">Select a room…</option>
+                  {rooms.map(r => (
+                    <option key={r.id} value={r.id}>
+                      {r.name ?? `Room ${r.room_number}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Task description */}
+              <div>
+                <label className={lbl}>Task Description *</label>
+                <input
+                  value={editForm.task}
+                  onChange={e => setEF('task', sanitizeText(e.target.value))}
+                  maxLength={200}
+                  className={fi}
+                  placeholder="Full turnover clean, Linen change…"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {/* Priority */}
+                <div>
+                  <label className={lbl}>Priority</label>
+                  <select value={editForm.priority} onChange={e => setEF('priority', e.target.value as TaskForm['priority'])} className={fi}>
+                    <option value="normal">Normal</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+                {/* Due date */}
+                <div>
+                  <label className={lbl}>Due Date *</label>
+                  <input
+                    type="date"
+                    value={editForm.due_date}
+                    onChange={e => setEF('due_date', e.target.value)}
+                    className={fi}
+                  />
+                </div>
+              </div>
+
+              {/* Assignee */}
+              <div>
+                <label className={lbl}>Assignee *</label>
+                {staff.length > 0 ? (
+                  <select value={editForm.assignee} onChange={e => setEF('assignee', e.target.value)} className={fi}>
+                    <option value="">Unassigned</option>
+                    {staff.map(s => (
+                      <option key={s.id} value={s.name}>{s.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    value={editForm.assignee}
+                    onChange={e => setEF('assignee', sanitizeText(e.target.value))}
+                    className={fi}
+                    placeholder="Assignee name…"
+                  />
+                )}
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className={lbl}>Notes</label>
+                <textarea
+                  value={editForm.notes}
+                  onChange={e => setEF('notes', sanitizeText(e.target.value))}
+                  rows={2}
+                  maxLength={500}
+                  className={`${fi} resize-none`}
+                  placeholder="Additional instructions…"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
+              <button
+                onClick={() => { setEditModal(false); setEditTarget(null) }}
+                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={saving}
+                className="flex items-center gap-2 px-5 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm transition-colors disabled:opacity-60"
+              >
+                {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+                Save Changes
               </button>
             </div>
           </div>

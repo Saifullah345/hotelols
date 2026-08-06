@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Plus, Search, Star, Pencil, Trash2, X, Loader2, Users } from 'lucide-react'
+import { Plus, Search, Star, Pencil, Trash2, X, Loader2, Users, Mail, Phone } from 'lucide-react'
 
 export interface GuestRecord {
   id: string
@@ -56,9 +56,23 @@ function validateGuest(f: GuestForm): FormErrors {
   return errs
 }
 
+function sanitizeName(value: string) {
+  return value
+    .replace(/<[^>]*>/g, '')
+    .replace(/[<>@#$%^*+=[\]{}|;:,?!\\/'"0-9]/g, '')
+}
+
+function sanitizeEmail(value: string) {
+  return value.replace(/<[^>]*>/g, '').replace(/[<>'"\\]/g, '')
+}
+
 function sanitizeId(value: string) {
-  // Strip HTML tags and angle brackets to prevent script injection in ID field
-  return value.replace(/<[^>]*>/g, '').replace(/[<>"'`\\]/g, '')
+  // Only allow alphanumeric, hyphens, spaces, dots — nothing else belongs in an ID
+  return value.replace(/[^a-zA-Z0-9\s\-.]/g, '')
+}
+
+function sanitizeNotes(value: string) {
+  return value.replace(/<[^>]*>/g, '').replace(/[<>]/g, '')
 }
 
 // Warm amber/gold palette matching the Aurelia Grand Admin Suite
@@ -248,6 +262,30 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
     } finally { setSaving(false) }
   }
 
+  async function handleToggleVip(guest: GuestRecord) {
+    const newVip = !guest.is_vip
+    const supabase = createClient()
+    if (guest.is_manual) {
+      const { error } = await supabase.from('hotel_guests').update({ is_vip: newVip }).eq('id', guest.id)
+      if (error) { toast.error(error.message); return }
+    } else {
+      const { data: existing } = await supabase
+        .from('hotel_guests').select('id')
+        .eq('hotel_id', tenantId).eq('user_id', guest.user_id!).maybeSingle()
+      if (existing) {
+        const { error } = await supabase.from('hotel_guests').update({ is_vip: newVip }).eq('id', (existing as { id: string }).id)
+        if (error) { toast.error(error.message); return }
+      } else {
+        const { error } = await supabase.from('hotel_guests').insert({
+          hotel_id: tenantId, user_id: guest.user_id, name: guest.name, is_vip: newVip,
+        })
+        if (error) { toast.error(error.message); return }
+      }
+    }
+    setGuests(prev => prev.map(g => g.id !== guest.id ? g : { ...g, is_vip: newVip }))
+    toast.success(newVip ? 'Marked as VIP' : 'VIP status removed')
+  }
+
   return (
     <div className="space-y-6">
 
@@ -359,11 +397,15 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
                     </td>
 
                     {/* CONTACT */}
-                    <td className="px-4 py-3.5">
-                      <p className="text-xs text-gray-700 truncate max-w-[180px]">{guest.email || '—'}</p>
-                      {guest.phone && (
-                        <p className="text-xs text-gray-400 mt-0.5">{guest.phone}</p>
-                      )}
+                    <td className="px-4 py-3.5 space-y-1">
+                      <p className="flex items-center gap-1.5 text-xs text-gray-700 truncate max-w-[180px]">
+                        <Mail className="h-3 w-3 text-gray-300 shrink-0" />
+                        {guest.email || <span className="text-gray-300">—</span>}
+                      </p>
+                      <p className="flex items-center gap-1.5 text-xs text-gray-400">
+                        <Phone className="h-3 w-3 text-gray-300 shrink-0" />
+                        {guest.phone || <span className="text-gray-300">—</span>}
+                      </p>
                     </td>
 
                     {/* COUNTRY */}
@@ -395,6 +437,17 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
                     {/* ACTIONS */}
                     <td className="px-5 py-3.5 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => handleToggleVip(guest)}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            guest.is_vip
+                              ? 'text-amber-400 hover:bg-amber-50'
+                              : 'text-gray-300 hover:text-amber-400 hover:bg-amber-50'
+                          }`}
+                          title={guest.is_vip ? 'Remove VIP status' : 'Mark as VIP'}
+                        >
+                          <Star className={`h-3.5 w-3.5 ${guest.is_vip ? 'fill-amber-400' : ''}`} />
+                        </button>
                         <button
                           onClick={() => openEdit(guest)}
                           className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
@@ -441,7 +494,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
                   <label className={lbl}>Full Name{modal === 'add' ? ' *' : ''}</label>
                   <input
                     value={form.name}
-                    onChange={e => { setField('name', e.target.value); setFormErrors(p => ({ ...p, name: undefined })) }}
+                    onChange={e => { setField('name', sanitizeName(e.target.value)); setFormErrors(p => ({ ...p, name: undefined })) }}
                     readOnly={modal === 'edit' && !editing?.is_manual}
                     maxLength={100}
                     className={`${fi} ${modal === 'edit' && !editing?.is_manual ? 'bg-gray-50 text-gray-500 cursor-default' : formErrors.name ? 'border-red-300 focus:ring-red-300' : ''}`}
@@ -453,7 +506,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
                   <label className={lbl}>Email</label>
                   <input
                     value={form.email}
-                    onChange={e => { setField('email', e.target.value); setFormErrors(p => ({ ...p, email: undefined })) }}
+                    onChange={e => { setField('email', sanitizeEmail(e.target.value)); setFormErrors(p => ({ ...p, email: undefined })) }}
                     readOnly={modal === 'edit' && !editing?.is_manual}
                     className={`${fi} ${modal === 'edit' && !editing?.is_manual ? 'bg-gray-50 text-gray-500 cursor-default' : formErrors.email ? 'border-red-300 focus:ring-red-300' : ''}`}
                     placeholder="guest@email.com"
@@ -525,8 +578,9 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
                 <label className={lbl}>Notes</label>
                 <textarea
                   value={form.notes}
-                  onChange={e => setField('notes', e.target.value)}
+                  onChange={e => setField('notes', sanitizeNotes(e.target.value))}
                   rows={2}
+                  maxLength={500}
                   className={`${fi} resize-none`}
                   placeholder="Special requests, preferences…"
                 />
