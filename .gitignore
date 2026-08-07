@@ -8,6 +8,7 @@ node_modules/
 out/
 build/
 
+credentials.txt
 # Environment variables
 env
 .env
