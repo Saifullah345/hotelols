@@ -12,13 +12,25 @@ import type { HKTask, RoomOption, StaffOption } from './page'
 
 // ── Input sanitization ────────────────────────────────────────────────────
 function sanitizeText(value: string) {
-  // Strip HTML/script tags and angle brackets before saving
   return value.replace(/<[^>]*>/g, '').replace(/[<>]/g, '')
 }
 
+// Task descriptions: only letters, digits, spaces, and common text punctuation
+function sanitizeTaskText(value: string) {
+  return value
+    .replace(/<[^>]*>/g, '')
+    .replace(/[^a-zA-ZÀ-ɏ0-9\s.,\-/!?()'"':;]/g, '')
+}
+
+// Assignee free-text: only letters (including accented), spaces, hyphens, apostrophes
+function sanitizeAssignee(value: string) {
+  return value.replace(/[^a-zA-ZÀ-ɏ\s'\-]/g, '')
+}
+
 function hasMeaningfulContent(value: string) {
-  // Must contain at least one letter or digit — rejects pure special-char input
-  return /[a-zA-Z0-9À-ɏ]/.test(value)
+  // Must contain at least 3 letters/digits — rejects near-pure special-char input
+  const matches = value.match(/[a-zA-Z0-9À-ɏ]/g)
+  return matches !== null && matches.length >= 3
 }
 
 // ── Badge styles ──────────────────────────────────────────────────────────
@@ -93,7 +105,8 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
 
   // ── Add task ─────────────────────────────────────────────────────────
   const handleAdd = async () => {
-    const taskText = sanitizeText(form.task.trim())
+    const taskText = sanitizeTaskText(form.task.trim())
+    if (!form.room_id)                    { toast.error('Please select a room'); return }
     if (!taskText)                        { toast.error('Task description is required'); return }
     if (taskText.length < 3)              { toast.error('Task description is too short'); return }
     if (!hasMeaningfulContent(taskText))  { toast.error('Task description must contain meaningful text'); return }
@@ -184,7 +197,8 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
 
   const handleSaveEdit = async () => {
     if (!editTarget) return
-    const taskText = sanitizeText(editForm.task.trim())
+    const taskText = sanitizeTaskText(editForm.task.trim())
+    if (!editForm.room_id)               { toast.error('Please select a room'); return }
     if (!taskText)                        { toast.error('Task description is required'); return }
     if (taskText.length < 3)             { toast.error('Task description is too short'); return }
     if (!hasMeaningfulContent(taskText)) { toast.error('Task description must contain meaningful text'); return }
@@ -491,7 +505,7 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
 
               {/* Room */}
               <div>
-                <label className={lbl}>Room</label>
+                <label className={lbl}>Room *</label>
                 <select value={form.room_id} onChange={e => setF('room_id', e.target.value)} className={fi}>
                   <option value="">Select a room…</option>
                   {rooms.map(r => (
@@ -507,7 +521,7 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
                 <label className={lbl}>Task Description *</label>
                 <input
                   value={form.task}
-                  onChange={e => setF('task', sanitizeText(e.target.value))}
+                  onChange={e => setF('task', sanitizeTaskText(e.target.value))}
                   maxLength={200}
                   className={fi}
                   placeholder="Full turnover clean, Linen change…"
@@ -549,7 +563,8 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
                 ) : (
                   <input
                     value={form.assignee}
-                    onChange={e => setF('assignee', e.target.value)}
+                    onChange={e => setF('assignee', sanitizeAssignee(e.target.value))}
+                    maxLength={80}
                     className={fi}
                     placeholder="Assignee name…"
                   />
@@ -608,7 +623,7 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
             <div className="px-6 py-5 space-y-4">
               {/* Room */}
               <div>
-                <label className={lbl}>Room</label>
+                <label className={lbl}>Room *</label>
                 <select value={editForm.room_id} onChange={e => setEF('room_id', e.target.value)} className={fi}>
                   <option value="">Select a room…</option>
                   {rooms.map(r => (
@@ -624,7 +639,7 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
                 <label className={lbl}>Task Description *</label>
                 <input
                   value={editForm.task}
-                  onChange={e => setEF('task', sanitizeText(e.target.value))}
+                  onChange={e => setEF('task', sanitizeTaskText(e.target.value))}
                   maxLength={200}
                   className={fi}
                   placeholder="Full turnover clean, Linen change…"
@@ -666,7 +681,8 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
                 ) : (
                   <input
                     value={editForm.assignee}
-                    onChange={e => setEF('assignee', sanitizeText(e.target.value))}
+                    onChange={e => setEF('assignee', sanitizeAssignee(e.target.value))}
+                    maxLength={80}
                     className={fi}
                     placeholder="Assignee name…"
                   />

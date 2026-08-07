@@ -40,6 +40,15 @@ export async function POST(request: Request) {
   if (!hotel_name || !city) {
     return NextResponse.json({ error: 'hotel_name and city are required' }, { status: 400 })
   }
+  if (hotel_name.length < 2 || hotel_name.length > 80 || !/[a-zA-ZÀ-ɏ]/.test(hotel_name) || /[^a-zA-ZÀ-ɏ0-9 &'\-\.]/.test(hotel_name)) {
+    return NextResponse.json({ error: 'Hotel name is invalid — use letters, digits, spaces, hyphens, and ampersands only' }, { status: 400 })
+  }
+  if (!hotel_phone) {
+    return NextResponse.json({ error: 'Hotel phone is required' }, { status: 400 })
+  }
+  if (!hotel_email || !/^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(hotel_email)) {
+    return NextResponse.json({ error: 'Enter a valid hotel email address' }, { status: 400 })
+  }
 
   // Validate plan
   let resolvedPlanId: string | null = null
