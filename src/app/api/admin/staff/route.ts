@@ -25,17 +25,21 @@ export async function POST(request: Request) {
   const cleanPosition = strip(position).trim()
   const cleanDept     = strip(department).trim()
 
-  if (!cleanName)     return NextResponse.json({ error: 'Name is required' },       { status: 400 })
-  if (!cleanDept)     return NextResponse.json({ error: 'Department is required' }, { status: 400 })
-  if (!cleanPosition) return NextResponse.json({ error: 'Position is required' },   { status: 400 })
-  if (cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail))
-    return NextResponse.json({ error: 'Invalid email address' }, { status: 400 })
+  if (!cleanName)              return NextResponse.json({ error: 'Name is required' },                     { status: 400 })
+  if (cleanName.length < 2)    return NextResponse.json({ error: 'Name must be at least 2 characters' },  { status: 400 })
+  if (cleanName.length > 80)   return NextResponse.json({ error: 'Name cannot exceed 80 characters' },    { status: 400 })
+  if (!cleanDept)              return NextResponse.json({ error: 'Department is required' },               { status: 400 })
+  if (!cleanPosition)          return NextResponse.json({ error: 'Position is required' },                 { status: 400 })
+  if (cleanPosition.length > 60) return NextResponse.json({ error: 'Position cannot exceed 60 characters' }, { status: 400 })
+  if (!cleanEmail)             return NextResponse.json({ error: 'Email is required' },                    { status: 400 })
+  if (!/^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(cleanEmail))
+    return NextResponse.json({ error: 'Enter a valid email address' }, { status: 400 })
 
   const admin = await createAdminClient()
   const { data, error } = await admin.from('staff').insert({
     hotel_id:   hotelId,
     name:       cleanName,
-    email:      cleanEmail || null,
+    email:      cleanEmail,
     phone:      typeof phone === 'string' ? phone.trim() || null : null,
     department: cleanDept,
     position:   cleanPosition,

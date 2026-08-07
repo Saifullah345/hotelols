@@ -43,14 +43,20 @@ export async function PATCH(request: Request, { params }: Ctx) {
 
   const updates: Record<string, unknown> = {}
 
-  if (name !== undefined)
-    updates.name = strip(name).trim() || null
+  if (name !== undefined) {
+    const cleanName = strip(name).trim()
+    if (!cleanName)            return NextResponse.json({ error: 'Name is required' },                    { status: 400 })
+    if (cleanName.length < 2)  return NextResponse.json({ error: 'Name must be at least 2 characters' }, { status: 400 })
+    if (cleanName.length > 80) return NextResponse.json({ error: 'Name cannot exceed 80 characters' },   { status: 400 })
+    updates.name = cleanName
+  }
 
   if (email !== undefined) {
     const cleanEmail = strip(email).trim()
-    if (cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail))
-      return NextResponse.json({ error: 'Invalid email address' }, { status: 400 })
-    updates.email = cleanEmail || null
+    if (!cleanEmail) return NextResponse.json({ error: 'Email is required' }, { status: 400 })
+    if (!/^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(cleanEmail))
+      return NextResponse.json({ error: 'Enter a valid email address' }, { status: 400 })
+    updates.email = cleanEmail
   }
 
   if (phone !== undefined)
@@ -65,7 +71,8 @@ export async function PATCH(request: Request, { params }: Ctx) {
 
   if (position !== undefined) {
     const trimmed = strip(position).trim()
-    if (!trimmed) return NextResponse.json({ error: 'Position is required' }, { status: 400 })
+    if (!trimmed)             return NextResponse.json({ error: 'Position is required' },                    { status: 400 })
+    if (trimmed.length > 60)  return NextResponse.json({ error: 'Position cannot exceed 60 characters' },   { status: 400 })
     updates.position = trimmed
   }
 

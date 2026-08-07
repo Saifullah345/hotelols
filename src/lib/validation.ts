@@ -98,13 +98,12 @@ export const roomNameSchema = z.string()
   .refine(v => /\p{L}/u.test(v), 'Display name must include letters')
 
 // ── Room number ─────────────────────────────────────────────────────
-// Identifier like "101", "12B" or "A-14". Letters, numbers, spaces and
-// hyphens only — rejects markup/symbols such as "<30>##" or "<150>#$Fatima".
+// Numeric identifier only — e.g. "101", "205". No letters or symbols.
 export const roomNumberSchema = z.string()
   .trim()
   .min(1, 'Room number is required')
-  .max(12, 'Room number is too long')
+  .max(6, 'Room number is too long')
   .regex(
-    /^[\p{L}\p{N}][\p{L}\p{N} -]*$/u,
-    'Room number can contain letters, numbers and hyphens only',
+    /^\d+$/,
+    'Room number must contain digits only (e.g. 101, 205)',
   )

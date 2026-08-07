@@ -57,12 +57,13 @@ function StatusBadge({ status }: { status: StaffStatus }) {
 }
 
 // ── Input sanitization ────────────────────────────────────────────────
-function sanitizeText(value: string) {
-  return value.replace(/<[^>]*>/g, '').replace(/[<>]/g, '')
+function sanitizePosition(value: string) {
+  // Only letters, spaces, hyphens, apostrophes, slashes (e.g. "Head Chef / Manager")
+  return value.replace(/[^a-zA-ZÀ-ɏ\s'\/\-]/g, '')
 }
 
 function isValidEmail(email: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  return /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(email)
 }
 
 // ── Shared form fields ────────────────────────────────────────────────
@@ -91,6 +92,7 @@ function StaffFields({
           <input
             value={name}
             onChange={e => setName(e.target.value.replace(/[^a-zA-ZÀ-ɏ\s'-]/g, ''))}
+            maxLength={80}
             className="input" placeholder="Jane Smith"
           />
         </div>
@@ -99,11 +101,12 @@ function StaffFields({
           <PhoneInput value={phone} onChange={setPhone} />
         </div>
         <div className="sm:col-span-2">
-          <label className="label">Email</label>
+          <label className="label">Email <span className="text-red-400">*</span></label>
           <input
             value={email}
-            onChange={e => setEmail(sanitizeText(e.target.value))}
-            className="input" placeholder="jane@hotel.com (optional)"
+            onChange={e => setEmail(e.target.value.replace(/[^a-zA-Z0-9._%+\-@]/g, ''))}
+            maxLength={100}
+            className="input" placeholder="jane@hotel.com"
           />
         </div>
       </div>
@@ -118,7 +121,7 @@ function StaffFields({
         </div>
         <div>
           <label className="label">Position / Role <span className="text-red-400">*</span></label>
-          <input value={position} onChange={e => setPosition(sanitizeText(e.target.value))} className="input" placeholder="Head Chef" />
+          <input value={position} onChange={e => setPosition(sanitizePosition(e.target.value))} maxLength={60} className="input" placeholder="Head Chef" />
         </div>
         <div>
           <label className="label">Shift</label>
@@ -152,19 +155,24 @@ function AddStaffModal({ onClose, onAdded }: { onClose: () => void; onAdded: () 
   const [saving,     setSaving]     = useState(false)
 
   const save = async () => {
-    if (!name.trim())                             { toast.error('Name is required');                          return }
-    if (!department)                              { toast.error('Department is required');                    return }
+    const nameTrimmed = name.trim()
+    if (!nameTrimmed)                             { toast.error('Name is required');                         return }
+    if (nameTrimmed.length < 2)                   { toast.error('Name must be at least 2 characters');       return }
+    if (nameTrimmed.length > 80)                  { toast.error('Name cannot exceed 80 characters');         return }
+    if (!department)                              { toast.error('Department is required');                   return }
     const posText = position.trim()
-    if (!posText)                                 { toast.error('Position is required');                      return }
-    if (!/[a-zA-Z]/.test(posText))               { toast.error('Position must contain letters');             return }
+    if (!posText)                                 { toast.error('Position is required');                     return }
+    if (posText.length > 60)                      { toast.error('Position cannot exceed 60 characters');     return }
+    if (!/[a-zA-Z]/.test(posText))               { toast.error('Position must contain letters');            return }
     const emailText = email.trim()
-    if (emailText && !isValidEmail(emailText))    { toast.error('Enter a valid email address (or leave it blank)'); return }
+    if (!emailText)                               { toast.error('Email is required');                        return }
+    if (!isValidEmail(emailText))                 { toast.error('Enter a valid email address');              return }
 
     setSaving(true)
     const res = await fetch('/api/admin/staff', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email: emailText || null, phone, department, position: posText, shift: shift || null, salary: parseFloat(salary) || 0 }),
+      body: JSON.stringify({ name: nameTrimmed, email: emailText, phone, department, position: posText, shift: shift || null, salary: parseFloat(salary) || 0 }),
     })
     const json = await res.json().catch(() => ({}))
     setSaving(false)
@@ -225,18 +233,23 @@ function EditStaffModal({ member, onClose, onSaved }: {
   const [saving,     setSaving]     = useState(false)
 
   const save = async () => {
-    if (!name.trim())                             { toast.error('Name is required');                          return }
+    const nameTrimmed = name.trim()
+    if (!nameTrimmed)                             { toast.error('Name is required');                         return }
+    if (nameTrimmed.length < 2)                   { toast.error('Name must be at least 2 characters');       return }
+    if (nameTrimmed.length > 80)                  { toast.error('Name cannot exceed 80 characters');         return }
     const posText = position.trim()
-    if (!posText)                                 { toast.error('Position is required');                      return }
-    if (!/[a-zA-Z]/.test(posText))               { toast.error('Position must contain letters');             return }
+    if (!posText)                                 { toast.error('Position is required');                     return }
+    if (posText.length > 60)                      { toast.error('Position cannot exceed 60 characters');     return }
+    if (!/[a-zA-Z]/.test(posText))               { toast.error('Position must contain letters');            return }
     const emailText = email.trim()
-    if (emailText && !isValidEmail(emailText))    { toast.error('Enter a valid email address (or leave it blank)'); return }
+    if (!emailText)                               { toast.error('Email is required');                        return }
+    if (!isValidEmail(emailText))                 { toast.error('Enter a valid email address');              return }
 
     setSaving(true)
     const res = await fetch(`/api/admin/staff/${member.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email: emailText || null, phone: phone || null, department, position: posText, shift: shift || null, salary: parseFloat(salary) || 0, status }),
+      body: JSON.stringify({ name: nameTrimmed, email: emailText, phone: phone || null, department, position: posText, shift: shift || null, salary: parseFloat(salary) || 0, status }),
     })
     const json = await res.json().catch(() => ({}))
     setSaving(false)
