@@ -26,21 +26,23 @@ export default async function HotelAdminLayout({ children }: { children: React.R
 
   if (activeRole !== 'hotel_admin' || !activeTenantId) redirect('/select-role')
 
-  // Verify the active role actually exists for this user — prevents cookie forgery
-  const { data: roleRow } = await supabase
-    .from('user_roles')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('role', 'hotel_admin')
-    .eq('tenant_id', activeTenantId)
-    .maybeSingle()
-
-  if (!roleRow) redirect('/select-role')
-
-  const [{ data: profile }, hotel] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', user.id).single(),
-    getCachedHotel(activeTenantId),
+  // Role verification and profile/hotel fetch have no inter-dependency — run all
+  // three concurrently to save one sequential DB round-trip per page load.
+  const [roleResult, [{ data: profile }, hotel]] = await Promise.all([
+    supabase
+      .from('user_roles')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('role', 'hotel_admin')
+      .eq('tenant_id', activeTenantId)
+      .maybeSingle(),
+    Promise.all([
+      supabase.from('profiles').select('*').eq('id', user.id).single(),
+      getCachedHotel(activeTenantId),
+    ]),
   ])
+
+  if (!roleResult.data) redirect('/select-role')
 
   const planFeatures = getPlanFeatures(hotel?.plan ?? null)
 

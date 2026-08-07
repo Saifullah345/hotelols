@@ -16,17 +16,18 @@ export default async function CustomerLayout({ children }: { children: React.Rea
 
   if (activeRole !== 'customer') redirect('/select-role')
 
-  const { data: roleRow } = await supabase
-    .from('user_roles')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('role', 'customer')
-    .is('tenant_id', null)
-    .maybeSingle()
+  const [roleResult, { data: profile }] = await Promise.all([
+    supabase
+      .from('user_roles')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('role', 'customer')
+      .is('tenant_id', null)
+      .maybeSingle(),
+    supabase.from('profiles').select('*').eq('id', user.id).single(),
+  ])
 
-  if (!roleRow) redirect('/select-role')
-
-  const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+  if (!roleResult.data) redirect('/select-role')
 
   return (
     <AdminShell role="customer" title="My Account" profile={profile}>

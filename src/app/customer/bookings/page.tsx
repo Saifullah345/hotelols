@@ -762,7 +762,11 @@ export default function CustomerBookingsPage() {
   const fetchBookings = useCallback(async () => {
     setLoading(true)
     const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    // getSession() reads from the local cookie — no GoTrue round-trip.
+    // The bookings query is RLS-protected so a stale/forged session still
+    // returns only the user's own data.
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) { router.push('/login'); return }
     const { data } = await supabase
       .from('bookings')
