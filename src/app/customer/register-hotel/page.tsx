@@ -58,7 +58,7 @@ export default function CustomerRegisterHotelPage() {
     const name = hotelName.trim()
     if (!name)                                               e.hotelName = 'Hotel name is required'
     else if (name.length < 2)                                e.hotelName = 'Hotel name must be at least 2 characters'
-    else if (name.length > 80)                               e.hotelName = 'Hotel name cannot exceed 80 characters'
+    else if (name.length > 60)                               e.hotelName = 'Hotel name cannot exceed 60 characters'
     else if (!/[a-zA-ZÀ-ɏ]/.test(name))                    e.hotelName = 'Hotel name must contain at least one letter'
     else if (/[^a-zA-ZÀ-ɏ0-9 &'\-\.]/.test(name))         e.hotelName = 'Hotel name contains invalid special characters'
     if (!city.trim())                                        e.city      = 'City is required'
@@ -176,7 +176,7 @@ export default function CustomerRegisterHotelPage() {
               <input
                 value={hotelName}
                 onChange={e => setHotelName(e.target.value.replace(/[^a-zA-ZÀ-ɏ0-9 &'\-\.]/g, ''))}
-                maxLength={80}
+                maxLength={60}
                 className="input"
                 placeholder="Grand Palace Hotel"
               />

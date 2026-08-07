@@ -1,5 +1,21 @@
 import { z } from 'zod'
 
+// ── Shared helpers ────────────────────────────────────────────────────────
+
+/** RFC 5321-aligned email check. Single source of truth — import instead of inlining. */
+export function isValidEmail(email: string): boolean {
+  return /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(email)
+}
+
+/** Validate a hotel/business name; returns an error string or null. */
+export function validateHotelName(name: string): string | null {
+  if (!name || name.length < 2)  return 'Hotel name must be at least 2 characters'
+  if (name.length > 60)          return 'Hotel name cannot exceed 60 characters'
+  if (!/[a-zA-ZÀ-ɏ]/.test(name)) return 'Hotel name must contain at least one letter'
+  if (/[^a-zA-ZÀ-ɏ0-9 &'\-\.]/.test(name)) return 'Hotel name contains invalid special characters'
+  return null
+}
+
 // Expected local digit count (after the dial code) for each country prefix.
 // Sorted longest-first so +880 matches before +88, etc.
 const COUNTRY_DIGIT_RULES: { dial: string; digits: number }[] = [
@@ -77,7 +93,7 @@ export const phoneSchema = z.string()
 export const nameSchema = z.string()
   .trim()
   .min(2, 'Name must be at least 2 characters')
-  .max(80, 'Name is too long')
+  .max(50, 'Name is too long (max 50 characters)')
   .regex(
     /^[\p{L}][\p{L}\p{M}\s.'-]*$/u,
     'Enter a valid name using letters only (no numbers or symbols)',

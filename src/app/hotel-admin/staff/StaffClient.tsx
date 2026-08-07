@@ -9,6 +9,7 @@ import {
   ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { DEPARTMENTS, SHIFTS, type StaffStatus } from '@/lib/staff-constants'
+import { isValidEmail } from '@/lib/validation'
 import PhoneInput from '@/components/ui/PhoneInput'
 
 export type StaffMember = {
@@ -62,10 +63,6 @@ function sanitizePosition(value: string) {
   return value.replace(/[^a-zA-ZÀ-ɏ\s'\/\-]/g, '')
 }
 
-function isValidEmail(email: string) {
-  return /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(email)
-}
-
 // ── Shared form fields ────────────────────────────────────────────────
 function StaffFields({
   name, setName,
@@ -92,7 +89,7 @@ function StaffFields({
           <input
             value={name}
             onChange={e => setName(e.target.value.replace(/[^a-zA-ZÀ-ɏ\s'-]/g, ''))}
-            maxLength={80}
+            maxLength={50}
             className="input" placeholder="Jane Smith"
           />
         </div>
@@ -121,7 +118,7 @@ function StaffFields({
         </div>
         <div>
           <label className="label">Position / Role <span className="text-red-400">*</span></label>
-          <input value={position} onChange={e => setPosition(sanitizePosition(e.target.value))} maxLength={60} className="input" placeholder="Head Chef" />
+          <input value={position} onChange={e => setPosition(sanitizePosition(e.target.value))} maxLength={50} className="input" placeholder="Head Chef" />
         </div>
         <div>
           <label className="label">Shift</label>
@@ -158,11 +155,11 @@ function AddStaffModal({ onClose, onAdded }: { onClose: () => void; onAdded: () 
     const nameTrimmed = name.trim()
     if (!nameTrimmed)                             { toast.error('Name is required');                         return }
     if (nameTrimmed.length < 2)                   { toast.error('Name must be at least 2 characters');       return }
-    if (nameTrimmed.length > 80)                  { toast.error('Name cannot exceed 80 characters');         return }
+    if (nameTrimmed.length > 50)                  { toast.error('Name cannot exceed 50 characters');         return }
     if (!department)                              { toast.error('Department is required');                   return }
     const posText = position.trim()
     if (!posText)                                 { toast.error('Position is required');                     return }
-    if (posText.length > 60)                      { toast.error('Position cannot exceed 60 characters');     return }
+    if (posText.length > 50)                      { toast.error('Position cannot exceed 50 characters');     return }
     if (!/[a-zA-Z]/.test(posText))               { toast.error('Position must contain letters');            return }
     const emailText = email.trim()
     if (!emailText)                               { toast.error('Email is required');                        return }
@@ -236,10 +233,10 @@ function EditStaffModal({ member, onClose, onSaved }: {
     const nameTrimmed = name.trim()
     if (!nameTrimmed)                             { toast.error('Name is required');                         return }
     if (nameTrimmed.length < 2)                   { toast.error('Name must be at least 2 characters');       return }
-    if (nameTrimmed.length > 80)                  { toast.error('Name cannot exceed 80 characters');         return }
+    if (nameTrimmed.length > 50)                  { toast.error('Name cannot exceed 50 characters');         return }
     const posText = position.trim()
     if (!posText)                                 { toast.error('Position is required');                     return }
-    if (posText.length > 60)                      { toast.error('Position cannot exceed 60 characters');     return }
+    if (posText.length > 50)                      { toast.error('Position cannot exceed 50 characters');     return }
     if (!/[a-zA-Z]/.test(posText))               { toast.error('Position must contain letters');            return }
     const emailText = email.trim()
     if (!emailText)                               { toast.error('Email is required');                        return }

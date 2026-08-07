@@ -1,20 +1,6 @@
 import { NextResponse } from 'next/server'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { createPlanInPaddle } from '@/lib/paddle-plans'
-
-/** Only the platform owner manages the plan catalogue. */
-async function requireSuperAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
-
-  const { data: profile } = await supabase
-    .from('profiles').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'super_admin') {
-    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
-  }
-  return { admin: await createAdminClient() }
-}
+import { requireSuperAdmin } from '@/lib/api-auth'
 
 export async function POST(request: Request) {
   const auth = await requireSuperAdmin()
@@ -28,7 +14,7 @@ export async function POST(request: Request) {
 
   if (!name) return NextResponse.json({ error: 'Plan name is required' }, { status: 400 })
   if (name.length < 2) return NextResponse.json({ error: 'Plan name must be at least 2 characters' }, { status: 400 })
-  if (name.length > 50) return NextResponse.json({ error: 'Plan name cannot exceed 50 characters' }, { status: 400 })
+  if (name.length > 30) return NextResponse.json({ error: 'Plan name cannot exceed 30 characters' }, { status: 400 })
   if (!/^[a-zA-Z0-9 '\-]+$/.test(name)) {
     return NextResponse.json({ error: 'Plan name may only contain letters, numbers, spaces, hyphens, and apostrophes' }, { status: 400 })
   }

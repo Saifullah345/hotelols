@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { stripHtml } from '@/lib/sanitize'
+import { isValidEmail } from '@/lib/validation'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -39,22 +41,20 @@ export async function PATCH(request: Request, { params }: Ctx) {
   const body = await request.json().catch(() => ({}))
   const { name, email, phone, department, position, shift, salary, status } = body
 
-  const strip = (v: unknown) => typeof v === 'string' ? v.replace(/<[^>]*>/g, '').replace(/[<>]/g, '') : ''
-
   const updates: Record<string, unknown> = {}
 
   if (name !== undefined) {
-    const cleanName = strip(name).trim()
+    const cleanName = stripHtml(typeof name === 'string' ? name : '').trim()
     if (!cleanName)            return NextResponse.json({ error: 'Name is required' },                    { status: 400 })
     if (cleanName.length < 2)  return NextResponse.json({ error: 'Name must be at least 2 characters' }, { status: 400 })
-    if (cleanName.length > 80) return NextResponse.json({ error: 'Name cannot exceed 80 characters' },   { status: 400 })
+    if (cleanName.length > 50) return NextResponse.json({ error: 'Name cannot exceed 50 characters' },   { status: 400 })
     updates.name = cleanName
   }
 
   if (email !== undefined) {
-    const cleanEmail = strip(email).trim()
+    const cleanEmail = stripHtml(typeof email === 'string' ? email : '').trim()
     if (!cleanEmail) return NextResponse.json({ error: 'Email is required' }, { status: 400 })
-    if (!/^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(cleanEmail))
+    if (!isValidEmail(cleanEmail))
       return NextResponse.json({ error: 'Enter a valid email address' }, { status: 400 })
     updates.email = cleanEmail
   }
@@ -63,16 +63,16 @@ export async function PATCH(request: Request, { params }: Ctx) {
     updates.phone = typeof phone === 'string' && phone.trim() ? phone.trim() : null
 
   if (department !== undefined) {
-    const cleanDept = strip(department).trim()
+    const cleanDept = stripHtml(typeof department === 'string' ? department : '').trim()
     if (!cleanDept)
       return NextResponse.json({ error: 'Department is required' }, { status: 400 })
     updates.department = cleanDept
   }
 
   if (position !== undefined) {
-    const trimmed = strip(position).trim()
+    const trimmed = stripHtml(typeof position === 'string' ? position : '').trim()
     if (!trimmed)             return NextResponse.json({ error: 'Position is required' },                    { status: 400 })
-    if (trimmed.length > 60)  return NextResponse.json({ error: 'Position cannot exceed 60 characters' },   { status: 400 })
+    if (trimmed.length > 50)  return NextResponse.json({ error: 'Position cannot exceed 50 characters' },   { status: 400 })
     updates.position = trimmed
   }
 

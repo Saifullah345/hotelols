@@ -1,17 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-
-/**
- * Number of nights between two ISO date strings.
- * Use everywhere instead of inline 86_400_000 division.
- */
-export function nightsBetween(checkIn: string, checkOut: string): number {
-  return Math.max(
-    1,
-    Math.ceil(
-      (new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86_400_000,
-    ),
-  )
-}
+export { nightsBetween } from '@/lib/date'
 
 /**
  * Auto-mark expired bookings for a hotel.

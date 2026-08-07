@@ -22,7 +22,7 @@ const schema = z.object({
   confirm_password: z.string(),
   hotel_name: z.string()
     .min(2, 'Hotel name must be at least 2 characters')
-    .max(80, 'Hotel name cannot exceed 80 characters')
+    .max(60, 'Hotel name cannot exceed 60 characters')
     .regex(/^[a-zA-ZÀ-ɏ0-9 &'\-\.]+$/, 'Hotel name contains invalid special characters')
     .refine(v => /[a-zA-ZÀ-ɏ]/.test(v), 'Hotel name must contain at least one letter'),
   city:             z.string().min(2, 'City is required'),

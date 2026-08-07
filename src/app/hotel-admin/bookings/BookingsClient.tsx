@@ -279,7 +279,7 @@ function EditBookingModal({ stay, currency, rooms, allBookings, onClose, onSaved
                 <div>
                   <label className="label">Full Name</label>
                   <input value={guestName} onChange={e => setGuestName(e.target.value.replace(/[^a-zA-Z\u00C0-\u00FF\s'-]/g, ''))}
-                    maxLength={80} className="input" placeholder="John Smith" />
+                    maxLength={50} className="input" placeholder="John Smith" />
                 </div>
                 <div>
                   <label className="label">Phone</label>

@@ -3,6 +3,8 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { sendEmail } from '@/lib/email/resend'
 import { confirmEmailTemplate } from '@/lib/email/templates'
 import { getSiteUrl } from '@/lib/supabase/env'
+import { isValidEmail, validateHotelName } from '@/lib/validation'
+import { generateHotelSlug } from '@/lib/slug'
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null)
@@ -22,13 +24,12 @@ export async function POST(request: Request) {
   if (!full_name || !email || !password || !hotel_name || !city) {
     return NextResponse.json({ error: 'full_name, email, password, hotel_name, and city are required' }, { status: 400 })
   }
-  if (hotel_name.length < 2 || hotel_name.length > 80 || !/[a-zA-ZÀ-ɏ]/.test(hotel_name) || /[^a-zA-ZÀ-ɏ0-9 &'\-\.]/.test(hotel_name)) {
-    return NextResponse.json({ error: 'Hotel name is invalid — use letters, digits, spaces, hyphens, and ampersands only' }, { status: 400 })
-  }
+  const hotelNameError = validateHotelName(hotel_name)
+  if (hotelNameError) return NextResponse.json({ error: hotelNameError }, { status: 400 })
   if (!hotel_phone) {
     return NextResponse.json({ error: 'Hotel phone is required' }, { status: 400 })
   }
-  if (!hotel_email || !/^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(hotel_email)) {
+  if (!hotel_email || !isValidEmail(hotel_email)) {
     return NextResponse.json({ error: 'Enter a valid hotel email address' }, { status: 400 })
   }
 
@@ -60,10 +61,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No active plans found. Please contact support.' }, { status: 500 })
   }
 
-  const slug =
-    hotel_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') +
-    '-' +
-    Date.now().toString(36)
+  const slug = generateHotelSlug(hotel_name)
 
   try {
     const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({

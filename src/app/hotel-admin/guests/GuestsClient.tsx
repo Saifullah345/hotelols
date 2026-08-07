@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Plus, Search, Star, Pencil, Trash2, X, Loader2, Users, Mail, Phone } from 'lucide-react'
+import { isValidEmail } from '@/lib/validation'
 
 export interface GuestRecord {
   id: string
@@ -44,12 +45,12 @@ function validateGuest(f: GuestForm): FormErrors {
   const name = f.name.trim()
   if (!name) errs.name = 'Name is required'
   else if (name.length < 2) errs.name = 'Name must be at least 2 characters'
-  else if (name.length > 100) errs.name = 'Name cannot exceed 100 characters'
+  else if (name.length > 50) errs.name = 'Name cannot exceed 50 characters'
   else if (!/[a-zA-ZÀ-ɏ]/.test(name)) errs.name = 'Name must contain at least one letter'
 
   const email = f.email.trim()
   if (!email) errs.email = 'Email is required'
-  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = 'Enter a valid email address'
+  else if (!isValidEmail(email)) errs.email = 'Enter a valid email address'
 
   if (!f.phone) errs.phone = 'Phone number is required'
   else if (!/^\+92\d{10}$/.test(f.phone)) errs.phone = 'Phone must be exactly 10 digits after +92'
@@ -501,7 +502,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
                     value={form.name}
                     onChange={e => { setField('name', sanitizeName(e.target.value)); setFormErrors(p => ({ ...p, name: undefined })) }}
                     readOnly={modal === 'edit' && !editing?.is_manual}
-                    maxLength={100}
+                    maxLength={50}
                     className={`${fi} ${modal === 'edit' && !editing?.is_manual ? 'bg-gray-50 text-gray-500 cursor-default' : formErrors.name ? 'border-red-300 focus:ring-red-300' : ''}`}
                     placeholder="Olivia Bennett"
                   />
