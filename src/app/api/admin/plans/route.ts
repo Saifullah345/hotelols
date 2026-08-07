@@ -27,6 +27,11 @@ export async function POST(request: Request) {
   const priceYearly   = Number(body.price_yearly)
 
   if (!name) return NextResponse.json({ error: 'Plan name is required' }, { status: 400 })
+  if (name.length < 2) return NextResponse.json({ error: 'Plan name must be at least 2 characters' }, { status: 400 })
+  if (name.length > 50) return NextResponse.json({ error: 'Plan name cannot exceed 50 characters' }, { status: 400 })
+  if (!/^[a-zA-Z0-9 '\-]+$/.test(name)) {
+    return NextResponse.json({ error: 'Plan name may only contain letters, numbers, spaces, hyphens, and apostrophes' }, { status: 400 })
+  }
   if (!Number.isFinite(priceMonthly) || priceMonthly <= 0) {
     return NextResponse.json({ error: 'Monthly price must be greater than 0' }, { status: 400 })
   }

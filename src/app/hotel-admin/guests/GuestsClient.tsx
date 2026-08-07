@@ -40,18 +40,23 @@ const EMPTY_FORM: GuestForm = {
 
 function validateGuest(f: GuestForm): FormErrors {
   const errs: FormErrors = {}
+
   const name = f.name.trim()
   if (!name) errs.name = 'Name is required'
   else if (name.length < 2) errs.name = 'Name must be at least 2 characters'
+  else if (name.length > 100) errs.name = 'Name cannot exceed 100 characters'
   else if (!/[a-zA-ZÀ-ɏ]/.test(name)) errs.name = 'Name must contain at least one letter'
 
   const email = f.email.trim()
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = 'Enter a valid email address'
+  if (!email) errs.email = 'Email is required'
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = 'Enter a valid email address'
 
-  if (f.phone && !/^\+92\d{10}$/.test(f.phone)) errs.phone = 'Phone must be exactly 10 digits after +92'
+  if (!f.phone) errs.phone = 'Phone number is required'
+  else if (!/^\+92\d{10}$/.test(f.phone)) errs.phone = 'Phone must be exactly 10 digits after +92'
 
   const country = f.country.trim()
-  if (country && !/^[a-zA-ZÀ-ɏ\s'\-.]+$/.test(country)) errs.country = 'Country name can only contain letters'
+  if (!country) errs.country = 'Country is required'
+  else if (!/^[a-zA-ZÀ-ɏ\s'\-.]+$/.test(country)) errs.country = 'Country name can only contain letters'
 
   return errs
 }
@@ -491,7 +496,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
             <div className="px-6 py-5 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
-                  <label className={lbl}>Full Name{modal === 'add' ? ' *' : ''}</label>
+                  <label className={lbl}>Full Name *</label>
                   <input
                     value={form.name}
                     onChange={e => { setField('name', sanitizeName(e.target.value)); setFormErrors(p => ({ ...p, name: undefined })) }}
@@ -503,7 +508,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
                   {formErrors.name && <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>}
                 </div>
                 <div>
-                  <label className={lbl}>Email</label>
+                  <label className={lbl}>Email *</label>
                   <input
                     value={form.email}
                     onChange={e => { setField('email', sanitizeEmail(e.target.value)); setFormErrors(p => ({ ...p, email: undefined })) }}
@@ -514,7 +519,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
                   {formErrors.email && <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>}
                 </div>
                 <div>
-                  <label className={lbl}>Phone</label>
+                  <label className={lbl}>Phone *</label>
                   <div className={`flex overflow-hidden rounded-xl border transition-shadow ${
                     modal === 'edit' && !editing?.is_manual
                       ? 'border-gray-200 bg-gray-50'
@@ -546,7 +551,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
                   {formErrors.phone && <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>}
                 </div>
                 <div>
-                  <label className={lbl}>Country</label>
+                  <label className={lbl}>Country *</label>
                   <input
                     value={form.country}
                     onChange={e => {
