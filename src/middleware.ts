@@ -18,6 +18,19 @@ export async function middleware(request: NextRequest) {
   // it to keep billing reachable while the rest of the dashboard is locked.
   request.headers.set('x-pathname', request.nextUrl.pathname)
 
+  const pathname = request.nextUrl.pathname
+  const activeRole = request.cookies.get(ROLE_COOKIE)?.value
+
+  // Fast path: if no Supabase session cookie exists the user is definitely
+  // logged out — skip the GoTrue network call entirely.
+  const hasCookie = request.cookies.getAll().some(c => c.name.includes('-auth-token'))
+  if (!hasCookie) {
+    if (protectedRoutes.some(r => pathname.startsWith(r)) || pathname === '/select-role') {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+    return NextResponse.next({ request })
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -53,8 +66,6 @@ export async function middleware(request: NextRequest) {
   } catch {
     // Network or unexpected error — treat as unauthenticated
   }
-  const pathname = request.nextUrl.pathname
-  const activeRole = request.cookies.get(ROLE_COOKIE)?.value
 
   // Unauthenticated: block protected routes and select-role
   if (!user) {
@@ -81,5 +92,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  // Exclude API routes — they auth themselves and don't need session refresh.
+  // Excluding them removes one GoTrue round-trip per client-side fetch.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 }
