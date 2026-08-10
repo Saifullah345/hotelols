@@ -95,8 +95,8 @@ export const nameSchema = z.string()
   .min(2, 'Name must be at least 2 characters')
   .max(50, 'Name is too long (max 50 characters)')
   .regex(
-    /^[\p{L}][\p{L}\p{M}\s.'-]*$/u,
-    'Enter a valid name using letters only (no numbers or symbols)',
+    /^[\p{L}\p{M}]+([\s'-][\p{L}\p{M}]+)*$/u,
+    'Name must use letters only — a single space, hyphen, or apostrophe may appear between parts (e.g. Jean-Luc, O\'Brien)',
   )
 
 // ── Room display name ───────────────────────────────────────────────

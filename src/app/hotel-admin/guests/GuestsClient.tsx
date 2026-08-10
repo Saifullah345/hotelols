@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Plus, Search, Star, Pencil, Trash2, X, Loader2, Users, Mail, Phone } from 'lucide-react'
 import { isValidEmail } from '@/lib/validation'
+import { CountrySelect } from '@/components/ui/CountryCitySelect'
+import { Country } from 'country-state-city'
 
 export interface GuestRecord {
   id: string
@@ -39,14 +41,15 @@ const EMPTY_FORM: GuestForm = {
   passport_id: '', notes: '', is_vip: false,
 }
 
-function validateGuest(f: GuestForm): FormErrors {
+function validateGuest(f: GuestForm, requireCountry = true): FormErrors {
   const errs: FormErrors = {}
 
   const name = f.name.trim()
   if (!name) errs.name = 'Name is required'
   else if (name.length < 2) errs.name = 'Name must be at least 2 characters'
   else if (name.length > 50) errs.name = 'Name cannot exceed 50 characters'
-  else if (!/[a-zA-ZÀ-ɏ]/.test(name)) errs.name = 'Name must contain at least one letter'
+  else if (!/^[\p{L}\p{M}]+([\s'-][\p{L}\p{M}]+)*$/u.test(name))
+    errs.name = 'Use letters only — a single hyphen or apostrophe may separate name parts'
 
   const email = f.email.trim()
   if (!email) errs.email = 'Email is required'
@@ -55,17 +58,18 @@ function validateGuest(f: GuestForm): FormErrors {
   if (!f.phone) errs.phone = 'Phone number is required'
   else if (!/^\+92\d{10}$/.test(f.phone)) errs.phone = 'Phone must be exactly 10 digits after +92'
 
-  const country = f.country.trim()
-  if (!country) errs.country = 'Country is required'
-  else if (!/^[a-zA-ZÀ-ɏ\s'\-.]+$/.test(country)) errs.country = 'Country name can only contain letters'
+  if (requireCountry && !f.country.trim()) errs.country = 'Country is required'
 
   return errs
 }
 
 function sanitizeName(value: string) {
   return value
-    .replace(/<[^>]*>/g, '')
-    .replace(/[<>@#$%^*+=[\]{}|;:,?!\\/'"0-9]/g, '')
+    .replace(/<[^>]*>/g, '')                        // strip HTML tags
+    .replace(/[^a-zA-ZÀ-ɏÀ-ɏ\s'\-]/g, '') // keep letters, spaces, hyphen, apostrophe
+    .replace(/-{2,}/g, '-')                          // collapse consecutive hyphens
+    .replace(/'{2,}/g, "'")                          // collapse consecutive apostrophes
+    .replace(/\s{2,}/g, ' ')                         // collapse consecutive spaces
 }
 
 function sanitizeEmail(value: string) {
@@ -115,6 +119,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
   const [form, setForm]         = useState<GuestForm>(EMPTY_FORM)
   const [saving, setSaving]     = useState(false)
   const [formErrors, setFormErrors] = useState<FormErrors>({})
+  const [countryCode, setCountryCode] = useState('')
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -133,21 +138,23 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
   const totalVIP = guests.filter(g => g.is_vip).length
 
   function openAdd() {
-    setForm(EMPTY_FORM); setEditing(null); setModal('add')
+    setForm(EMPTY_FORM); setEditing(null); setCountryCode(''); setModal('add')
   }
   function openEdit(g: GuestRecord) {
     setEditing(g)
+    const match = Country.getAllCountries().find(c => c.name === g.country)
+    setCountryCode(match?.isoCode ?? '')
     setForm({ name: g.name, email: g.email, phone: g.phone, country: g.country, passport_id: g.passport_id, notes: g.notes, is_vip: g.is_vip })
     setModal('edit')
   }
   function openDelete(g: GuestRecord) { setEditing(g); setModal('delete') }
-  function closeModal() { setModal(null); setEditing(null); setForm(EMPTY_FORM); setFormErrors({}) }
+  function closeModal() { setModal(null); setEditing(null); setForm(EMPTY_FORM); setFormErrors({}); setCountryCode('') }
   function setField<K extends keyof GuestForm>(k: K, v: GuestForm[K]) {
     setForm(f => ({ ...f, [k]: v }))
   }
 
   async function handleAdd() {
-    const errs = validateGuest(form)
+    const errs = validateGuest(form, true)
     if (Object.keys(errs).length > 0) { setFormErrors(errs); return }
     setSaving(true)
     try {
@@ -183,7 +190,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
 
   async function handleEdit() {
     if (!editing) return
-    const errs = validateGuest(form)
+    const errs = validateGuest(form, editing.is_manual)
     if (Object.keys(errs).length > 0) { setFormErrors(errs); return }
     setSaving(true)
     try {
@@ -553,19 +560,22 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
                 </div>
                 <div>
                   <label className={lbl}>Country *</label>
-                  <input
-                    value={form.country}
-                    onChange={e => {
-                      // Only allow letters, spaces, hyphens, apostrophes, periods
-                      const val = e.target.value.replace(/[^a-zA-ZÀ-ɏ\s'\-.]/g, '')
-                      setField('country', val)
-                      setFormErrors(p => ({ ...p, country: undefined }))
-                    }}
-                    readOnly={modal === 'edit' && !editing?.is_manual}
-                    maxLength={60}
-                    className={`${fi} ${modal === 'edit' && !editing?.is_manual ? 'bg-gray-50 text-gray-500 cursor-default' : formErrors.country ? 'border-red-300 focus:ring-red-300' : ''}`}
-                    placeholder="United States"
-                  />
+                  {(modal === 'add' || editing?.is_manual) ? (
+                    <div className={formErrors.country ? 'ring-2 ring-red-300 rounded-xl' : ''}>
+                      <CountrySelect
+                        value={countryCode}
+                        onChange={(isoCode, name) => {
+                          setCountryCode(isoCode)
+                          setField('country', name)
+                          setFormErrors(p => ({ ...p, country: undefined }))
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className={`${fi} bg-gray-50 text-gray-500 cursor-default`}>
+                      {form.country || '—'}
+                    </div>
+                  )}
                   {formErrors.country && <p className="text-red-500 text-xs mt-1">{formErrors.country}</p>}
                 </div>
                 <div>
