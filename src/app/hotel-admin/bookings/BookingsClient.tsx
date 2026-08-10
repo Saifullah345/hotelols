@@ -8,6 +8,7 @@ import {
   Plus, Search, DoorOpen, Phone, MessageCircle, Globe,
   Pencil, Trash2, Loader2, X, AlertTriangle, Calendar,
   Users, Moon, Eye, Clock, BadgeCheck, BedDouble, ChevronLeft, ChevronRight,
+  FileDown,
 } from 'lucide-react'
 import BookingActions from './BookingActions'
 import { formatCurrency } from '@/lib/currency'
@@ -458,6 +459,60 @@ function DeleteConfirmModal({ stay, onClose, onDeleted }: {
   )
 }
 
+// ── Excel / CSV Export ────────────────────────────────────────────────────
+function exportToCSV(stays: Stay[], currency: string) {
+  const HEADERS = [
+    'Booking Date', 'Guest Name', 'Email', 'Phone',
+    'Check-in', 'Check-out', 'Nights',
+    'Room(s)', 'Room Type',
+    'Adults', 'Children',
+    `Total (${currency})`, 'Status', 'Source', 'Special Requests',
+  ]
+
+  const SOURCE_LABEL: Record<string, string> = {
+    walk_in: 'Walk-in', phone: 'Phone', whatsapp: 'WhatsApp', online: 'Online',
+  }
+  const STAT_LABEL: Record<string, string> = {
+    pending: 'Pending', confirmed: 'Confirmed', checked_in: 'Checked In',
+    checked_out: 'Checked Out', no_show: 'No Show', overdue: 'Overdue', cancelled: 'Cancelled',
+  }
+
+  const cell = (v: string | number | null | undefined) =>
+    `”${String(v ?? '—').replace(/”/g, '””')}”`
+
+  const rows = stays.map(stay => {
+    const b      = stay.primary
+    const nights = calcNights(b.check_in, b.check_out)
+    return [
+      cell(fmtDate(b.created_at)),
+      cell(guestLabel(b)),
+      cell(b.user?.email ?? '—'),
+      cell(b.guest_phone ?? '—'),
+      cell(fmtDate(b.check_in)),
+      cell(fmtDate(b.check_out)),
+      cell(nights),
+      cell(stay.roomNames.join('; ')),
+      cell(b.room?.room_type?.name ?? '—'),
+      cell(stay.adults),
+      cell(stay.children),
+      cell(stay.total.toFixed(2)),
+      cell(STAT_LABEL[b.status] ?? b.status),
+      cell(SOURCE_LABEL[b.source] ?? b.source ?? '—'),
+      cell(b.special_requests ?? '—'),
+    ].join(',')
+  })
+
+  // UTF-8 BOM ensures Excel opens the file with correct encoding
+  const csv  = '﻿' + [HEADERS.map(h => `”${h}”`).join(','), ...rows].join('\r\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href     = url
+  a.download = `bookings-${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 // â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function BookingsClient({
   bookings: initial,
@@ -624,6 +679,15 @@ export default function BookingsClient({
                   <p className="text-primary-300 text-xs leading-none mt-0.5">Checked In</p>
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={() => exportToCSV(stays, currency)}
+                title={`Export ${stays.length} booking${stays.length !== 1 ? 's' : ''} to CSV (opens in Excel)`}
+                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur text-white font-semibold text-sm px-4 py-2 rounded-xl transition-colors"
+              >
+                <FileDown className="h-4 w-4" />
+                Export
+              </button>
               <Link href="/hotel-admin/bookings/new" className="flex items-center gap-2 bg-white text-primary-700 font-semibold text-sm px-4 py-2 rounded-xl hover:bg-primary-50 transition-colors shadow-sm">
                 <Plus className="h-4 w-4" /> New Booking
               </Link>
