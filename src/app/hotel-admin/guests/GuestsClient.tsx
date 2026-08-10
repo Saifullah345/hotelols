@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Plus, Search, Star, Pencil, Trash2, X, Loader2, Users, Mail, Phone } from 'lucide-react'
+import { Plus, Search, Star, Pencil, Trash2, X, Loader2, Users, Mail, Phone, ChevronDown } from 'lucide-react'
 import { isValidEmail } from '@/lib/validation'
 import { CountrySelect } from '@/components/ui/CountryCitySelect'
 import { Country } from 'country-state-city'
@@ -23,6 +23,8 @@ export interface GuestRecord {
   is_vip: boolean
   stays: number
   is_manual: boolean
+  last_booking_status: 'checked_in' | 'checked_out' | null
+  last_booking_date: string | null
 }
 
 interface Props {
@@ -112,8 +114,11 @@ const lbl = 'block text-xs font-semibold text-gray-500 mb-1.5'
 export default function GuestsClient({ initialGuests, tenantId }: Props) {
   const router = useRouter()
   const [guests, setGuests] = useState<GuestRecord[]>(initialGuests)
-  const [search, setSearch]     = useState('')
-  const [vipOnly, setVipOnly]   = useState(false)
+  const [search, setSearch]         = useState('')
+  const [vipOnly, setVipOnly]       = useState(false)
+  const [filterCountry, setFilterCountry]     = useState('')
+  const [filterStayType, setFilterStayType]   = useState('')   // '' | 'short' | 'long'
+  const [filterDateRange, setFilterDateRange] = useState('')   // '' | '7d' | 'month'
   const [modal, setModal]       = useState<'add' | 'edit' | 'delete' | null>(null)
   const [editing, setEditing]   = useState<GuestRecord | null>(null)
   const [form, setForm]         = useState<GuestForm>(EMPTY_FORM)
@@ -121,10 +126,34 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
   const [formErrors, setFormErrors] = useState<FormErrors>({})
   const [countryCode, setCountryCode] = useState('')
 
+  const uniqueCountries = useMemo(() =>
+    [...new Set(guests.map(g => g.country).filter(Boolean))].sort()
+  , [guests])
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
+
+    // Date thresholds for range filter
+    const today = new Date()
+    const sevenDaysAgo = new Date(today); sevenDaysAgo.setDate(today.getDate() - 7)
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+
     return guests.filter(g => {
       if (vipOnly && !g.is_vip) return false
+
+      if (filterCountry && g.country !== filterCountry) return false
+
+      if (filterStayType === 'short' && g.stays !== 1) return false
+      if (filterStayType === 'long'  && g.stays < 2)   return false
+
+      if (filterDateRange && g.last_booking_date) {
+        const d = new Date(g.last_booking_date)
+        if (filterDateRange === '7d'    && d < sevenDaysAgo) return false
+        if (filterDateRange === 'month' && d < monthStart)   return false
+      } else if (filterDateRange && !g.last_booking_date) {
+        return false  // no date data — exclude when a date filter is active
+      }
+
       if (!q) return true
       return (
         g.name.toLowerCase().includes(q) ||
@@ -133,7 +162,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
         g.passport_id.toLowerCase().includes(q)
       )
     })
-  }, [guests, search, vipOnly])
+  }, [guests, search, vipOnly, filterCountry, filterStayType, filterDateRange])
 
   const totalVIP = guests.filter(g => g.is_vip).length
 
@@ -182,6 +211,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
         avatar_url: null, passport_id: form.passport_id.trim(),
         notes: form.notes.trim(), is_vip: form.is_vip,
         stays: 0, is_manual: true,
+        last_booking_status: null, last_booking_date: null,
       }, ...prev])
       toast.success('Guest added')
       closeModal()
@@ -321,8 +351,9 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
         </button>
       </div>
 
-      {/* ── Search + VIP filter ── */}
-      <div className="flex flex-wrap items-center gap-3">
+      {/* ── Search + filters ── */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Search */}
         <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
           <input
@@ -333,6 +364,55 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
             className="w-full pl-9 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-300"
           />
         </div>
+
+        {/* Country filter */}
+        <div className="relative">
+          <select
+            value={filterCountry}
+            onChange={e => setFilterCountry(e.target.value)}
+            className={`appearance-none pl-3 pr-8 py-2.5 text-sm border rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-300 transition-colors cursor-pointer ${
+              filterCountry ? 'border-primary-300 text-primary-700 bg-primary-50' : 'border-gray-200 text-gray-600'
+            }`}
+          >
+            <option value="">All Countries</option>
+            {uniqueCountries.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+        </div>
+
+        {/* Stay Type filter */}
+        <div className="relative">
+          <select
+            value={filterStayType}
+            onChange={e => setFilterStayType(e.target.value)}
+            className={`appearance-none pl-3 pr-8 py-2.5 text-sm border rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-300 transition-colors cursor-pointer ${
+              filterStayType ? 'border-primary-300 text-primary-700 bg-primary-50' : 'border-gray-200 text-gray-600'
+            }`}
+          >
+            <option value="">All Stay Types</option>
+            <option value="short">Short Stay (1 visit)</option>
+            <option value="long">Long Stay (2+ visits)</option>
+          </select>
+          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+        </div>
+
+        {/* Date Range filter */}
+        <div className="relative">
+          <select
+            value={filterDateRange}
+            onChange={e => setFilterDateRange(e.target.value)}
+            className={`appearance-none pl-3 pr-8 py-2.5 text-sm border rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-300 transition-colors cursor-pointer ${
+              filterDateRange ? 'border-primary-300 text-primary-700 bg-primary-50' : 'border-gray-200 text-gray-600'
+            }`}
+          >
+            <option value="">All Dates</option>
+            <option value="7d">Last 7 Days</option>
+            <option value="month">This Month</option>
+          </select>
+          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+        </div>
+
+        {/* VIP toggle */}
         <button
           onClick={() => setVipOnly(v => !v)}
           className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
@@ -344,6 +424,16 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
           <Star className={`h-4 w-4 ${vipOnly ? 'fill-amber-400 text-amber-400' : ''}`} />
           VIP Only
         </button>
+
+        {/* Clear all filters */}
+        {(filterCountry || filterStayType || filterDateRange || vipOnly || search) && (
+          <button
+            onClick={() => { setSearch(''); setFilterCountry(''); setFilterStayType(''); setFilterDateRange(''); setVipOnly(false) }}
+            className="text-xs text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors"
+          >
+            Clear filters
+          </button>
+        )}
       </div>
 
       {/* ── Table ── */}
@@ -368,9 +458,9 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
                   <td colSpan={7} className="px-5 py-16 text-center">
                     <Users className="h-10 w-10 text-gray-200 mx-auto mb-3" />
                     <p className="text-sm font-medium text-gray-400">
-                      {search || vipOnly ? 'No guests match your filter' : 'No guests yet'}
+                      {(search || vipOnly || filterCountry || filterStayType || filterDateRange) ? 'No guests match your filter' : 'No guests yet'}
                     </p>
-                    {!search && !vipOnly && (
+                    {!search && !vipOnly && !filterCountry && !filterStayType && !filterDateRange && (
                       <p className="text-xs text-gray-300 mt-1">
                         Guests appear automatically once they make a booking, or add them manually.
                       </p>
@@ -435,9 +525,23 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
 
                     {/* STAYS */}
                     <td className="px-4 py-3.5">
-                      <span className="text-sm text-gray-700">
-                        {guest.stays > 0 ? `${guest.stays} stay${guest.stays !== 1 ? 's' : ''}` : '—'}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-sm text-gray-700">
+                          {guest.stays > 0 ? `${guest.stays} stay${guest.stays !== 1 ? 's' : ''}` : '—'}
+                        </span>
+                        {guest.last_booking_status === 'checked_in' && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Checked In
+                          </span>
+                        )}
+                        {guest.last_booking_status === 'checked_out' && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-gray-400">
+                            <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
+                            Checked Out
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* NOTES */}

@@ -16,6 +16,7 @@ type ProfileRow = {
 type BookingRow = {
   user_id: string
   status: string
+  check_in: string
   special_requests: string | null
 }
 
@@ -48,7 +49,7 @@ export default async function GuestsPage() {
   const [{ data: bookings }, { data: hotelGuests }] = await Promise.all([
     supabase
       .from('bookings')
-      .select('user_id, status, special_requests')
+      .select('user_id, status, check_in, special_requests')
       .eq('hotel_id', tenantId),
     supabase
       .from('hotel_guests')
@@ -71,13 +72,27 @@ export default async function GuestsPage() {
     for (const p of (profiles ?? []) as ProfileRow[]) profileMap.set(p.id, p)
   }
 
-  // Aggregate stays + pull latest special_requests per user
-  const stayCount = new Map<string, number>()
-  const lastNotes = new Map<string, string>()
+  // Aggregate stays + pull latest special_requests, status, and check-in date per user
+  const stayCount      = new Map<string, number>()
+  const lastNotes      = new Map<string, string>()
+  const lastStatusMap  = new Map<string, 'checked_in' | 'checked_out'>()
+  const lastCheckInMap = new Map<string, string>()
+
   for (const b of (bookings ?? []) as BookingRow[]) {
     if (!b.user_id) continue
     if (b.status !== 'cancelled') stayCount.set(b.user_id, (stayCount.get(b.user_id) ?? 0) + 1)
     if (b.special_requests?.trim()) lastNotes.set(b.user_id, b.special_requests.trim())
+    // checked_in overrides checked_out — guest is currently on property
+    if (b.status === 'checked_in') {
+      lastStatusMap.set(b.user_id, 'checked_in')
+    } else if (b.status === 'checked_out' && lastStatusMap.get(b.user_id) !== 'checked_in') {
+      lastStatusMap.set(b.user_id, 'checked_out')
+    }
+    // Track the most recent check-in date
+    const prev = lastCheckInMap.get(b.user_id)
+    if (b.check_in && (!prev || b.check_in > prev)) {
+      lastCheckInMap.set(b.user_id, b.check_in)
+    }
   }
 
   const hgByUserId = new Map<string, HotelGuestRow>()
@@ -107,6 +122,8 @@ export default async function GuestsPage() {
       is_vip: hg?.is_vip ?? stays >= 3,
       stays,
       is_manual: false,
+      last_booking_status: lastStatusMap.get(uid) ?? null,
+      last_booking_date:   lastCheckInMap.get(uid) ?? null,
     }]
   })
 
@@ -125,6 +142,8 @@ export default async function GuestsPage() {
     is_vip: g.is_vip,
     stays: 0,
     is_manual: true,
+    last_booking_status: null,
+    last_booking_date:   null,
   }))
 
   const allGuests = [...profileGuests, ...manualGuests].sort((a, b) => {
