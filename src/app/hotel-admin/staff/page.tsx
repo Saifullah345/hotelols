@@ -1,7 +1,7 @@
 ﻿import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Search, Users, UserCheck, UserMinus } from 'lucide-react'
+import { Search, Users, UserCheck, UserMinus, UserX } from 'lucide-react'
 import AutoFilterForm from '@/components/ui/AutoFilterForm'
 import { DEPARTMENTS } from '@/lib/staff-constants'
 import StaffClient, { type StaffMember } from './StaffClient'
@@ -58,9 +58,10 @@ export default async function StaffPage({
 
   const hasFilter = !!(department || status || q)
 
-  const totalCount   = staff?.length ?? 0
-  const activeCount  = staff?.filter(s => (s.status ?? (s.is_active ? 'active' : 'inactive')) === 'active').length ?? 0
-  const onLeaveCount = staff?.filter(s => s.status === 'on_leave').length ?? 0
+  const totalCount    = staff?.length ?? 0
+  const activeCount   = staff?.filter(s => (s.status ?? (s.is_active ? 'active' : 'inactive')) === 'active').length ?? 0
+  const onLeaveCount  = staff?.filter(s => s.status === 'on_leave').length ?? 0
+  const inactiveCount = staff?.filter(s => s.status === 'inactive' || (!s.status && !s.is_active)).length ?? 0
 
   return (
     <div className="space-y-6">
@@ -74,7 +75,7 @@ export default async function StaffPage({
           <div>
             <h2 className="text-2xl font-extrabold text-white leading-tight">Team Members</h2>
             <p className="text-primary-300 text-sm mt-0.5">
-              {totalCount} staff Â· {activeCount} on duty
+              {totalCount} staff &middot; {activeCount} on duty
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
@@ -97,6 +98,13 @@ export default async function StaffPage({
               <div>
                 <p className="text-white font-bold leading-none">{onLeaveCount}</p>
                 <p className="text-primary-300 text-xs leading-none mt-0.5">On Leave</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3.5 py-2 rounded-xl text-sm">
+              <UserX className="h-4 w-4 text-rose-400" />
+              <div>
+                <p className="text-white font-bold leading-none">{inactiveCount}</p>
+                <p className="text-primary-300 text-xs leading-none mt-0.5">Inactive</p>
               </div>
             </div>
           </div>

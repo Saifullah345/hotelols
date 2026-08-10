@@ -59,8 +59,9 @@ function StatusBadge({ status }: { status: StaffStatus }) {
 
 // ── Input sanitization ────────────────────────────────────────────────
 function sanitizePosition(value: string) {
-  // Only letters, spaces, hyphens, apostrophes, slashes (e.g. "Head Chef / Manager")
-  return value.replace(/[^a-zA-ZÀ-ɏ\s'\/\-]/g, '')
+  // Letters, digits, spaces, & and () only. Blocks dots, dashes, slashes and quotes
+  // which appear in garbled/injected entries but not in real job titles.
+  return value.replace(/[^a-zA-ZÀ-ɏ0-9\s&(),]/g, '')
 }
 
 // ── Shared form fields ────────────────────────────────────────────────
@@ -118,7 +119,7 @@ function StaffFields({
         </div>
         <div>
           <label className="label">Position / Role <span className="text-red-400">*</span></label>
-          <input value={position} onChange={e => setPosition(sanitizePosition(e.target.value))} maxLength={50} className="input" placeholder="Head Chef" />
+          <input value={position} onChange={e => setPosition(sanitizePosition(e.target.value))} maxLength={60} className="input" placeholder="Head Chef" />
         </div>
         <div>
           <label className="label">Shift</label>
@@ -158,9 +159,11 @@ function AddStaffModal({ onClose, onAdded }: { onClose: () => void; onAdded: () 
     if (nameTrimmed.length > 50)                  { toast.error('Name cannot exceed 50 characters');         return }
     if (!department)                              { toast.error('Department is required');                   return }
     const posText = position.trim()
-    if (!posText)                                 { toast.error('Position is required');                     return }
-    if (posText.length > 50)                      { toast.error('Position cannot exceed 50 characters');     return }
-    if (!/[a-zA-Z]/.test(posText))               { toast.error('Position must contain letters');            return }
+    if (!posText)                                 { toast.error('Position is required');                            return }
+    if (posText.length < 2)                       { toast.error('Position must be at least 2 characters');         return }
+    if (posText.length > 60)                      { toast.error('Position cannot exceed 60 characters');           return }
+    if (!/[a-zA-Z]/.test(posText))               { toast.error('Position must contain at least one letter');      return }
+    if (/[.\-/'"\\]/.test(posText))              { toast.error('Position cannot contain dots, dashes, or slashes'); return }
     const emailText = email.trim()
     if (!emailText)                               { toast.error('Email is required');                        return }
     if (!isValidEmail(emailText))                 { toast.error('Enter a valid email address');              return }
@@ -235,9 +238,11 @@ function EditStaffModal({ member, onClose, onSaved }: {
     if (nameTrimmed.length < 2)                   { toast.error('Name must be at least 2 characters');       return }
     if (nameTrimmed.length > 50)                  { toast.error('Name cannot exceed 50 characters');         return }
     const posText = position.trim()
-    if (!posText)                                 { toast.error('Position is required');                     return }
-    if (posText.length > 50)                      { toast.error('Position cannot exceed 50 characters');     return }
-    if (!/[a-zA-Z]/.test(posText))               { toast.error('Position must contain letters');            return }
+    if (!posText)                                 { toast.error('Position is required');                            return }
+    if (posText.length < 2)                       { toast.error('Position must be at least 2 characters');         return }
+    if (posText.length > 60)                      { toast.error('Position cannot exceed 60 characters');           return }
+    if (!/[a-zA-Z]/.test(posText))               { toast.error('Position must contain at least one letter');      return }
+    if (/[.\-/'"\\]/.test(posText))              { toast.error('Position cannot contain dots, dashes, or slashes'); return }
     const emailText = email.trim()
     if (!emailText)                               { toast.error('Email is required');                        return }
     if (!isValidEmail(emailText))                 { toast.error('Enter a valid email address');              return }

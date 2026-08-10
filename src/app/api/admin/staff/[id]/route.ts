@@ -71,8 +71,11 @@ export async function PATCH(request: Request, { params }: Ctx) {
 
   if (position !== undefined) {
     const trimmed = stripHtml(typeof position === 'string' ? position : '').trim()
-    if (!trimmed)             return NextResponse.json({ error: 'Position is required' },                    { status: 400 })
-    if (trimmed.length > 50)  return NextResponse.json({ error: 'Position cannot exceed 50 characters' },   { status: 400 })
+    if (!trimmed)                   return NextResponse.json({ error: 'Position is required' },                              { status: 400 })
+    if (trimmed.length < 2)         return NextResponse.json({ error: 'Position must be at least 2 characters' },           { status: 400 })
+    if (trimmed.length > 60)        return NextResponse.json({ error: 'Position cannot exceed 60 characters' },             { status: 400 })
+    if (!/[a-zA-Z]/.test(trimmed))  return NextResponse.json({ error: 'Position must contain at least one letter' },        { status: 400 })
+    if (/[.\-/'"\\]/.test(trimmed)) return NextResponse.json({ error: 'Position cannot contain dots, dashes, or slashes' }, { status: 400 })
     updates.position = trimmed
   }
 

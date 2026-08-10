@@ -22,7 +22,11 @@ const schema = z.object({
   email: z.string().email('Valid email required'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   department: z.string().min(1, 'Department is required'),
-  position: z.string().min(1, 'Position is required').regex(/[A-Za-z]/, 'Position must be a descriptive name, not just numbers'),
+  position: z.string()
+    .min(2, 'Position must be at least 2 characters')
+    .max(60, 'Position cannot exceed 60 characters')
+    .regex(/[A-Za-z]/, 'Position must contain at least one letter')
+    .refine(v => !/[.\-/'"\\]/.test(v), 'Position cannot contain dots, dashes, or slashes'),
 })
 type FormData = z.infer<typeof schema>
 
