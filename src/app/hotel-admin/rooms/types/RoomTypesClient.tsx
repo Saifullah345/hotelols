@@ -39,6 +39,13 @@ function AmenityPicker({
   const addCustom = () => {
     const trimmed = custom.trim()
     if (!trimmed) return
+    if (trimmed.length > 50) { toast.error('Amenity name is too long (max 50 characters)'); return }
+    if (/<[^>]+>/.test(trimmed) || /[<>"'`;={}[\]\\|^%*!@~+?]/.test(trimmed)) {
+      toast.error('Amenity contains invalid characters'); return
+    }
+    if (!/[a-zA-ZÀ-ɏ]/.test(trimmed)) {
+      toast.error('Amenity must include at least one letter'); return
+    }
     if (!value.map(x => x.toLowerCase()).includes(trimmed.toLowerCase())) {
       onChange([...value, trimmed])
     }
@@ -126,7 +133,15 @@ function TypeModal({
   const [saving,      setSaving]      = useState(false)
 
   const save = async () => {
-    if (!name.trim()) { toast.error('Name is required'); return }
+    const trimmedName = name.trim()
+    if (!trimmedName) { toast.error('Name is required'); return }
+    if (trimmedName.length < 2) { toast.error('Name must be at least 2 characters'); return }
+    if (trimmedName.length > 60) { toast.error('Name is too long (max 60 characters)'); return }
+    if (/<[^>]+>/.test(trimmedName) || /[<>"'`;={}[\]\\|^%*!@~+?]/.test(trimmedName)) {
+      toast.error('Name contains invalid characters'); return
+    }
+    if (!/[a-zA-ZÀ-ɏ]/.test(trimmedName)) { toast.error('Name must include at least one letter'); return }
+    if (maxAdults < 1) { toast.error('Max adults must be at least 1'); return }
     setSaving(true)
 
     const url    = isEdit ? `/api/room-types/${initial!.id}` : '/api/room-types'
@@ -179,7 +194,10 @@ function TypeModal({
                 Max Adults
               </label>
               <input type="number" value={maxAdults} min={1} max={20}
-                onChange={e => setMaxAdults(Number(e.target.value))} className="input" />
+                onChange={e => {
+                  const v = parseInt(e.target.value, 10)
+                  setMaxAdults(isNaN(v) ? 1 : Math.max(1, Math.min(20, v)))
+                }} className="input" />
             </div>
             <div>
               <label className="label">
@@ -187,7 +205,10 @@ function TypeModal({
                 Max Children
               </label>
               <input type="number" value={maxChildren} min={0} max={20}
-                onChange={e => setMaxChildren(Number(e.target.value))} className="input" />
+                onChange={e => {
+                  const v = parseInt(e.target.value, 10)
+                  setMaxChildren(isNaN(v) ? 0 : Math.max(0, Math.min(20, v)))
+                }} className="input" />
             </div>
           </div>
           <p className="text-xs text-gray-400 -mt-2">

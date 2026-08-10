@@ -7,18 +7,33 @@ import { toast } from 'sonner'
 import {
   Plus, LayoutList, LayoutGrid, Trash2, Play,
   CheckCircle2, Loader2, X, Sparkles, Pencil,
+  Clock, AlertCircle, AlertTriangle,
 } from 'lucide-react'
 import type { HKTask, RoomOption, StaffOption } from './page'
 
 // ── Input sanitization ────────────────────────────────────────────────────
 function sanitizeText(value: string) {
-  // Strip HTML/script tags and angle brackets before saving
   return value.replace(/<[^>]*>/g, '').replace(/[<>]/g, '')
 }
 
+// Task descriptions: letters, digits, spaces, and minimal safe punctuation.
+// Dashes, slashes, and quotes are blocked — they appear in garbled/injected input
+// but are not needed for real task descriptions like "Full turnover clean".
+function sanitizeTaskText(value: string) {
+  return value
+    .replace(/<[^>]*>/g, '')
+    .replace(/[^a-zA-ZÀ-ɏ0-9\s.,!?():&]/g, '')
+}
+
+// Assignee free-text: only letters (including accented), spaces, hyphens, apostrophes
+function sanitizeAssignee(value: string) {
+  return value.replace(/[^a-zA-ZÀ-ɏ\s'\-]/g, '')
+}
+
 function hasMeaningfulContent(value: string) {
-  // Must contain at least one letter or digit — rejects pure special-char input
-  return /[a-zA-Z0-9À-ɏ]/.test(value)
+  // Must contain at least 3 letters/digits — rejects near-pure special-char input
+  const matches = value.match(/[a-zA-Z0-9À-ɏ]/g)
+  return matches !== null && matches.length >= 3
 }
 
 // ── Badge styles ──────────────────────────────────────────────────────────
@@ -87,15 +102,23 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
   const openTasks    = tasks.filter(t => t.status !== 'clean').length
   const awaitClean   = tasks.filter(t => t.status === 'dirty').length
 
+  const cleanCount   = tasks.filter(t => t.status === 'clean').length
+  const inProgCount  = tasks.filter(t => t.status === 'in_progress').length
+  const dirtyCount   = tasks.filter(t => t.status === 'dirty').length
+  const todayStr     = new Date().toISOString().split('T')[0]
+  const overdueCount = tasks.filter(t => t.status !== 'clean' && t.due_date < todayStr).length
+
   function setF<K extends keyof TaskForm>(k: K, v: TaskForm[K]) {
     setForm(f => ({ ...f, [k]: v }))
   }
 
   // ── Add task ─────────────────────────────────────────────────────────
   const handleAdd = async () => {
-    const taskText = sanitizeText(form.task.trim())
+    const taskText = sanitizeTaskText(form.task.trim())
+    if (!form.room_id)                    { toast.error('Please select a room'); return }
     if (!taskText)                        { toast.error('Task description is required'); return }
     if (taskText.length < 3)              { toast.error('Task description is too short'); return }
+    if (taskText.length > 150)            { toast.error('Task description is too long (max 150 characters)'); return }
     if (!hasMeaningfulContent(taskText))  { toast.error('Task description must contain meaningful text'); return }
     if (!form.assignee)                   { toast.error('Please assign this task to a staff member'); return }
     if (!form.due_date)                   { toast.error('Due date is required'); return }
@@ -184,9 +207,11 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
 
   const handleSaveEdit = async () => {
     if (!editTarget) return
-    const taskText = sanitizeText(editForm.task.trim())
+    const taskText = sanitizeTaskText(editForm.task.trim())
+    if (!editForm.room_id)               { toast.error('Please select a room'); return }
     if (!taskText)                        { toast.error('Task description is required'); return }
     if (taskText.length < 3)             { toast.error('Task description is too short'); return }
+    if (taskText.length > 150)           { toast.error('Task description is too long (max 150 characters)'); return }
     if (!hasMeaningfulContent(taskText)) { toast.error('Task description must contain meaningful text'); return }
     if (!editForm.assignee)              { toast.error('Please assign this task to a staff member'); return }
     if (!editForm.due_date)              { toast.error('Due date is required'); return }
@@ -290,6 +315,59 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
           >
             <Plus className="h-4 w-4" /> New Task
           </button>
+        </div>
+      </div>
+
+      {/* ── Summary cards ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* Clean */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Clean Rooms</span>
+            <div className="p-1.5 bg-teal-50 rounded-xl">
+              <CheckCircle2 className="h-4 w-4 text-teal-500" />
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-gray-900 tabular-nums">{cleanCount}</p>
+          <p className="text-xs text-teal-600 font-medium">Ready for guests</p>
+        </div>
+
+        {/* In Progress */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">In Progress</span>
+            <div className="p-1.5 bg-amber-50 rounded-xl">
+              <Clock className="h-4 w-4 text-amber-500" />
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-gray-900 tabular-nums">{inProgCount}</p>
+          <p className="text-xs text-amber-600 font-medium">Being cleaned now</p>
+        </div>
+
+        {/* Dirty / Pending */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Dirty / Pending</span>
+            <div className="p-1.5 bg-pink-50 rounded-xl">
+              <AlertCircle className="h-4 w-4 text-pink-500" />
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-gray-900 tabular-nums">{dirtyCount}</p>
+          <p className="text-xs text-pink-600 font-medium">Awaiting assignment</p>
+        </div>
+
+        {/* Overdue */}
+        <div className={`rounded-2xl border shadow-sm p-4 flex flex-col gap-3 ${overdueCount > 0 ? 'bg-red-50 border-red-100' : 'bg-white border-gray-100'}`}>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Overdue</span>
+            <div className={`p-1.5 rounded-xl ${overdueCount > 0 ? 'bg-red-100' : 'bg-gray-50'}`}>
+              <AlertTriangle className={`h-4 w-4 ${overdueCount > 0 ? 'text-red-500' : 'text-gray-400'}`} />
+            </div>
+          </div>
+          <p className={`text-3xl font-bold tabular-nums ${overdueCount > 0 ? 'text-red-600' : 'text-gray-900'}`}>{overdueCount}</p>
+          <p className={`text-xs font-medium ${overdueCount > 0 ? 'text-red-500' : 'text-gray-400'}`}>
+            {overdueCount > 0 ? 'Past due date' : 'All on schedule'}
+          </p>
         </div>
       </div>
 
@@ -491,7 +569,7 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
 
               {/* Room */}
               <div>
-                <label className={lbl}>Room</label>
+                <label className={lbl}>Room *</label>
                 <select value={form.room_id} onChange={e => setF('room_id', e.target.value)} className={fi}>
                   <option value="">Select a room…</option>
                   {rooms.map(r => (
@@ -507,8 +585,8 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
                 <label className={lbl}>Task Description *</label>
                 <input
                   value={form.task}
-                  onChange={e => setF('task', sanitizeText(e.target.value))}
-                  maxLength={200}
+                  onChange={e => setF('task', sanitizeTaskText(e.target.value))}
+                  maxLength={150}
                   className={fi}
                   placeholder="Full turnover clean, Linen change…"
                 />
@@ -549,7 +627,8 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
                 ) : (
                   <input
                     value={form.assignee}
-                    onChange={e => setF('assignee', e.target.value)}
+                    onChange={e => setF('assignee', sanitizeAssignee(e.target.value))}
+                    maxLength={80}
                     className={fi}
                     placeholder="Assignee name…"
                   />
@@ -608,7 +687,7 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
             <div className="px-6 py-5 space-y-4">
               {/* Room */}
               <div>
-                <label className={lbl}>Room</label>
+                <label className={lbl}>Room *</label>
                 <select value={editForm.room_id} onChange={e => setEF('room_id', e.target.value)} className={fi}>
                   <option value="">Select a room…</option>
                   {rooms.map(r => (
@@ -624,7 +703,7 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
                 <label className={lbl}>Task Description *</label>
                 <input
                   value={editForm.task}
-                  onChange={e => setEF('task', sanitizeText(e.target.value))}
+                  onChange={e => setEF('task', sanitizeTaskText(e.target.value))}
                   maxLength={200}
                   className={fi}
                   placeholder="Full turnover clean, Linen change…"
@@ -666,7 +745,8 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
                 ) : (
                   <input
                     value={editForm.assignee}
-                    onChange={e => setEF('assignee', sanitizeText(e.target.value))}
+                    onChange={e => setEF('assignee', sanitizeAssignee(e.target.value))}
+                    maxLength={80}
                     className={fi}
                     placeholder="Assignee name…"
                   />

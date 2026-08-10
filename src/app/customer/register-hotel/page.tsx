@@ -55,8 +55,18 @@ export default function CustomerRegisterHotelPage() {
 
   const validateStep1 = () => {
     const e: Record<string, string> = {}
-    if (!hotelName.trim()) e.hotelName = 'Hotel name is required'
-    if (!city.trim()) e.city = 'City is required'
+    const name = hotelName.trim()
+    if (!name)                                               e.hotelName = 'Hotel name is required'
+    else if (name.length < 2)                                e.hotelName = 'Hotel name must be at least 2 characters'
+    else if (name.length > 60)                               e.hotelName = 'Hotel name cannot exceed 60 characters'
+    else if (!/[a-zA-ZÀ-ɏ]/.test(name))                    e.hotelName = 'Hotel name must contain at least one letter'
+    else if (/[^a-zA-ZÀ-ɏ0-9 &'\-\.]/.test(name))         e.hotelName = 'Hotel name contains invalid special characters'
+    if (!city.trim())                                        e.city      = 'City is required'
+    if (!hotelPhone)                                         e.hotelPhone = 'Hotel phone is required'
+    const emailVal = hotelEmail.trim()
+    if (!emailVal)                                           e.hotelEmail = 'Hotel email is required'
+    else if (!/^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(emailVal))
+                                                             e.hotelEmail = 'Enter a valid email address'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -162,10 +172,11 @@ export default function CustomerRegisterHotelPage() {
         {step === 1 && (
           <>
             <div>
-              <label className="label">Hotel Name</label>
+              <label className="label">Hotel Name <span className="text-red-500">*</span></label>
               <input
                 value={hotelName}
-                onChange={e => setHotelName(e.target.value)}
+                onChange={e => setHotelName(e.target.value.replace(/[^a-zA-ZÀ-ɏ0-9 &'\-\.]/g, ''))}
+                maxLength={60}
                 className="input"
                 placeholder="Grand Palace Hotel"
               />
@@ -207,18 +218,21 @@ export default function CustomerRegisterHotelPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">Hotel Phone <span className="text-gray-400 font-normal">(optional)</span></label>
+                <label className="label">Hotel Phone <span className="text-red-500">*</span></label>
                 <PhoneInput value={hotelPhone} onChange={setHotelPhone} />
+                {errors.hotelPhone && <p className="text-red-500 text-xs mt-1">{errors.hotelPhone}</p>}
               </div>
               <div>
-                <label className="label">Hotel Email <span className="text-gray-400 font-normal">(optional)</span></label>
+                <label className="label">Hotel Email <span className="text-red-500">*</span></label>
                 <input
                   type="email"
                   value={hotelEmail}
-                  onChange={e => setHotelEmail(e.target.value)}
+                  onChange={e => setHotelEmail(e.target.value.replace(/[^a-zA-Z0-9._%+\-@]/g, ''))}
+                  maxLength={100}
                   className="input"
                   placeholder="info@hotel.com"
                 />
+                {errors.hotelEmail && <p className="text-red-500 text-xs mt-1">{errors.hotelEmail}</p>}
               </div>
             </div>
 

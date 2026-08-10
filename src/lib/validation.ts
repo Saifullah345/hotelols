@@ -1,5 +1,21 @@
 import { z } from 'zod'
 
+// ── Shared helpers ────────────────────────────────────────────────────────
+
+/** RFC 5321-aligned email check. Single source of truth — import instead of inlining. */
+export function isValidEmail(email: string): boolean {
+  return /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(email)
+}
+
+/** Validate a hotel/business name; returns an error string or null. */
+export function validateHotelName(name: string): string | null {
+  if (!name || name.length < 2)  return 'Hotel name must be at least 2 characters'
+  if (name.length > 60)          return 'Hotel name cannot exceed 60 characters'
+  if (!/[a-zA-ZÀ-ɏ]/.test(name)) return 'Hotel name must contain at least one letter'
+  if (/[^a-zA-ZÀ-ɏ0-9 &'\-\.]/.test(name)) return 'Hotel name contains invalid special characters'
+  return null
+}
+
 // Expected local digit count (after the dial code) for each country prefix.
 // Sorted longest-first so +880 matches before +88, etc.
 const COUNTRY_DIGIT_RULES: { dial: string; digits: number }[] = [
@@ -77,10 +93,10 @@ export const phoneSchema = z.string()
 export const nameSchema = z.string()
   .trim()
   .min(2, 'Name must be at least 2 characters')
-  .max(80, 'Name is too long')
+  .max(50, 'Name is too long (max 50 characters)')
   .regex(
-    /^[\p{L}][\p{L}\p{M}\s.'-]*$/u,
-    'Enter a valid name using letters only (no numbers or symbols)',
+    /^[\p{L}\p{M}]+([\s'-][\p{L}\p{M}]+)*$/u,
+    'Name must use letters only — a single space, hyphen, or apostrophe may appear between parts (e.g. Jean-Luc, O\'Brien)',
   )
 
 // ── Room display name ───────────────────────────────────────────────
@@ -98,13 +114,38 @@ export const roomNameSchema = z.string()
   .refine(v => /\p{L}/u.test(v), 'Display name must include letters')
 
 // ── Room number ─────────────────────────────────────────────────────
-// Identifier like "101", "12B" or "A-14". Letters, numbers, spaces and
-// hyphens only — rejects markup/symbols such as "<30>##" or "<150>#$Fatima".
+// Numeric identifier only — e.g. "101", "205". No letters or symbols.
 export const roomNumberSchema = z.string()
   .trim()
   .min(1, 'Room number is required')
-  .max(12, 'Room number is too long')
+  .max(6, 'Room number is too long')
   .regex(
-    /^[\p{L}\p{N}][\p{L}\p{N} -]*$/u,
-    'Room number can contain letters, numbers and hyphens only',
+    /^\d+$/,
+    'Room number must contain digits only (e.g. 101, 205)',
   )
+
+// ── Room type name ──────────────────────────────────────────────────
+// Same character rules as roomNameSchema but requires 2+ chars.
+// Rejects HTML markup, script injection, and garbled symbol strings.
+export const roomTypeNameSchema = z.string()
+  .trim()
+  .min(2, 'Name must be at least 2 characters')
+  .max(60, 'Name is too long (max 60 characters)')
+  .regex(
+    /^[\p{L}\p{N}][\p{L}\p{N}\s.,'&()/#-]*$/u,
+    'Use only letters, numbers and common punctuation (no < > or special characters)',
+  )
+  .refine(v => /\p{L}/u.test(v), 'Name must include at least one letter')
+
+// ── Custom amenity ──────────────────────────────────────────────────
+// Amenity labels like "WiFi", "Sea View", "Coffee Maker". Blocks HTML,
+// script tags, and symbol-only strings. Max 50 chars.
+export const amenitySchema = z.string()
+  .trim()
+  .min(1, 'Amenity cannot be empty')
+  .max(50, 'Amenity name is too long (max 50 characters)')
+  .regex(
+    /^[\p{L}\p{N}][\p{L}\p{N}\s.,'&()/#-]*$/u,
+    'Amenity names may only contain letters, numbers, and common punctuation',
+  )
+  .refine(v => /\p{L}/u.test(v), 'Amenity must include at least one letter')

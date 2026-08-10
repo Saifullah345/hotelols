@@ -4,7 +4,11 @@ import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Plus, Search, Star, Pencil, Trash2, X, Loader2, Users, Mail, Phone } from 'lucide-react'
+import { Plus, Search, Star, Pencil, Trash2, X, Loader2, Users, Mail, Phone, ChevronDown } from 'lucide-react'
+import { isValidEmail, phoneSchema } from '@/lib/validation'
+import PhoneInput from '@/components/ui/PhoneInput'
+import { CountrySelect } from '@/components/ui/CountryCitySelect'
+import { Country } from 'country-state-city'
 
 export interface GuestRecord {
   id: string
@@ -20,6 +24,8 @@ export interface GuestRecord {
   is_vip: boolean
   stays: number
   is_manual: boolean
+  last_booking_status: 'checked_in' | 'checked_out' | null
+  last_booking_date: string | null
 }
 
 interface Props {
@@ -38,28 +44,35 @@ const EMPTY_FORM: GuestForm = {
   passport_id: '', notes: '', is_vip: false,
 }
 
-function validateGuest(f: GuestForm): FormErrors {
+function validateGuest(f: GuestForm, requireCountry = true): FormErrors {
   const errs: FormErrors = {}
+
   const name = f.name.trim()
   if (!name) errs.name = 'Name is required'
   else if (name.length < 2) errs.name = 'Name must be at least 2 characters'
-  else if (!/[a-zA-ZÀ-ɏ]/.test(name)) errs.name = 'Name must contain at least one letter'
+  else if (name.length > 50) errs.name = 'Name cannot exceed 50 characters'
+  else if (!/^[\p{L}\p{M}]+([\s'-][\p{L}\p{M}]+)*$/u.test(name))
+    errs.name = 'Use letters only — a single hyphen or apostrophe may separate name parts'
 
   const email = f.email.trim()
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = 'Enter a valid email address'
+  if (!email) errs.email = 'Email is required'
+  else if (!isValidEmail(email)) errs.email = 'Enter a valid email address'
 
-  if (f.phone && !/^\+92\d{10}$/.test(f.phone)) errs.phone = 'Phone must be exactly 10 digits after +92'
+  const phoneResult = phoneSchema.safeParse(f.phone)
+  if (!phoneResult.success) errs.phone = phoneResult.error.errors[0]?.message ?? 'Invalid phone number'
 
-  const country = f.country.trim()
-  if (country && !/^[a-zA-ZÀ-ɏ\s'\-.]+$/.test(country)) errs.country = 'Country name can only contain letters'
+  if (requireCountry && !f.country.trim()) errs.country = 'Country is required'
 
   return errs
 }
 
 function sanitizeName(value: string) {
   return value
-    .replace(/<[^>]*>/g, '')
-    .replace(/[<>@#$%^*+=[\]{}|;:,?!\\/'"0-9]/g, '')
+    .replace(/<[^>]*>/g, '')                        // strip HTML tags
+    .replace(/[^a-zA-ZÀ-ɏÀ-ɏ\s'\-]/g, '') // keep letters, spaces, hyphen, apostrophe
+    .replace(/-{2,}/g, '-')                          // collapse consecutive hyphens
+    .replace(/'{2,}/g, "'")                          // collapse consecutive apostrophes
+    .replace(/\s{2,}/g, ' ')                         // collapse consecutive spaces
 }
 
 function sanitizeEmail(value: string) {
@@ -102,18 +115,46 @@ const lbl = 'block text-xs font-semibold text-gray-500 mb-1.5'
 export default function GuestsClient({ initialGuests, tenantId }: Props) {
   const router = useRouter()
   const [guests, setGuests] = useState<GuestRecord[]>(initialGuests)
-  const [search, setSearch]     = useState('')
-  const [vipOnly, setVipOnly]   = useState(false)
+  const [search, setSearch]         = useState('')
+  const [vipOnly, setVipOnly]       = useState(false)
+  const [filterCountry, setFilterCountry]     = useState('')
+  const [filterStayType, setFilterStayType]   = useState('')   // '' | 'short' | 'long'
+  const [filterDateRange, setFilterDateRange] = useState('')   // '' | '7d' | 'month'
   const [modal, setModal]       = useState<'add' | 'edit' | 'delete' | null>(null)
   const [editing, setEditing]   = useState<GuestRecord | null>(null)
   const [form, setForm]         = useState<GuestForm>(EMPTY_FORM)
   const [saving, setSaving]     = useState(false)
   const [formErrors, setFormErrors] = useState<FormErrors>({})
+  const [countryCode, setCountryCode] = useState('')
+
+  const uniqueCountries = useMemo(() =>
+    [...new Set(guests.map(g => g.country).filter(Boolean))].sort()
+  , [guests])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
+
+    // Date thresholds for range filter
+    const today = new Date()
+    const sevenDaysAgo = new Date(today); sevenDaysAgo.setDate(today.getDate() - 7)
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+
     return guests.filter(g => {
       if (vipOnly && !g.is_vip) return false
+
+      if (filterCountry && g.country !== filterCountry) return false
+
+      if (filterStayType === 'short' && g.stays !== 1) return false
+      if (filterStayType === 'long'  && g.stays < 2)   return false
+
+      if (filterDateRange && g.last_booking_date) {
+        const d = new Date(g.last_booking_date)
+        if (filterDateRange === '7d'    && d < sevenDaysAgo) return false
+        if (filterDateRange === 'month' && d < monthStart)   return false
+      } else if (filterDateRange && !g.last_booking_date) {
+        return false  // no date data — exclude when a date filter is active
+      }
+
       if (!q) return true
       return (
         g.name.toLowerCase().includes(q) ||
@@ -122,26 +163,28 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
         g.passport_id.toLowerCase().includes(q)
       )
     })
-  }, [guests, search, vipOnly])
+  }, [guests, search, vipOnly, filterCountry, filterStayType, filterDateRange])
 
   const totalVIP = guests.filter(g => g.is_vip).length
 
   function openAdd() {
-    setForm(EMPTY_FORM); setEditing(null); setModal('add')
+    setForm(EMPTY_FORM); setEditing(null); setCountryCode(''); setModal('add')
   }
   function openEdit(g: GuestRecord) {
     setEditing(g)
+    const match = Country.getAllCountries().find(c => c.name === g.country)
+    setCountryCode(match?.isoCode ?? '')
     setForm({ name: g.name, email: g.email, phone: g.phone, country: g.country, passport_id: g.passport_id, notes: g.notes, is_vip: g.is_vip })
     setModal('edit')
   }
   function openDelete(g: GuestRecord) { setEditing(g); setModal('delete') }
-  function closeModal() { setModal(null); setEditing(null); setForm(EMPTY_FORM); setFormErrors({}) }
+  function closeModal() { setModal(null); setEditing(null); setForm(EMPTY_FORM); setFormErrors({}); setCountryCode('') }
   function setField<K extends keyof GuestForm>(k: K, v: GuestForm[K]) {
     setForm(f => ({ ...f, [k]: v }))
   }
 
   async function handleAdd() {
-    const errs = validateGuest(form)
+    const errs = validateGuest(form, true)
     if (Object.keys(errs).length > 0) { setFormErrors(errs); return }
     setSaving(true)
     try {
@@ -169,6 +212,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
         avatar_url: null, passport_id: form.passport_id.trim(),
         notes: form.notes.trim(), is_vip: form.is_vip,
         stays: 0, is_manual: true,
+        last_booking_status: null, last_booking_date: null,
       }, ...prev])
       toast.success('Guest added')
       closeModal()
@@ -177,7 +221,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
 
   async function handleEdit() {
     if (!editing) return
-    const errs = validateGuest(form)
+    const errs = validateGuest(form, editing.is_manual)
     if (Object.keys(errs).length > 0) { setFormErrors(errs); return }
     setSaving(true)
     try {
@@ -308,8 +352,9 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
         </button>
       </div>
 
-      {/* ── Search + VIP filter ── */}
-      <div className="flex flex-wrap items-center gap-3">
+      {/* ── Search + filters ── */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Search */}
         <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
           <input
@@ -320,6 +365,55 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
             className="w-full pl-9 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-300"
           />
         </div>
+
+        {/* Country filter */}
+        <div className="relative">
+          <select
+            value={filterCountry}
+            onChange={e => setFilterCountry(e.target.value)}
+            className={`appearance-none pl-3 pr-8 py-2.5 text-sm border rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-300 transition-colors cursor-pointer ${
+              filterCountry ? 'border-primary-300 text-primary-700 bg-primary-50' : 'border-gray-200 text-gray-600'
+            }`}
+          >
+            <option value="">All Countries</option>
+            {uniqueCountries.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+        </div>
+
+        {/* Stay Type filter */}
+        <div className="relative">
+          <select
+            value={filterStayType}
+            onChange={e => setFilterStayType(e.target.value)}
+            className={`appearance-none pl-3 pr-8 py-2.5 text-sm border rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-300 transition-colors cursor-pointer ${
+              filterStayType ? 'border-primary-300 text-primary-700 bg-primary-50' : 'border-gray-200 text-gray-600'
+            }`}
+          >
+            <option value="">All Stay Types</option>
+            <option value="short">Short Stay (1 visit)</option>
+            <option value="long">Long Stay (2+ visits)</option>
+          </select>
+          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+        </div>
+
+        {/* Date Range filter */}
+        <div className="relative">
+          <select
+            value={filterDateRange}
+            onChange={e => setFilterDateRange(e.target.value)}
+            className={`appearance-none pl-3 pr-8 py-2.5 text-sm border rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-300 transition-colors cursor-pointer ${
+              filterDateRange ? 'border-primary-300 text-primary-700 bg-primary-50' : 'border-gray-200 text-gray-600'
+            }`}
+          >
+            <option value="">All Dates</option>
+            <option value="7d">Last 7 Days</option>
+            <option value="month">This Month</option>
+          </select>
+          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+        </div>
+
+        {/* VIP toggle */}
         <button
           onClick={() => setVipOnly(v => !v)}
           className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-sm font-medium border transition-colors ${
@@ -331,6 +425,16 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
           <Star className={`h-4 w-4 ${vipOnly ? 'fill-amber-400 text-amber-400' : ''}`} />
           VIP Only
         </button>
+
+        {/* Clear all filters */}
+        {(filterCountry || filterStayType || filterDateRange || vipOnly || search) && (
+          <button
+            onClick={() => { setSearch(''); setFilterCountry(''); setFilterStayType(''); setFilterDateRange(''); setVipOnly(false) }}
+            className="text-xs text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors"
+          >
+            Clear filters
+          </button>
+        )}
       </div>
 
       {/* ── Table ── */}
@@ -355,9 +459,9 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
                   <td colSpan={7} className="px-5 py-16 text-center">
                     <Users className="h-10 w-10 text-gray-200 mx-auto mb-3" />
                     <p className="text-sm font-medium text-gray-400">
-                      {search || vipOnly ? 'No guests match your filter' : 'No guests yet'}
+                      {(search || vipOnly || filterCountry || filterStayType || filterDateRange) ? 'No guests match your filter' : 'No guests yet'}
                     </p>
-                    {!search && !vipOnly && (
+                    {!search && !vipOnly && !filterCountry && !filterStayType && !filterDateRange && (
                       <p className="text-xs text-gray-300 mt-1">
                         Guests appear automatically once they make a booking, or add them manually.
                       </p>
@@ -422,9 +526,23 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
 
                     {/* STAYS */}
                     <td className="px-4 py-3.5">
-                      <span className="text-sm text-gray-700">
-                        {guest.stays > 0 ? `${guest.stays} stay${guest.stays !== 1 ? 's' : ''}` : '—'}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-sm text-gray-700">
+                          {guest.stays > 0 ? `${guest.stays} stay${guest.stays !== 1 ? 's' : ''}` : '—'}
+                        </span>
+                        {guest.last_booking_status === 'checked_in' && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Checked In
+                          </span>
+                        )}
+                        {guest.last_booking_status === 'checked_out' && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-gray-400">
+                            <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
+                            Checked Out
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* NOTES */}
@@ -491,19 +609,19 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
             <div className="px-6 py-5 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
-                  <label className={lbl}>Full Name{modal === 'add' ? ' *' : ''}</label>
+                  <label className={lbl}>Full Name *</label>
                   <input
                     value={form.name}
                     onChange={e => { setField('name', sanitizeName(e.target.value)); setFormErrors(p => ({ ...p, name: undefined })) }}
                     readOnly={modal === 'edit' && !editing?.is_manual}
-                    maxLength={100}
+                    maxLength={50}
                     className={`${fi} ${modal === 'edit' && !editing?.is_manual ? 'bg-gray-50 text-gray-500 cursor-default' : formErrors.name ? 'border-red-300 focus:ring-red-300' : ''}`}
                     placeholder="Olivia Bennett"
                   />
                   {formErrors.name && <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>}
                 </div>
                 <div>
-                  <label className={lbl}>Email</label>
+                  <label className={lbl}>Email *</label>
                   <input
                     value={form.email}
                     onChange={e => { setField('email', sanitizeEmail(e.target.value)); setFormErrors(p => ({ ...p, email: undefined })) }}
@@ -514,52 +632,39 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
                   {formErrors.email && <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>}
                 </div>
                 <div>
-                  <label className={lbl}>Phone</label>
-                  <div className={`flex overflow-hidden rounded-xl border transition-shadow ${
-                    modal === 'edit' && !editing?.is_manual
-                      ? 'border-gray-200 bg-gray-50'
-                      : formErrors.phone
-                        ? 'border-red-300 bg-white focus-within:ring-2 focus-within:ring-red-300'
-                        : 'border-gray-200 bg-white focus-within:ring-2 focus-within:ring-amber-300 focus-within:border-transparent'
-                  }`}>
-                    <span className="flex items-center px-3 text-sm font-semibold text-gray-500 bg-gray-50 border-r border-gray-200 select-none flex-shrink-0">
-                      +92
-                    </span>
-                    <input
-                      value={form.phone.startsWith('+92') ? form.phone.slice(3) : ''}
-                      onChange={e => {
-                        const digits = e.target.value.replace(/\D/g, '').slice(0, 10)
-                        setField('phone', digits ? '+92' + digits : '')
-                        setFormErrors(p => ({ ...p, phone: undefined }))
-                      }}
-                      readOnly={modal === 'edit' && !editing?.is_manual}
-                      inputMode="numeric"
-                      maxLength={10}
-                      className={`flex-1 px-3 py-2.5 text-sm bg-transparent focus:outline-none ${
-                        modal === 'edit' && !editing?.is_manual
-                          ? 'text-gray-500 cursor-default'
-                          : 'text-gray-900 placeholder-gray-400'
-                      }`}
-                      placeholder="3001234567"
-                    />
-                  </div>
+                  <label className={lbl}>Phone *</label>
+                  {modal === 'edit' && !editing?.is_manual ? (
+                    <div className="flex items-center px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-500 cursor-default select-none">
+                      {form.phone || '—'}
+                    </div>
+                  ) : (
+                    <div className={formErrors.phone ? 'ring-2 ring-red-300 rounded-xl' : ''}>
+                      <PhoneInput
+                        value={form.phone}
+                        onChange={v => { setField('phone', v); setFormErrors(p => ({ ...p, phone: undefined })) }}
+                      />
+                    </div>
+                  )}
                   {formErrors.phone && <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>}
                 </div>
                 <div>
-                  <label className={lbl}>Country</label>
-                  <input
-                    value={form.country}
-                    onChange={e => {
-                      // Only allow letters, spaces, hyphens, apostrophes, periods
-                      const val = e.target.value.replace(/[^a-zA-ZÀ-ɏ\s'\-.]/g, '')
-                      setField('country', val)
-                      setFormErrors(p => ({ ...p, country: undefined }))
-                    }}
-                    readOnly={modal === 'edit' && !editing?.is_manual}
-                    maxLength={60}
-                    className={`${fi} ${modal === 'edit' && !editing?.is_manual ? 'bg-gray-50 text-gray-500 cursor-default' : formErrors.country ? 'border-red-300 focus:ring-red-300' : ''}`}
-                    placeholder="United States"
-                  />
+                  <label className={lbl}>Country *</label>
+                  {(modal === 'add' || editing?.is_manual) ? (
+                    <div className={formErrors.country ? 'ring-2 ring-red-300 rounded-xl' : ''}>
+                      <CountrySelect
+                        value={countryCode}
+                        onChange={(isoCode, name) => {
+                          setCountryCode(isoCode)
+                          setField('country', name)
+                          setFormErrors(p => ({ ...p, country: undefined }))
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className={`${fi} bg-gray-50 text-gray-500 cursor-default`}>
+                      {form.country || '—'}
+                    </div>
+                  )}
                   {formErrors.country && <p className="text-red-500 text-xs mt-1">{formErrors.country}</p>}
                 </div>
                 <div>

@@ -1,21 +1,8 @@
 import { NextResponse } from 'next/server'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { updatePlanInPaddle, deactivatePlanInPaddle } from '@/lib/paddle-plans'
+import { requireSuperAdmin } from '@/lib/api-auth'
 
 type Ctx = { params: Promise<{ id: string }> }
-
-async function requireSuperAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
-
-  const { data: profile } = await supabase
-    .from('profiles').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'super_admin') {
-    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
-  }
-  return { admin: await createAdminClient() }
-}
 
 export async function PATCH(request: Request, { params }: Ctx) {
   const { id } = await params
@@ -36,6 +23,11 @@ export async function PATCH(request: Request, { params }: Ctx) {
   const priceYearly  = body.price_yearly  !== undefined ? Number(body.price_yearly)  : Number(current.price_yearly)
 
   if (!name) return NextResponse.json({ error: 'Plan name is required' }, { status: 400 })
+  if (name.length < 2) return NextResponse.json({ error: 'Plan name must be at least 2 characters' }, { status: 400 })
+  if (name.length > 30) return NextResponse.json({ error: 'Plan name cannot exceed 30 characters' }, { status: 400 })
+  if (!/^[a-zA-Z0-9 '\-]+$/.test(name)) {
+    return NextResponse.json({ error: 'Plan name may only contain letters, numbers, spaces, hyphens, and apostrophes' }, { status: 400 })
+  }
   if (!Number.isFinite(priceMonthly) || priceMonthly <= 0) {
     return NextResponse.json({ error: 'Monthly price must be greater than 0' }, { status: 400 })
   }

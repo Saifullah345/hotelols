@@ -15,7 +15,11 @@ export default async function BookingsPage() {
   if (!tenantId) redirect('/login')
 
   const todayISO = new Date().toISOString().slice(0, 10)
-  await markExpiredBookings(supabase, tenantId, todayISO)
+
+  // Run expiry update concurrently with data reads.  Booking statuses are
+  // eventually consistent — at worst one page load shows a stale "confirmed"
+  // for a booking that expired today; the next load corrects it.
+  markExpiredBookings(supabase, tenantId, todayISO).catch(() => {})
 
   const [{ data: bookings }, { data: hotelInfo }, { data: rooms }] = await Promise.all([
     supabase

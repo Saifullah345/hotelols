@@ -20,12 +20,16 @@ const schema = z.object({
   email:            z.string().email('Invalid email address'),
   password:         z.string().min(8, 'Password must be at least 8 characters'),
   confirm_password: z.string(),
-  hotel_name:       z.string().min(2, 'Hotel name is required'),
+  hotel_name: z.string()
+    .min(2, 'Hotel name must be at least 2 characters')
+    .max(60, 'Hotel name cannot exceed 60 characters')
+    .regex(/^[a-zA-ZÀ-ɏ0-9 &'\-\.]+$/, 'Hotel name contains invalid special characters')
+    .refine(v => /[a-zA-ZÀ-ɏ]/.test(v), 'Hotel name must contain at least one letter'),
   city:             z.string().min(2, 'City is required'),
   country:          z.string().min(2, 'Country is required'),
   address:          z.string().optional(),
-  hotel_phone:      z.string().optional(),
-  hotel_email:      z.string().email('Invalid hotel email').optional().or(z.literal('')),
+  hotel_phone:      z.string().min(1, 'Hotel phone is required'),
+  hotel_email:      z.string().email('Enter a valid hotel email address'),
 }).refine(d => d.password === d.confirm_password, {
   message: 'Passwords do not match',
   path: ['confirm_password'],

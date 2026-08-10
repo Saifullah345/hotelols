@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { isValidEmail, validateHotelName } from '@/lib/validation'
+import { generateHotelSlug } from '@/lib/slug'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -40,6 +42,14 @@ export async function POST(request: Request) {
   if (!hotel_name || !city) {
     return NextResponse.json({ error: 'hotel_name and city are required' }, { status: 400 })
   }
+  const hotelNameError = validateHotelName(hotel_name)
+  if (hotelNameError) return NextResponse.json({ error: hotelNameError }, { status: 400 })
+  if (!hotel_phone) {
+    return NextResponse.json({ error: 'Hotel phone is required' }, { status: 400 })
+  }
+  if (!hotel_email || !isValidEmail(hotel_email)) {
+    return NextResponse.json({ error: 'Enter a valid hotel email address' }, { status: 400 })
+  }
 
   // Validate plan
   let resolvedPlanId: string | null = null
@@ -55,9 +65,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No active plans found. Please contact support.' }, { status: 500 })
   }
 
-  const slug =
-    hotel_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') +
-    '-' + Date.now().toString(36)
+  const slug = generateHotelSlug(hotel_name)
 
   const { data: hotel, error: hotelError } = await admin.from('hotels').insert({
     name:     hotel_name,

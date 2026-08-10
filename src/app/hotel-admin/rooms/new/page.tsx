@@ -143,7 +143,14 @@ export default function NewRoomPage() {
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="label">Room Number <span className="text-red-500">*</span></label>
-                <input {...register('room_number')} className="input" placeholder="101" />
+                <input
+                  {...register('room_number')}
+                  inputMode="numeric"
+                  maxLength={6}
+                  onInput={e => { (e.target as HTMLInputElement).value = (e.target as HTMLInputElement).value.replace(/\D/g, '') }}
+                  className="input"
+                  placeholder="101"
+                />
                 {errors.room_number && <p className="text-red-500 text-xs mt-1">{errors.room_number.message}</p>}
               </div>
               <div>

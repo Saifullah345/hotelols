@@ -199,7 +199,13 @@ export default function EditRoomForm({
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="label">Room Number</label>
-                <input {...register('room_number')} className="input" />
+                <input
+                  {...register('room_number')}
+                  inputMode="numeric"
+                  maxLength={6}
+                  onInput={e => { (e.target as HTMLInputElement).value = (e.target as HTMLInputElement).value.replace(/\D/g, '') }}
+                  className="input"
+                />
                 {errors.room_number && <p className="text-red-500 text-xs mt-1">{errors.room_number.message}</p>}
                 <p className="text-xs text-gray-400 mt-1">Safe to rename — bookings link by ID.</p>
               </div>

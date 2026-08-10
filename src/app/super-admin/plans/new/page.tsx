@@ -9,7 +9,11 @@ import { Loader2, Save, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 const planSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
+  name: z
+    .string()
+    .min(2, 'Name must be at least 2 characters')
+    .max(30, 'Name cannot exceed 30 characters')
+    .regex(/^[a-zA-Z0-9 '\-]+$/, 'Only letters, numbers, spaces, hyphens, and apostrophes are allowed'),
   max_rooms: z.number().int().min(-1, 'Must be -1 (unlimited) or positive'),
   max_staff: z.number().int().min(-1, 'Must be -1 (unlimited) or positive'),
   price_monthly: z.number().positive('Must be a positive number'),

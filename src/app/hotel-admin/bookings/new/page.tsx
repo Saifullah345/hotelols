@@ -736,6 +736,7 @@ export default function NewBookingPage() {
                     e.target.value = e.target.value.replace(/[^a-zA-ZÀ-ɏ\s'-]/g, '')
                     guestNameField.onChange(e)
                   }}
+                  maxLength={50}
                   className="input"
                   placeholder="John Smith"
                 />
