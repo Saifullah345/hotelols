@@ -15,11 +15,13 @@ function sanitizeText(value: string) {
   return value.replace(/<[^>]*>/g, '').replace(/[<>]/g, '')
 }
 
-// Task descriptions: only letters, digits, spaces, and common text punctuation
+// Task descriptions: letters, digits, spaces, and minimal safe punctuation.
+// Dashes, slashes, and quotes are blocked — they appear in garbled/injected input
+// but are not needed for real task descriptions like "Full turnover clean".
 function sanitizeTaskText(value: string) {
   return value
     .replace(/<[^>]*>/g, '')
-    .replace(/[^a-zA-ZÀ-ɏ0-9\s.,\-/!?()'"':;]/g, '')
+    .replace(/[^a-zA-ZÀ-ɏ0-9\s.,!?():&]/g, '')
 }
 
 // Assignee free-text: only letters (including accented), spaces, hyphens, apostrophes
@@ -109,6 +111,7 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
     if (!form.room_id)                    { toast.error('Please select a room'); return }
     if (!taskText)                        { toast.error('Task description is required'); return }
     if (taskText.length < 3)              { toast.error('Task description is too short'); return }
+    if (taskText.length > 150)            { toast.error('Task description is too long (max 150 characters)'); return }
     if (!hasMeaningfulContent(taskText))  { toast.error('Task description must contain meaningful text'); return }
     if (!form.assignee)                   { toast.error('Please assign this task to a staff member'); return }
     if (!form.due_date)                   { toast.error('Due date is required'); return }
@@ -201,6 +204,7 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
     if (!editForm.room_id)               { toast.error('Please select a room'); return }
     if (!taskText)                        { toast.error('Task description is required'); return }
     if (taskText.length < 3)             { toast.error('Task description is too short'); return }
+    if (taskText.length > 150)           { toast.error('Task description is too long (max 150 characters)'); return }
     if (!hasMeaningfulContent(taskText)) { toast.error('Task description must contain meaningful text'); return }
     if (!editForm.assignee)              { toast.error('Please assign this task to a staff member'); return }
     if (!editForm.due_date)              { toast.error('Due date is required'); return }
@@ -522,7 +526,7 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
                 <input
                   value={form.task}
                   onChange={e => setF('task', sanitizeTaskText(e.target.value))}
-                  maxLength={200}
+                  maxLength={150}
                   className={fi}
                   placeholder="Full turnover clean, Linen change…"
                 />
