@@ -118,7 +118,7 @@ export default function EditPlanPage() {
       }
 
       toast.success('Plan updated')
-      if (json.warning) toast.warning(json.warning)
+      if (json.warning) toast.warning(json.warning, { duration: 8000 })
       router.push('/super-admin/plans')
       router.refresh()
     } catch (error) {

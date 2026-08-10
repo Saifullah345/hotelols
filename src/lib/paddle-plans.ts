@@ -41,7 +41,11 @@ export type SyncResult = {
  */
 export async function createPlanInPaddle(plan: PlanCatalogueInput): Promise<SyncResult> {
   if (!paddleConfigured()) {
-    return { ids: {}, warning: 'Paddle is not configured — the plan was saved but not published to Paddle.' }
+    return {
+      ids: {},
+      warning: 'Saved, but not published: PADDLE_API_KEY is not set on this server. ' +
+               'Add it and press "Publish to Paddle" on the plan to make it buyable.',
+    }
   }
 
   const product = await createPaddleProduct(plan.name, plan.description ?? undefined)
@@ -86,7 +90,11 @@ export async function updatePlanInPaddle(
   next: PlanCatalogueInput,
 ): Promise<SyncResult> {
   if (!paddleConfigured()) {
-    return { ids: {}, warning: 'Paddle is not configured — the plan was saved but not published to Paddle.' }
+    return {
+      ids: {},
+      warning: 'Saved, but not published: PADDLE_API_KEY is not set on this server. ' +
+               'Add it and press "Publish to Paddle" on the plan to make it buyable.',
+    }
   }
 
   // Nothing in Paddle yet: treat the edit as a first publish.

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
-import { paddleConfigured, getPaddlePrice, setPaddlePriceTrial } from '@/lib/paddle'
+import { paddleConfigured, apiKeyProblem, getPaddlePrice, setPaddlePriceTrial } from '@/lib/paddle'
 
 /**
  * Reports what Paddle actually has configured, so a billing problem can be
@@ -33,9 +33,16 @@ export async function GET() {
   const admin = await createAdminClient()
   const problems: string[] = []
 
-  if (!env.apiKey)        problems.push('PADDLE_API_KEY is not set on this server — "Sync from Paddle" and plan publishing cannot work.')
+  // Catches a key that is present but wrong — the wrong kind of token, an id
+  // instead of the secret, or a sandbox key aimed at the production API.
+  const keyProblem = apiKeyProblem()
+  if (keyProblem) problems.push(keyProblem)
+
   if (!env.webhookSecret) problems.push('PADDLE_WEBHOOK_SECRET is not set — every incoming webhook is rejected with 401.')
   if (!env.clientToken)   problems.push('NEXT_PUBLIC_PADDLE_CLIENT_TOKEN is not set — checkout will not open.')
+  if (!process.env.NEXT_PUBLIC_PADDLE_ENV) {
+    problems.push('NEXT_PUBLIC_PADDLE_ENV is not set — the server defaults to the PRODUCTION Paddle API, so sandbox keys and prices will not work.')
+  }
 
   const { data: plans } = await admin
     .from('plans')

@@ -2,13 +2,61 @@ const PADDLE_API_BASE = process.env.NEXT_PUBLIC_PADDLE_ENV === 'sandbox'
   ? 'https://sandbox-api.paddle.com'
   : 'https://api.paddle.com'
 
-const PADDLE_API_KEY = process.env.PADDLE_API_KEY!
+/**
+ * The API key, cleaned up.
+ *
+ * Values pasted into a .env file routinely arrive wrapped in quotes, with a
+ * stray newline, or with "Bearer " already on the front — all of which Paddle
+ * rejects with the unhelpful "Authentication header included, but incorrectly
+ * formatted".
+ */
+function apiKey(): string {
+  const raw = process.env.PADDLE_API_KEY ?? ''
+  return raw.trim().replace(/^['"]|['"]$/g, '').replace(/^Bearer\s+/i, '').trim()
+}
+
+/**
+ * Explains a key that Paddle will certainly reject, before it is sent.
+ *
+ * The commonest mistake is copying the key's *identifier* from the API keys
+ * list (`apikey_01h…`) instead of the secret, which is only shown once when the
+ * key is created.
+ */
+export function apiKeyProblem(): string | null {
+  const key = apiKey()
+  if (!key) return 'PADDLE_API_KEY is not set on this server.'
+
+  if (!key.startsWith('pdl_')) {
+    return key.startsWith('apikey_')
+      ? 'PADDLE_API_KEY looks like a key ID from the Paddle list, not the key itself. ' +
+        'The real key starts with "pdl_sdbx_apikey_" (sandbox) or "pdl_live_apikey_" and is only ' +
+        'shown once, when you create it — create a new API key and copy the full value.'
+      : 'PADDLE_API_KEY does not look like a Paddle API key (it should start with "pdl_"). ' +
+        'A client-side token ("test_…"/"live_…") will not work here — that one belongs in ' +
+        'NEXT_PUBLIC_PADDLE_CLIENT_TOKEN.'
+  }
+
+  // A sandbox key against the production API fails in a way that looks like a
+  // permissions problem rather than a configuration one.
+  const sandboxKey = key.includes('_sdbx_')
+  const sandboxEnv = process.env.NEXT_PUBLIC_PADDLE_ENV === 'sandbox'
+  if (sandboxKey && !sandboxEnv) {
+    return 'PADDLE_API_KEY is a sandbox key but NEXT_PUBLIC_PADDLE_ENV is not "sandbox", ' +
+           'so requests go to the production API. Set NEXT_PUBLIC_PADDLE_ENV=sandbox.'
+  }
+  if (!sandboxKey && sandboxEnv) {
+    return 'PADDLE_API_KEY is a live key but NEXT_PUBLIC_PADDLE_ENV is "sandbox", ' +
+           'so requests go to the sandbox API. The two must match.'
+  }
+
+  return null
+}
 
 function paddleFetch(path: string, init?: RequestInit) {
   return fetch(`${PADDLE_API_BASE}${path}`, {
     ...init,
     headers: {
-      Authorization: `Bearer ${PADDLE_API_KEY}`,
+      Authorization: `Bearer ${apiKey()}`,
       'Content-Type': 'application/json',
       ...(init?.headers ?? {}),
     },
@@ -21,6 +69,11 @@ export function paddleConfigured(): boolean {
 }
 
 async function paddleJson<T>(path: string, init?: RequestInit): Promise<{ data?: T; error?: string }> {
+  // Fail with a reason that says what to change, rather than relaying Paddle's
+  // "Authentication header included, but incorrectly formatted".
+  const problem = apiKeyProblem()
+  if (problem) return { error: problem }
+
   try {
     const res = await paddleFetch(path, init)
     const json = await res.json().catch(() => ({}))

@@ -79,10 +79,14 @@ export default function NewPlanPage() {
         return
       }
 
-      toast.success('Plan created and published to Paddle')
-      // Paddle refused or isn't configured — the plan saved, but it can't be
-      // sold until it's re-synced, so say so rather than failing silently.
-      if (json.warning) toast.warning(json.warning)
+      // Only claim it reached Paddle when it actually did — a plan with no
+      // price can't be bought, and the billing page shows "Contact Sales".
+      if (json.warning) {
+        toast.success('Plan created')
+        toast.warning(json.warning, { duration: 8000 })
+      } else {
+        toast.success('Plan created and published to Paddle')
+      }
       router.push('/super-admin/plans')
       router.refresh()
     } catch (error) {

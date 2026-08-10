@@ -1,8 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { Check, Zap, Edit2, Plus } from 'lucide-react'
 import Link from 'next/link'
+import SyncPlanButton from './SyncPlanButton'
 
 export const metadata = { title: 'Subscription Plans' }
+
+// The Paddle state shown here changes as plans are synced.
+export const dynamic = 'force-dynamic'
 
 export default async function PlansPage() {
   const supabase = await createClient()
@@ -87,12 +91,26 @@ export default async function PlansPage() {
                   <span className="badge-gray text-xs">Inactive</span>
                 )}
               </div>
-              <Link
-                href={`/super-admin/plans/${plan.id}`}
-                className="btn-secondary inline-flex items-center justify-center gap-2 text-sm w-full py-2"
-              >
-                <Edit2 className="h-4 w-4" /> Edit
-              </Link>
+              {/* A plan with no Paddle price can't be bought — the billing page
+                  falls back to "Contact Sales" for it. */}
+              {!plan.paddle_price_id_monthly && !plan.paddle_price_id_yearly && (
+                <p className="mb-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-700">
+                  Not on Paddle yet — hotels can&apos;t subscribe to this plan.
+                </p>
+              )}
+              <div className="space-y-2">
+                <Link
+                  href={`/super-admin/plans/${plan.id}`}
+                  className="btn-secondary inline-flex items-center justify-center gap-2 text-sm w-full py-2"
+                >
+                  <Edit2 className="h-4 w-4" /> Edit
+                </Link>
+                <SyncPlanButton
+                  planId={plan.id}
+                  planName={plan.name}
+                  published={Boolean(plan.paddle_price_id_monthly || plan.paddle_price_id_yearly)}
+                />
+              </div>
             </div>
           </div>
         ))}
