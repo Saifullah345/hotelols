@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Plus, Search, Star, Pencil, Trash2, X, Loader2, Users, Mail, Phone, ChevronDown } from 'lucide-react'
-import { isValidEmail } from '@/lib/validation'
+import { isValidEmail, phoneSchema } from '@/lib/validation'
+import PhoneInput from '@/components/ui/PhoneInput'
 import { CountrySelect } from '@/components/ui/CountryCitySelect'
 import { Country } from 'country-state-city'
 
@@ -57,8 +58,8 @@ function validateGuest(f: GuestForm, requireCountry = true): FormErrors {
   if (!email) errs.email = 'Email is required'
   else if (!isValidEmail(email)) errs.email = 'Enter a valid email address'
 
-  if (!f.phone) errs.phone = 'Phone number is required'
-  else if (!/^\+92\d{10}$/.test(f.phone)) errs.phone = 'Phone must be exactly 10 digits after +92'
+  const phoneResult = phoneSchema.safeParse(f.phone)
+  if (!phoneResult.success) errs.phone = phoneResult.error.errors[0]?.message ?? 'Invalid phone number'
 
   if (requireCountry && !f.country.trim()) errs.country = 'Country is required'
 
@@ -632,34 +633,18 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
                 </div>
                 <div>
                   <label className={lbl}>Phone *</label>
-                  <div className={`flex overflow-hidden rounded-xl border transition-shadow ${
-                    modal === 'edit' && !editing?.is_manual
-                      ? 'border-gray-200 bg-gray-50'
-                      : formErrors.phone
-                        ? 'border-red-300 bg-white focus-within:ring-2 focus-within:ring-red-300'
-                        : 'border-gray-200 bg-white focus-within:ring-2 focus-within:ring-amber-300 focus-within:border-transparent'
-                  }`}>
-                    <span className="flex items-center px-3 text-sm font-semibold text-gray-500 bg-gray-50 border-r border-gray-200 select-none flex-shrink-0">
-                      +92
-                    </span>
-                    <input
-                      value={form.phone.startsWith('+92') ? form.phone.slice(3) : ''}
-                      onChange={e => {
-                        const digits = e.target.value.replace(/\D/g, '').slice(0, 10)
-                        setField('phone', digits ? '+92' + digits : '')
-                        setFormErrors(p => ({ ...p, phone: undefined }))
-                      }}
-                      readOnly={modal === 'edit' && !editing?.is_manual}
-                      inputMode="numeric"
-                      maxLength={10}
-                      className={`flex-1 px-3 py-2.5 text-sm bg-transparent focus:outline-none ${
-                        modal === 'edit' && !editing?.is_manual
-                          ? 'text-gray-500 cursor-default'
-                          : 'text-gray-900 placeholder-gray-400'
-                      }`}
-                      placeholder="3001234567"
-                    />
-                  </div>
+                  {modal === 'edit' && !editing?.is_manual ? (
+                    <div className="flex items-center px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-500 cursor-default select-none">
+                      {form.phone || '—'}
+                    </div>
+                  ) : (
+                    <div className={formErrors.phone ? 'ring-2 ring-red-300 rounded-xl' : ''}>
+                      <PhoneInput
+                        value={form.phone}
+                        onChange={v => { setField('phone', v); setFormErrors(p => ({ ...p, phone: undefined })) }}
+                      />
+                    </div>
+                  )}
                   {formErrors.phone && <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>}
                 </div>
                 <div>
