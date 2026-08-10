@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import {
   Plus, LayoutList, LayoutGrid, Trash2, Play,
   CheckCircle2, Loader2, X, Sparkles, Pencil,
+  Clock, AlertCircle, AlertTriangle,
 } from 'lucide-react'
 import type { HKTask, RoomOption, StaffOption } from './page'
 
@@ -100,6 +101,12 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
 
   const openTasks    = tasks.filter(t => t.status !== 'clean').length
   const awaitClean   = tasks.filter(t => t.status === 'dirty').length
+
+  const cleanCount   = tasks.filter(t => t.status === 'clean').length
+  const inProgCount  = tasks.filter(t => t.status === 'in_progress').length
+  const dirtyCount   = tasks.filter(t => t.status === 'dirty').length
+  const todayStr     = new Date().toISOString().split('T')[0]
+  const overdueCount = tasks.filter(t => t.status !== 'clean' && t.due_date < todayStr).length
 
   function setF<K extends keyof TaskForm>(k: K, v: TaskForm[K]) {
     setForm(f => ({ ...f, [k]: v }))
@@ -308,6 +315,59 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
           >
             <Plus className="h-4 w-4" /> New Task
           </button>
+        </div>
+      </div>
+
+      {/* ── Summary cards ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* Clean */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Clean Rooms</span>
+            <div className="p-1.5 bg-teal-50 rounded-xl">
+              <CheckCircle2 className="h-4 w-4 text-teal-500" />
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-gray-900 tabular-nums">{cleanCount}</p>
+          <p className="text-xs text-teal-600 font-medium">Ready for guests</p>
+        </div>
+
+        {/* In Progress */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">In Progress</span>
+            <div className="p-1.5 bg-amber-50 rounded-xl">
+              <Clock className="h-4 w-4 text-amber-500" />
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-gray-900 tabular-nums">{inProgCount}</p>
+          <p className="text-xs text-amber-600 font-medium">Being cleaned now</p>
+        </div>
+
+        {/* Dirty / Pending */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Dirty / Pending</span>
+            <div className="p-1.5 bg-pink-50 rounded-xl">
+              <AlertCircle className="h-4 w-4 text-pink-500" />
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-gray-900 tabular-nums">{dirtyCount}</p>
+          <p className="text-xs text-pink-600 font-medium">Awaiting assignment</p>
+        </div>
+
+        {/* Overdue */}
+        <div className={`rounded-2xl border shadow-sm p-4 flex flex-col gap-3 ${overdueCount > 0 ? 'bg-red-50 border-red-100' : 'bg-white border-gray-100'}`}>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Overdue</span>
+            <div className={`p-1.5 rounded-xl ${overdueCount > 0 ? 'bg-red-100' : 'bg-gray-50'}`}>
+              <AlertTriangle className={`h-4 w-4 ${overdueCount > 0 ? 'text-red-500' : 'text-gray-400'}`} />
+            </div>
+          </div>
+          <p className={`text-3xl font-bold tabular-nums ${overdueCount > 0 ? 'text-red-600' : 'text-gray-900'}`}>{overdueCount}</p>
+          <p className={`text-xs font-medium ${overdueCount > 0 ? 'text-red-500' : 'text-gray-400'}`}>
+            {overdueCount > 0 ? 'Past due date' : 'All on schedule'}
+          </p>
         </div>
       </div>
 
