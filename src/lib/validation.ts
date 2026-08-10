@@ -123,3 +123,29 @@ export const roomNumberSchema = z.string()
     /^\d+$/,
     'Room number must contain digits only (e.g. 101, 205)',
   )
+
+// ── Room type name ──────────────────────────────────────────────────
+// Same character rules as roomNameSchema but requires 2+ chars.
+// Rejects HTML markup, script injection, and garbled symbol strings.
+export const roomTypeNameSchema = z.string()
+  .trim()
+  .min(2, 'Name must be at least 2 characters')
+  .max(60, 'Name is too long (max 60 characters)')
+  .regex(
+    /^[\p{L}\p{N}][\p{L}\p{N}\s.,'&()/#-]*$/u,
+    'Use only letters, numbers and common punctuation (no < > or special characters)',
+  )
+  .refine(v => /\p{L}/u.test(v), 'Name must include at least one letter')
+
+// ── Custom amenity ──────────────────────────────────────────────────
+// Amenity labels like "WiFi", "Sea View", "Coffee Maker". Blocks HTML,
+// script tags, and symbol-only strings. Max 50 chars.
+export const amenitySchema = z.string()
+  .trim()
+  .min(1, 'Amenity cannot be empty')
+  .max(50, 'Amenity name is too long (max 50 characters)')
+  .regex(
+    /^[\p{L}\p{N}][\p{L}\p{N}\s.,'&()/#-]*$/u,
+    'Amenity names may only contain letters, numbers, and common punctuation',
+  )
+  .refine(v => /\p{L}/u.test(v), 'Amenity must include at least one letter')

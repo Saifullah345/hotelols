@@ -1,5 +1,36 @@
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { roomTypeNameSchema, amenitySchema } from '@/lib/validation'
+
+function validatePayload(body: Record<string, unknown>): string | null {
+  const name = roomTypeNameSchema.safeParse(body.name)
+  if (!name.success) return name.error.errors[0].message
+
+  if (body.description != null) {
+    const desc = String(body.description).trim()
+    if (desc.length > 200) return 'Description is too long (max 200 characters)'
+    if (/<[^>]+>/.test(desc)) return 'Description cannot contain HTML'
+  }
+
+  const adults = Number(body.max_adults)
+  if (!Number.isInteger(adults) || adults < 1 || adults > 20)
+    return 'Max adults must be between 1 and 20'
+
+  const children = Number(body.max_children)
+  if (!Number.isInteger(children) || children < 0 || children > 20)
+    return 'Max children must be between 0 and 20'
+
+  if (body.amenities != null) {
+    if (!Array.isArray(body.amenities)) return 'Amenities must be an array'
+    if (body.amenities.length > 30) return 'Too many amenities (max 30)'
+    for (const a of body.amenities) {
+      const r = amenitySchema.safeParse(a)
+      if (!r.success) return `Invalid amenity: ${r.error.errors[0].message}`
+    }
+  }
+
+  return null
+}
 
 export async function GET() {
   const supabase = await createClient()
@@ -31,19 +62,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { name, description, max_adults, max_children, amenities } = await request.json()
-  if (!name?.trim()) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
+  const body = await request.json()
+  const validationError = validatePayload(body)
+  if (validationError) return NextResponse.json({ error: validationError }, { status: 400 })
 
+  const { name, description, max_adults, max_children, amenities } = body
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from('room_types')
     .insert({
-      hotel_id:    profile.tenant_id,
-      name:        name.trim(),
-      description: description?.trim() || null,
-      max_adults:  max_adults  ?? 2,
-      max_children: max_children ?? 1,
-      amenities:   amenities ?? [],
+      hotel_id:     profile.tenant_id,
+      name:         name.trim(),
+      description:  description?.trim() || null,
+      max_adults:   Number(max_adults),
+      max_children: Number(max_children),
+      amenities:    amenities ?? [],
     })
     .select('id, name, description, max_adults, max_children, amenities')
     .single()
