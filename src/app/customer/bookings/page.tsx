@@ -89,6 +89,15 @@ const PAYMENT_BADGE: Record<string, string> = {
 }
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
+// ─── Review sanitization ─────────────────────────────────────────────
+// Allows letters (including accented), spaces, and minimal punctuation.
+// Blocks digits, HTML, and symbol-heavy input like "jij%^$#@&*(^%".
+function sanitizeReview(value: string) {
+  return value
+    .replace(/<[^>]*>/g, '')                          // strip any HTML tags
+    .replace(/[^a-zA-ZÀ-ɏ\s.,!?'"():;\-]/g, '')      // allowlist only
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────
 function nights(ci: string, co: string) {
   return Math.max(1, Math.ceil((new Date(co).getTime() - new Date(ci).getTime()) / 86_400_000))
@@ -701,11 +710,17 @@ function BookingCard({
             ))}
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <input type="text" value={rev.comment} onChange={e => onComment(id, e.target.value)}
-              placeholder="Tell us about your experience…" className="input text-sm flex-1" />
+            <div className="flex-1 flex flex-col gap-1">
+              <input type="text" value={rev.comment} onChange={e => onComment(id, e.target.value)}
+                maxLength={500}
+                placeholder="Tell us about your experience…" className="input text-sm w-full" />
+              {rev.comment.length > 0 && (
+                <p className="text-[10px] text-gray-400 text-right">{rev.comment.length}/500</p>
+              )}
+            </div>
             <button onClick={() => onSubmitReview(id)}
-              disabled={reviewingId === id || !rev.comment.trim()}
-              className="btn-primary text-xs px-4 shrink-0 inline-flex items-center justify-center gap-1.5 disabled:opacity-50">
+              disabled={reviewingId === id || rev.comment.trim().length < 10}
+              className="btn-primary text-xs px-4 shrink-0 inline-flex items-center justify-center gap-1.5 disabled:opacity-50 self-start sm:self-auto">
               {reviewingId === id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
               Submit
             </button>
@@ -757,7 +772,7 @@ export default function CustomerBookingsPage() {
 
   const getReview  = (id: string) => reviewState[id] ?? { rating: 5, comment: '' }
   const setRating  = (id: string, r: number) => setReviewState(p => ({ ...p, [id]: { ...getReview(id), rating: r } }))
-  const setComment = (id: string, c: string) => setReviewState(p => ({ ...p, [id]: { ...getReview(id), comment: c } }))
+  const setComment = (id: string, c: string) => setReviewState(p => ({ ...p, [id]: { ...getReview(id), comment: sanitizeReview(c) } }))
 
   const fetchBookings = useCallback(async () => {
     setLoading(true)
@@ -837,12 +852,16 @@ export default function CustomerBookingsPage() {
 
   const handleSubmitReview = async (bookingId: string) => {
     const { rating, comment } = getReview(bookingId)
-    if (!comment.trim()) return
+    const cleanComment = sanitizeReview(comment.trim())
+    if (!cleanComment)                        { toast.error('Please write your feedback before submitting'); return }
+    if (cleanComment.length < 10)             { toast.error('Review must be at least 10 characters'); return }
+    if (cleanComment.length > 500)            { toast.error('Review is too long (max 500 characters)'); return }
+    if (!/[a-zA-ZÀ-ɏ]/.test(cleanComment))   { toast.error('Review must contain meaningful text'); return }
     setReviewingId(bookingId)
     const booking = bookings.find(b => b.id === bookingId)
     const res = await fetch('/api/reviews', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ booking_id: bookingId, hotel_id: booking?.hotel_id ?? '', rating, comment }),
+      body: JSON.stringify({ booking_id: bookingId, hotel_id: booking?.hotel_id ?? '', rating, comment: cleanComment }),
     })
     const json = await res.json()
     if (!res.ok) { toast.error(json.error ?? 'Could not submit review') }

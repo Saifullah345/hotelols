@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { stripHtml } from '@/lib/sanitize'
 
 export async function GET(request: Request) {
   const supabase = await createClient()
@@ -37,6 +38,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Rating must be between 1 and 5' }, { status: 400 })
   }
 
+  // Validate and clean the review comment
+  const rawComment = typeof comment === 'string' ? comment : ''
+  const cleanComment = stripHtml(rawComment)
+    .replace(/[^a-zA-ZÀ-ɏ\s.,!?'"():;\-]/g, '')  // same allowlist as client
+    .trim()
+
+  if (!cleanComment) {
+    return NextResponse.json({ error: 'Please write your feedback before submitting' }, { status: 400 })
+  }
+  if (cleanComment.length < 10) {
+    return NextResponse.json({ error: 'Review must be at least 10 characters' }, { status: 400 })
+  }
+  if (cleanComment.length > 500) {
+    return NextResponse.json({ error: 'Review is too long (max 500 characters)' }, { status: 400 })
+  }
+  if (!/[a-zA-ZÀ-ɏ]/.test(cleanComment)) {
+    return NextResponse.json({ error: 'Review must contain meaningful text' }, { status: 400 })
+  }
+
   const { data: booking } = await supabase
     .from('bookings')
     .select('id, status')
@@ -70,7 +90,7 @@ export async function POST(request: Request) {
       hotel_id,
       user_id: user.id,
       rating,
-      comment: comment ?? '',
+      comment: cleanComment,
     })
     .select('*, user:profiles(full_name)')
     .single()
