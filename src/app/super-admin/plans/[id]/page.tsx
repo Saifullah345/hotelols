@@ -9,17 +9,32 @@ import { toast } from 'sonner'
 import { Loader2, Save, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
+// An empty number input reads as NaN; that means "not filled in", not "invalid".
+const count = (noun: string) =>
+  z.preprocess(
+    v => (typeof v === 'number' && Number.isNaN(v) ? undefined : v),
+    z.number({ invalid_type_error: `Enter a number of ${noun}` })
+      .int(`${noun} must be a whole number`)
+      .min(1, `Must be at least 1 — tick Unlimited for no limit`)
+      .optional(),
+  )
+
 const planSchema = z.object({
   name: z
     .string()
     .min(2, 'Name must be at least 2 characters')
     .max(30, 'Name cannot exceed 30 characters')
     .regex(/^[a-zA-Z0-9 '\-]+$/, 'Only letters, numbers, spaces, hyphens, and apostrophes are allowed'),
-  max_rooms: z.number().int().min(-1, 'Must be -1 (unlimited) or positive'),
-  max_staff: z.number().int().min(-1, 'Must be -1 (unlimited) or positive'),
+  // Unlimited is a checkbox, not a magic -1 typed into the box. Typing a
+  // negative limit was possible before, and a plan saved with one (-20 rooms)
+  // let no rooms be added at all.
+  max_rooms: count('rooms'),
+  unlimited_rooms: z.boolean().default(false),
+  max_staff: count('staff'),
+  unlimited_staff: z.boolean().default(false),
   price_monthly: z.number().positive('Must be a positive number'),
   price_yearly: z.number().positive('Must be a positive number'),
-  tier_rank: z.number().int().min(1, 'Must be 1 or higher'),
+  tier_rank: z.number().int('Tier rank must be a whole number').min(1, 'Must be 1 or higher'),
   features: z.string().transform(v => v.split('\n').filter(f => f.trim())),
   is_active: z.boolean(),
   paddle_price_id_monthly: z.string().optional(),
@@ -31,7 +46,20 @@ const planSchema = z.object({
   feature_advanced_reports: z.boolean().default(true),
   feature_api_access:       z.boolean().default(false),
   feature_multi_property:   z.boolean().default(false),
+}).superRefine((v, ctx) => {
+  // A limit is required unless the plan is explicitly unlimited.
+  if (!v.unlimited_rooms && v.max_rooms === undefined) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['max_rooms'], message: 'Enter a room limit, or tick Unlimited' })
+  }
+  if (!v.unlimited_staff && v.max_staff === undefined) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['max_staff'], message: 'Enter a staff limit, or tick Unlimited' })
+  }
 })
+
+/** What the API stores: -1 for unlimited, otherwise the number entered. */
+function limitValue(unlimited: boolean, entered?: number): number {
+  return unlimited ? -1 : (entered as number)
+}
 
 const CUSTOMER_FLAGS = [
   { field: 'feature_listing'        as const, label: 'Listed on Website',   desc: 'Hotel appears on the public search & listing page — customers can find it' },
@@ -58,11 +86,15 @@ export default function EditPlanPage() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
     reset,
   } = useForm<PlanForm>({
     resolver: zodResolver(planSchema),
   })
+
+  const unlimitedRooms = watch('unlimited_rooms')
+  const unlimitedStaff = watch('unlimited_staff')
 
   useEffect(() => {
     const fetchPlan = async () => {
@@ -75,10 +107,15 @@ export default function EditPlanPage() {
 
         if (error) throw error
         setPlan(data)
+        // Stored limits are -1 for unlimited (and older rows may hold other
+        // negatives, which mean the same thing) — shown as the checkbox, never
+        // as a negative number in the box.
         reset({
           name: data.name,
-          max_rooms: data.max_rooms,
-          max_staff: data.max_staff,
+          max_rooms: data.max_rooms < 0 ? undefined : data.max_rooms,
+          unlimited_rooms: data.max_rooms < 0,
+          max_staff: data.max_staff < 0 ? undefined : data.max_staff,
+          unlimited_staff: data.max_staff < 0,
           price_monthly: data.price_monthly,
           price_yearly: data.price_yearly,
           tier_rank: data.tier_rank ?? Math.max(Math.round(data.price_monthly), 1),
@@ -114,7 +151,11 @@ export default function EditPlanPage() {
       const res = await fetch(`/api/admin/plans/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          max_rooms: limitValue(data.unlimited_rooms, data.max_rooms),
+          max_staff: limitValue(data.unlimited_staff, data.max_staff),
+        }),
       })
       const json = await res.json().catch(() => ({}))
 
@@ -177,24 +218,36 @@ export default function EditPlanPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="label">Max Rooms (-1 for unlimited)</label>
+            <label className="label">Max Rooms</label>
             <input
               type="number"
-              {...register('max_rooms', { valueAsNumber: true })}
-              className="input"
-              placeholder="10"
+              min={1}
+              step={1}
+              {...register('max_rooms', { valueAsNumber: true, disabled: unlimitedRooms })}
+              className="input disabled:bg-gray-100 disabled:text-gray-400"
+              placeholder={unlimitedRooms ? 'Unlimited' : '10'}
             />
+            <label className="mt-2 flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" {...register('unlimited_rooms')} className="rounded" />
+              <span className="text-sm text-gray-600">Unlimited rooms</span>
+            </label>
             {errors.max_rooms && <p className="text-red-600 text-sm mt-1">{errors.max_rooms.message}</p>}
           </div>
 
           <div>
-            <label className="label">Max Staff (-1 for unlimited)</label>
+            <label className="label">Max Staff</label>
             <input
               type="number"
-              {...register('max_staff', { valueAsNumber: true })}
-              className="input"
-              placeholder="5"
+              min={1}
+              step={1}
+              {...register('max_staff', { valueAsNumber: true, disabled: unlimitedStaff })}
+              className="input disabled:bg-gray-100 disabled:text-gray-400"
+              placeholder={unlimitedStaff ? 'Unlimited' : '5'}
             />
+            <label className="mt-2 flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" {...register('unlimited_staff')} className="rounded" />
+              <span className="text-sm text-gray-600">Unlimited staff</span>
+            </label>
             {errors.max_staff && <p className="text-red-600 text-sm mt-1">{errors.max_staff.message}</p>}
           </div>
         </div>
@@ -204,6 +257,7 @@ export default function EditPlanPage() {
             <label className="label">Monthly Price ($)</label>
             <input
               type="number"
+              min={0.01}
               step="0.01"
               {...register('price_monthly', { valueAsNumber: true })}
               className="input"
@@ -216,6 +270,7 @@ export default function EditPlanPage() {
             <label className="label">Yearly Price ($)</label>
             <input
               type="number"
+              min={0.01}
               step="0.01"
               {...register('price_yearly', { valueAsNumber: true })}
               className="input"
@@ -230,6 +285,8 @@ export default function EditPlanPage() {
           <label className="label">Tier Rank</label>
           <input
             type="number"
+            min={1}
+            step={1}
             {...register('tier_rank', { valueAsNumber: true })}
             className="input max-w-[200px]"
             placeholder="30"

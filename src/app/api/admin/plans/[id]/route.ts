@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { updatePlanInPaddle, deactivatePlanInPaddle } from '@/lib/paddle-plans'
 import { requireSuperAdmin } from '@/lib/api-auth'
+import { parsePlanLimit, parseTierRank } from '@/lib/plan-limits'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -54,8 +55,24 @@ export async function PATCH(request: Request, { params }: Ctx) {
     ...sync.ids,
   }
 
+  // Limits and rank are validated rather than copied: a negative limit other
+  // than -1 (unlimited) leaves the plan unusable, since the room and staff
+  // checks read `used >= max` and that is already true at zero.
+  for (const [key, label] of [['max_rooms', 'Max rooms'], ['max_staff', 'Max staff']] as const) {
+    if (body[key] === undefined) continue
+    const limit = parsePlanLimit(body[key], label)
+    if ('error' in limit) return NextResponse.json({ error: limit.error }, { status: 400 })
+    updates[key] = limit.value
+  }
+
+  if (body.tier_rank !== undefined) {
+    const rank = parseTierRank(body.tier_rank, Math.max(Math.round(priceMonthly), 1))
+    if ('error' in rank) return NextResponse.json({ error: rank.error }, { status: 400 })
+    updates.tier_rank = rank.value
+  }
+
   for (const key of [
-    'max_rooms', 'max_staff', 'features', 'is_active', 'tier_rank',
+    'features', 'is_active',
     'feature_listing', 'feature_housekeeping', 'feature_reviews',
     'feature_online_booking', 'feature_advanced_reports',
     'feature_api_access', 'feature_multi_property',

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createPlanInPaddle } from '@/lib/paddle-plans'
 import { requireSuperAdmin } from '@/lib/api-auth'
 
+import { parsePlanLimit, parseTierRank } from '@/lib/plan-limits'
+
 export async function POST(request: Request) {
   const auth = await requireSuperAdmin()
   if (auth.error) return auth.error
@@ -25,6 +27,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Yearly price must be greater than 0' }, { status: 400 })
   }
 
+  // Limits are checked here too, not just in the form: a plan saved with a
+  // negative limit other than -1 bars the hotel from adding any rooms at all.
+  const rooms = parsePlanLimit(body.max_rooms ?? -1, 'Max rooms')
+  if ('error' in rooms) return NextResponse.json({ error: rooms.error }, { status: 400 })
+  const staff = parsePlanLimit(body.max_staff ?? -1, 'Max staff')
+  if ('error' in staff) return NextResponse.json({ error: staff.error }, { status: 400 })
+
+  const rank = parseTierRank(body.tier_rank, Math.max(Math.round(priceMonthly), 1))
+  if ('error' in rank) return NextResponse.json({ error: rank.error }, { status: 400 })
+
   // Published to Paddle first: if the catalogue entry can't be made we still
   // want the plan saved, but with the ids we did get rather than none.
   const sync = await createPlanInPaddle({
@@ -36,8 +48,8 @@ export async function POST(request: Request) {
 
   const { data: plan, error } = await admin.from('plans').insert({
     name,
-    max_rooms:     Number(body.max_rooms ?? -1),
-    max_staff:     Number(body.max_staff ?? -1),
+    max_rooms:     rooms.value,
+    max_staff:     staff.value,
     price_monthly: priceMonthly,
     price_yearly:  priceYearly,
     features:      Array.isArray(body.features) ? body.features : [],
@@ -45,9 +57,7 @@ export async function POST(request: Request) {
     // Position on the upgrade ladder. Left to the monthly price when unset,
     // which is the right order for an ordinary tier; a custom-priced one needs
     // its rank stated, or it lands at the bottom.
-    tier_rank:     Number.isFinite(Number(body.tier_rank)) && Number(body.tier_rank) > 0
-      ? Math.round(Number(body.tier_rank))
-      : Math.max(Math.round(priceMonthly), 1),
+    tier_rank:     rank.value,
     feature_listing:          body.feature_listing          !== false,
     feature_housekeeping:     body.feature_housekeeping     !== false,
     feature_reviews:          body.feature_reviews          !== false,

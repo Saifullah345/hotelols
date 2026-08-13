@@ -1,3 +1,27 @@
+// ── Plan limits (max_rooms / max_staff) ─────────────────────────────────────
+//
+// -1 is the stored value for "no limit". Any other negative is bad data, and is
+// read the same way on purpose: a plan saved with -20 would otherwise make
+// `used >= max` true from the very first room and bar the hotel from adding
+// any at all, under the message "your plan allows up to -20 rooms". Entering
+// one is blocked in the plan form and in the plans API — this is the safety net
+// for rows that predate those checks or were edited straight in the database.
+
+/** True when the plan places no limit on this resource. */
+export function isUnlimited(max: number | null | undefined): boolean {
+  return max === null || max === undefined || max < 0
+}
+
+/** True when `used` has reached what the plan allows. */
+export function limitReached(max: number | null | undefined, used: number): boolean {
+  return !isUnlimited(max) && used >= (max as number)
+}
+
+/** "Unlimited rooms" / "Up to 20 rooms" — never "Up to -20 rooms". */
+export function describeLimit(max: number | null | undefined, noun: string): string {
+  return isUnlimited(max) ? `Unlimited ${noun}` : `Up to ${max} ${noun}`
+}
+
 export type PlanFeatures = {
   listing: boolean
   housekeeping: boolean

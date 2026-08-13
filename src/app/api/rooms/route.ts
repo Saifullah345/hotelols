@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { roomNameSchema, roomNumberSchema } from '@/lib/validation'
+import { limitReached } from '@/lib/plan-features'
 
 export async function GET(request: Request) {
   const supabase = await createClient()
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
     if (!nm.success) return NextResponse.json({ error: nm.error.issues[0].message }, { status: 400 })
   }
 
-  // Enforce plan room limit (-1 = unlimited)
+  // Enforce plan room limit (-1, or any negative from bad data = unlimited)
   const { data: hotelPlan } = await supabase
     .from('hotels').select('plan:plans(max_rooms, name)').eq('id', hotelId).single()
   const { count: roomCount } = await supabase
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
   const maxRooms  = (hotelPlan?.plan as { max_rooms?: number } | null)?.max_rooms ?? 0
   const planName  = (hotelPlan?.plan as { name?: string }     | null)?.name ?? 'current'
 
-  if (maxRooms !== -1 && (roomCount ?? 0) >= maxRooms) {
+  if (limitReached(maxRooms, roomCount ?? 0)) {
     return NextResponse.json({
       error: `Room limit reached. Your ${planName} plan allows up to ${maxRooms} rooms. Upgrade your plan to add more.`,
     }, { status: 403 })

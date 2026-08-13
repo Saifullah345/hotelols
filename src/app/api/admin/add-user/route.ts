@@ -2,6 +2,7 @@ import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { getSiteUrl } from '@/lib/supabase/env'
 import { sendEmail } from '@/lib/email/resend'
 import { staffWelcomeTemplate, customerInviteTemplate } from '@/lib/email/templates'
+import { limitReached } from '@/lib/plan-features'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
     const maxStaff = (hotelPlan?.plan as { max_staff?: number } | null)?.max_staff ?? 0
     const planName = (hotelPlan?.plan as { name?: string }      | null)?.name ?? 'current'
 
-    if (maxStaff !== -1 && (staffCount ?? 0) >= maxStaff) {
+    if (limitReached(maxStaff, staffCount ?? 0)) {
       return NextResponse.json({
         error: `Staff limit reached. Your ${planName} plan allows up to ${maxStaff} active staff members. Upgrade your plan to add more.`,
       }, { status: 403 })

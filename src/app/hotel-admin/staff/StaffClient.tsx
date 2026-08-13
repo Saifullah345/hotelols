@@ -11,6 +11,7 @@ import {
 import { DEPARTMENTS, SHIFTS, type StaffStatus } from '@/lib/staff-constants'
 import { isValidEmail } from '@/lib/validation'
 import PhoneInput from '@/components/ui/PhoneInput'
+import { isUnlimited, limitReached } from '@/lib/plan-features'
 
 export type StaffMember = {
   id: string
@@ -466,9 +467,9 @@ export default function StaffClient({
       {/* Toolbar: Add button + view toggle */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
-          {planMaxStaff !== -1 && (
+          {!isUnlimited(planMaxStaff) && (
             <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border ${
-              totalActiveStaff >= planMaxStaff
+              limitReached(planMaxStaff, totalActiveStaff)
                 ? 'bg-red-50 text-red-700 border-red-200'
                 : 'bg-primary-50 text-primary-700 border-primary-100'
             }`}>
@@ -476,7 +477,7 @@ export default function StaffClient({
               {planName && <span className="font-normal opacity-70 capitalize">· {planName}</span>}
             </span>
           )}
-          {totalActiveStaff >= planMaxStaff && planMaxStaff !== -1 ? (
+          {limitReached(planMaxStaff, totalActiveStaff) ? (
             <span
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-200 text-gray-400 text-sm font-semibold cursor-not-allowed"
               title={`Staff limit reached (${planMaxStaff}). Upgrade your plan.`}

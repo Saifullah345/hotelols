@@ -3,6 +3,7 @@ import { Check, Zap, Edit2, Plus } from 'lucide-react'
 import Link from 'next/link'
 import SyncPlanButton from './SyncPlanButton'
 import { planRank } from '@/lib/plan-tier'
+import { describeLimit } from '@/lib/plan-features'
 
 export const metadata = { title: 'Subscription Plans' }
 
@@ -76,11 +77,11 @@ export default async function PlansPage() {
             <div className="space-y-2 mb-6">
               <div className="flex items-center gap-2 text-sm text-gray-700">
                 <Check className="h-4 w-4 text-green-500" />
-                {plan.max_rooms === -1 ? 'Unlimited rooms' : `Up to ${plan.max_rooms} rooms`}
+                {describeLimit(plan.max_rooms, 'rooms')}
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-700">
                 <Check className="h-4 w-4 text-green-500" />
-                {plan.max_staff === -1 ? 'Unlimited staff' : `Up to ${plan.max_staff} staff`}
+                {describeLimit(plan.max_staff, 'staff')}
               </div>
               {(plan.features as string[]).map((f: string) => (
                 <div key={f} className="flex items-center gap-2 text-sm text-gray-700">
