@@ -42,6 +42,12 @@ export async function POST(request: Request) {
     price_yearly:  priceYearly,
     features:      Array.isArray(body.features) ? body.features : [],
     is_active:     body.is_active !== false,
+    // Position on the upgrade ladder. Left to the monthly price when unset,
+    // which is the right order for an ordinary tier; a custom-priced one needs
+    // its rank stated, or it lands at the bottom.
+    tier_rank:     Number.isFinite(Number(body.tier_rank)) && Number(body.tier_rank) > 0
+      ? Math.round(Number(body.tier_rank))
+      : Math.max(Math.round(priceMonthly), 1),
     feature_listing:          body.feature_listing          !== false,
     feature_housekeeping:     body.feature_housekeeping     !== false,
     feature_reviews:          body.feature_reviews          !== false,

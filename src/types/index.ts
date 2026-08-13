@@ -31,6 +31,8 @@ export interface Plan {
   max_staff: number
   price_monthly: number
   price_yearly: number
+  /** Position on the upgrade ladder — higher is a better plan. See lib/plan-tier. */
+  tier_rank?: number
   features: string[]
   is_active: boolean
   created_at: string

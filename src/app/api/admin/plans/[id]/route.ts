@@ -55,7 +55,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
   }
 
   for (const key of [
-    'max_rooms', 'max_staff', 'features', 'is_active',
+    'max_rooms', 'max_staff', 'features', 'is_active', 'tier_rank',
     'feature_listing', 'feature_housekeeping', 'feature_reviews',
     'feature_online_booking', 'feature_advanced_reports',
     'feature_api_access', 'feature_multi_property',

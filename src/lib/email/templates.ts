@@ -267,6 +267,80 @@ export function bookingConfirmationTemplate(d: BookingConfirmationData): { subje
   }
 }
 
+export interface PlanUpgradeData {
+  hotelName: string
+  /** The plan they are now on. */
+  planName: string
+  /** The plan they came from, when it is known. */
+  previousPlanName?: string | null
+  billingCycle?: 'monthly' | 'yearly' | null
+  /** Charge for the cycle above, in USD. */
+  amount?: number | null
+  /** End of the paid period, ISO. */
+  renewsAt?: string | null
+  /** What the new plan unlocks — a few lines is plenty. */
+  features?: string[]
+}
+
+/** Branded "your plan has been upgraded" email. */
+export function planUpgradedTemplate(d: PlanUpgradeData): { subject: string; html: string } {
+  const row = (label: string, value: string) => `
+    <tr>
+      <td style="padding:8px 0;font-size:13px;color:${BRAND.muted};">${escapeHtml(label)}</td>
+      <td style="padding:8px 0;font-size:13px;color:${BRAND.text};text-align:right;font-weight:600;">${escapeHtml(value)}</td>
+    </tr>`
+
+  const cycleLabel = d.billingCycle === 'yearly' ? 'Yearly' : d.billingCycle === 'monthly' ? 'Monthly' : null
+  const renews = d.renewsAt ? new Date(d.renewsAt) : null
+  const renewsLabel = renews && Number.isFinite(renews.getTime())
+    ? renews.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    : null
+
+  const features = (d.features ?? []).slice(0, 6)
+  const featureList = features.length
+    ? `
+    <p style="margin:24px 0 10px;font-size:14px;font-weight:600;color:${BRAND.text};">What you've unlocked</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      ${features.map(f => `
+      <tr>
+        <td width="20" valign="top" style="padding:4px 0;font-size:14px;color:#10b981;">&#10003;</td>
+        <td style="padding:4px 0;font-size:14px;line-height:1.5;color:${BRAND.text};">${escapeHtml(f)}</td>
+      </tr>`).join('')}
+    </table>`
+    : ''
+
+  const bodyHtml = `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${BRAND.border};border-radius:12px;padding:6px 18px;">
+      ${row('Hotel', d.hotelName)}
+      ${d.previousPlanName ? row('Previous plan', capitalise(d.previousPlanName)) : ''}
+      ${row('New plan', capitalise(d.planName))}
+      ${cycleLabel ? row('Billing', cycleLabel) : ''}
+      ${typeof d.amount === 'number' && d.amount > 0 ? row('Amount', `USD ${d.amount.toFixed(2)}`) : ''}
+      ${renewsLabel ? row('Renews on', renewsLabel) : ''}
+    </table>
+    ${featureList}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td align="center" style="padding:24px 0 4px;">
+          <a href="${getSiteUrl()}/hotel-admin/billing" style="display:inline-block;background:${BRAND.primary};color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 30px;border-radius:10px;font-family:'Inter',Arial,sans-serif;">
+            View your subscription
+          </a>
+        </td>
+      </tr>
+    </table>`
+
+  return {
+    subject: `Your plan is upgraded — ${capitalise(d.planName)}`,
+    html: renderBrandedEmail({
+      preview: `${d.hotelName} is now on the ${d.planName} plan`,
+      heading: 'Your plan is upgraded 🎉',
+      intro: `${d.hotelName} is now on the ${capitalise(d.planName)} plan. The new features are available right away — there is nothing else to do.`,
+      bodyHtml,
+      footnote: 'Your invoice is available in Billing & Subscription. If you have any questions about your plan, just reply to this email.',
+    }),
+  }
+}
+
 /** Branded password-reset code email. */
 export function passwordResetEmailTemplate(code: string): { subject: string; html: string } {
   const spaced = code.split('').join('&nbsp;&nbsp;')
@@ -294,6 +368,11 @@ export function passwordResetEmailTemplate(code: string): { subject: string; htm
       footnote: "For your security, never share this code with anyone. If you didn't request this, you can safely ignore this email.",
     }),
   }
+}
+
+/** Plan names are stored lowercase ('growth'), but read as names in an email. */
+function capitalise(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
 function escapeHtml(s: string): string {

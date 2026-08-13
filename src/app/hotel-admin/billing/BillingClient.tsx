@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Check, Zap, CreditCard, RefreshCw, XCircle, Loader2, AlertTriangle } from 'lucide-react'
+import { Check, Zap, CreditCard, RefreshCw, XCircle, Loader2, AlertTriangle, ArrowUp, Lock } from 'lucide-react'
 import { getPaddle, SUBSCRIPTION_EVENT } from '@/components/paddle/PaddleProvider'
 import { createClient } from '@/lib/supabase/client'
+import { planDirection, subscriptionIsLive } from '@/lib/plan-tier'
 
 type Plan = {
   id: string
@@ -15,6 +16,7 @@ type Plan = {
   features: string[]
   paddle_price_id_monthly: string | null
   paddle_price_id_yearly: string | null
+  tier_rank?: number | null
 }
 
 type Hotel = {
@@ -24,6 +26,7 @@ type Hotel = {
   subscription_status: string | null
   paddle_subscription_id: string | null
   plan_activated_at: string | null
+  plan_expires_at?: string | null
 } | null
 
 interface Props {
@@ -82,7 +85,11 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
         if (!opts.quiet) toast.error(json.error ?? 'Could not sync with Paddle')
         return
       }
-      toast.success(json.planName ? `Your plan is now ${json.planName}` : 'Subscription updated')
+      toast.success(
+        json.upgraded && json.planName
+          ? `Your plan is upgraded to ${json.planName}`
+          : json.planName ? `Your plan is now ${json.planName}` : 'Subscription updated',
+      )
       if (json.warning) toast.warning(json.warning)
       router.refresh()
     } catch {
@@ -96,9 +103,15 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
   // that's left is to show the result and re-read the page.
   useEffect(() => {
     const onUpdated = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { ok?: boolean; planName?: string; error?: string; warning?: string }
+      const detail = (e as CustomEvent).detail as {
+        ok?: boolean; planName?: string; error?: string; warning?: string; upgraded?: boolean
+      }
       if (detail?.ok) {
-        toast.success(detail.planName ? `Your plan is now ${detail.planName}` : 'Payment received — plan activated')
+        toast.success(
+          detail.upgraded && detail.planName
+            ? `Your plan is upgraded to ${detail.planName} — a confirmation email is on its way`
+            : detail.planName ? `Your plan is now ${detail.planName}` : 'Payment received — plan activated',
+        )
         if (detail.warning) toast.warning(detail.warning)
         router.refresh()
       } else {
@@ -110,15 +123,6 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
   }, [router])
 
   async function openCheckout(plan: Plan) {
-    const priceId = billing === 'monthly'
-      ? plan.paddle_price_id_monthly
-      : plan.paddle_price_id_yearly
-
-    if (!priceId) {
-      toast.error('This plan is not yet available for purchase. Please contact support.')
-      return
-    }
-
     const paddle = getPaddle()
     if (!paddle) {
       toast.error('Payment system is loading, please try again in a moment.')
@@ -131,6 +135,21 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
 
     setBusy(true)
     try {
+      // The server decides whether this move is allowed and which price to
+      // open. Reading the price id straight off the plan here would make the
+      // upgrade-only rule a matter of which buttons are on screen.
+      const res = await fetch('/api/paddle/checkout-intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ planId: plan.id, cycle: billing }),
+      })
+      const intent = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(intent.error ?? 'This plan change is not available.')
+        return
+      }
+      const priceId: string = intent.priceId
+
       await paddle.Checkout.open({
         items: [{ priceId, quantity: 1 }],
         customer: { email: user.email! },
@@ -175,6 +194,11 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
   }
 
   const isActive = hotel?.subscription_status === 'active'
+
+  // While a subscription is live the plan can only move up the ladder. A hotel
+  // that never paid, or whose plan has lapsed, is choosing from scratch and
+  // sees every plan open — the same rule the server applies.
+  const upgradeOnly = subscriptionIsLive(hotel?.subscription_status, hotel?.plan_expires_at)
 
   return (
     <div className="space-y-8 max-w-4xl">
@@ -281,9 +305,16 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
       {/* ── Plan selection ── */}
       <div>
         <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
-          <h3 className="text-lg font-bold text-gray-900">
-            {isActive ? 'Change Plan' : 'Choose a Plan'}
-          </h3>
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">
+              {upgradeOnly ? 'Upgrade Your Plan' : 'Choose a Plan'}
+            </h3>
+            {upgradeOnly && (
+              <p className="text-sm text-gray-500 mt-0.5">
+                You can move up to a higher plan at any time. To move to a lower plan, contact support.
+              </p>
+            )}
+          </div>
 
           {/* Billing toggle */}
           <div className="flex items-center bg-gray-100 rounded-xl p-1 gap-1">
@@ -307,12 +338,17 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
             const price       = billing === 'monthly' ? plan.price_monthly : plan.price_yearly
             const priceId     = billing === 'monthly' ? plan.paddle_price_id_monthly : plan.paddle_price_id_yearly
             const hasPrice    = !!priceId
+            // Same judgement as the server's, so a button is never offered for
+            // a move the checkout guard would refuse. With no current plan on
+            // record nothing is greyed out — the server still has the final say.
+            const direction   = currentPlan ? planDirection(currentPlan, plan) : 'upgrade'
+            const blocked     = upgradeOnly && !isCurrent && direction !== 'upgrade'
 
             return (
               <div
                 key={plan.id}
                 className={`relative bg-white rounded-2xl border-2 p-5 shadow-sm transition-all ${
-                  isCurrent ? 'border-primary-400 ring-2 ring-primary-100' : 'border-gray-200'
+                  isCurrent ? 'border-primary-400 ring-2 ring-primary-100' : blocked ? 'border-gray-200 opacity-60' : 'border-gray-200'
                 }`}
               >
                 {isCurrent && (
@@ -345,6 +381,14 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
                   <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 text-gray-500 text-sm font-medium">
                     <RefreshCw className="h-4 w-4" /> Active plan
                   </div>
+                ) : blocked ? (
+                  <div
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 text-gray-400 text-sm font-medium cursor-not-allowed"
+                    title={`Your ${currentPlan?.name ?? 'current'} plan can only be changed to a higher plan. Contact support to move down a tier.`}
+                  >
+                    <Lock className="h-4 w-4" />
+                    {direction === 'downgrade' ? 'Lower than your plan' : 'Not an upgrade'}
+                  </div>
                 ) : (
                   <button
                     onClick={() => openCheckout(plan)}
@@ -354,10 +398,12 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
                   >
                     {busy ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : upgradeOnly ? (
+                      <ArrowUp className="h-4 w-4" />
                     ) : (
                       <CreditCard className="h-4 w-4" />
                     )}
-                    {!hasPrice ? 'Contact Sales' : isActive ? 'Switch Plan' : 'Subscribe'}
+                    {!hasPrice ? 'Contact Sales' : upgradeOnly ? 'Upgrade' : 'Subscribe'}
                   </button>
                 )}
               </div>

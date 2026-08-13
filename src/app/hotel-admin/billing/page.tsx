@@ -1,6 +1,7 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import BillingClient from './BillingClient'
 import { redirect } from 'next/navigation'
+import { planRank } from '@/lib/plan-tier'
 
 export const metadata = { title: 'Billing & Subscription' }
 
@@ -19,25 +20,31 @@ export default async function BillingPage() {
 
   const { data: hotel } = await admin
     .from('hotels')
-    .select('id, name, plan_id, subscription_status, paddle_subscription_id, plan_activated_at')
+    .select('id, name, plan_id, subscription_status, paddle_subscription_id, plan_activated_at, plan_expires_at')
     .eq('id', hotelId)
     .single()
 
+  // `*` rather than a column list so the page still renders on a database where
+  // migration 032 (plans.tier_rank) hasn't been applied yet — the ranking helper
+  // falls back to price when the column is absent.
   const { data: plans } = await admin
     .from('plans')
-    .select('id, name, price_monthly, price_yearly, features, paddle_price_id_monthly, paddle_price_id_yearly')
+    .select('*')
     .eq('is_active', true)
-    .order('price_monthly')
 
   const { data: currentPlan } = hotel?.plan_id
     ? await admin.from('plans').select('*').eq('id', hotel.plan_id).single()
     : { data: null }
 
+  // Cheapest first would put Enterprise at the front — it carries a 0.01
+  // placeholder because it is custom-priced. The ladder is the honest order.
+  const ordered = [...(plans ?? [])].sort((a, b) => planRank(a) - planRank(b))
+
   return (
     <BillingClient
       hotel={hotel}
       currentPlan={currentPlan}
-      plans={plans ?? []}
+      plans={ordered}
     />
   )
 }

@@ -4,7 +4,7 @@ import {
   paddleConfigured, getPaddleTransaction, getPaddleSubscription,
   findPaddleCustomer, listPaddleSubscriptions,
 } from '@/lib/paddle'
-import { applySubscription, notifyHotelAdmins } from '@/lib/paddle-sync'
+import { applySubscription, announcePlanChange } from '@/lib/paddle-sync'
 
 /**
  * Applies a Paddle subscription to the caller's hotel on demand.
@@ -137,19 +137,16 @@ async function respond(
     return NextResponse.json({ error: result.reason ?? 'Could not apply the subscription' }, { status: 400 })
   }
 
-  if (result.hotelId && result.planName) {
-    await notifyHotelAdmins(
-      admin, result.hotelId,
-      'Plan activated',
-      `Your subscription is now on the ${result.planName} plan.`,
-    )
-  }
+  // Bell notification, and an email when the plan actually moved up a tier.
+  await announcePlanChange(admin, result)
 
   return NextResponse.json({
     success: true,
     planId: result.planId,
     planName: result.planName,
     expiresAt: result.expiresAt,
+    upgraded: result.direction === 'upgrade',
+    previousPlanName: result.previousPlanName,
     // Set when the payment landed but no plan matched the price — the admin
     // needs to know the price id isn't on any plan rather than assume success.
     warning: result.reason,

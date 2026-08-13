@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Check, Zap, Edit2, Plus } from 'lucide-react'
 import Link from 'next/link'
 import SyncPlanButton from './SyncPlanButton'
+import { planRank } from '@/lib/plan-tier'
 
 export const metadata = { title: 'Subscription Plans' }
 
@@ -26,7 +27,10 @@ export default async function PlansPage() {
     return <div>Unauthorized</div>
   }
 
-  const { data: plans } = await supabase.from('plans').select('*').order('price_monthly')
+  const { data: plans } = await supabase.from('plans').select('*')
+  // Shown in ladder order, which is the order hotels can move through them —
+  // by price, custom-priced Enterprise would sit at the front.
+  const ordered = [...(plans ?? [])].sort((a, b) => planRank(a) - planRank(b))
 
   return (
     <div className="space-y-6">
@@ -41,7 +45,7 @@ export default async function PlansPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {plans?.map(plan => (
+        {ordered.map(plan => (
           <div key={plan.id} className={`card p-6 relative ${plan.name === 'growth' ? 'border-primary-400 ring-2 ring-primary-100' : ''}`}>
             {plan.name === 'growth' && (
               <div className="flex items-center gap-1 mb-3">
@@ -49,7 +53,15 @@ export default async function PlansPage() {
                 <span className="text-xs font-semibold text-primary-600 uppercase">Most Popular</span>
               </div>
             )}
-            <h3 className="text-xl font-bold text-gray-900 capitalize">{plan.name}</h3>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-xl font-bold text-gray-900 capitalize">{plan.name}</h3>
+              <span
+                className="shrink-0 rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-semibold text-gray-500"
+                title="Position on the upgrade ladder — hotels can only move to a higher rank"
+              >
+                Rank {planRank(plan)}
+              </span>
+            </div>
             <div className="mt-2 mb-6">
               {plan.name === 'enterprise' ? (
                 <span className="text-3xl font-bold text-gray-900">Custom</span>

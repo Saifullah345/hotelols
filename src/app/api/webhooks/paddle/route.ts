@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { verifyPaddleWebhook } from '@/lib/paddle'
 import { createAdminClient } from '@/lib/supabase/server'
 import {
-  applySubscription, resolveHotelId, periodEnd, notifyHotelAdmins,
+  applySubscription, resolveHotelId, periodEnd, notifyHotelAdmins, announcePlanChange,
 } from '@/lib/paddle-sync'
 
 export async function POST(request: Request) {
@@ -23,10 +23,14 @@ export async function POST(request: Request) {
       eventType === 'subscription.created'   ||
       eventType === 'subscription.updated'   ||
       eventType === 'subscription.resumed') {
-    const before = await currentPlanOf(admin, data)
     const result = await applySubscription(admin, data)
 
-    if (result.applied && result.planId && before && before !== result.planId) {
+    if (result.direction === 'upgrade' || result.direction === 'new') {
+      // Bell notification + "your plan is upgraded" email.
+      await announcePlanChange(admin, result)
+    } else if (result.applied && result.planId && result.direction === 'downgrade') {
+      // Hotels can't downgrade themselves — this came from Paddle or a super
+      // admin, so it is reported rather than celebrated.
       await notifyHotelAdmins(
         admin, result.hotelId!,
         'Plan updated',
@@ -77,19 +81,11 @@ export async function POST(request: Request) {
 
   // ── Money received ─────────────────────────────────────────────────
   if (eventType === 'transaction.completed' || eventType === 'transaction.paid') {
-    await applySubscription(admin, data, { status: 'active' })
+    const result = await applySubscription(admin, data, { status: 'active' })
+    // Announces only if this delivery is the one that moved the plan — the
+    // subscription event above usually gets there first and this stays quiet.
+    await announcePlanChange(admin, result)
   }
 
   return NextResponse.json({ received: true })
-}
-
-/** Plan the hotel was on before this event, so a change can be announced. */
-async function currentPlanOf(
-  admin: Awaited<ReturnType<typeof createAdminClient>>,
-  data: Record<string, unknown>,
-): Promise<string | null> {
-  const hotelId = await resolveHotelId(admin, data)
-  if (!hotelId) return null
-  const { data: hotel } = await admin.from('hotels').select('plan_id').eq('id', hotelId).maybeSingle()
-  return hotel?.plan_id ?? null
 }

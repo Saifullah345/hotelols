@@ -19,6 +19,7 @@ const planSchema = z.object({
   max_staff: z.number().int().min(-1, 'Must be -1 (unlimited) or positive'),
   price_monthly: z.number().positive('Must be a positive number'),
   price_yearly: z.number().positive('Must be a positive number'),
+  tier_rank: z.number().int().min(1, 'Must be 1 or higher'),
   features: z.string().transform(v => v.split('\n').filter(f => f.trim())),
   is_active: z.boolean(),
   paddle_price_id_monthly: z.string().optional(),
@@ -80,6 +81,7 @@ export default function EditPlanPage() {
           max_staff: data.max_staff,
           price_monthly: data.price_monthly,
           price_yearly: data.price_yearly,
+          tier_rank: data.tier_rank ?? Math.max(Math.round(data.price_monthly), 1),
           features: (data.features || []).join('\n'),
           is_active: data.is_active,
           paddle_price_id_monthly: data.paddle_price_id_monthly ?? '',
@@ -221,6 +223,23 @@ export default function EditPlanPage() {
             />
             {errors.price_yearly && <p className="text-red-600 text-sm mt-1">{errors.price_yearly.message}</p>}
           </div>
+        </div>
+
+        {/* Upgrade ladder */}
+        <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-4">
+          <label className="label">Tier Rank</label>
+          <input
+            type="number"
+            {...register('tier_rank', { valueAsNumber: true })}
+            className="input max-w-[200px]"
+            placeholder="30"
+          />
+          <p className="mt-2 text-xs text-amber-700">
+            Position on the upgrade ladder — higher is a better plan. Hotels may only move to a
+            plan ranked above their current one, so custom-priced tiers must be ranked here rather
+            than left to their price. Starter 10 · Hotel Management 20 · Growth 30 · Pro 40 · Enterprise 50.
+          </p>
+          {errors.tier_rank && <p className="text-red-600 text-sm mt-1">{errors.tier_rank.message}</p>}
         </div>
 
         {/* Paddle Price IDs */}
