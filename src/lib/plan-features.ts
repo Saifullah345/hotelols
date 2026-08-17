@@ -17,6 +17,29 @@ export function limitReached(max: number | null | undefined, used: number): bool
   return !isUnlimited(max) && used >= (max as number)
 }
 
+/** 0–100 integer representing how full the quota is. Returns 0 for unlimited plans. */
+export function usagePercent(max: number | null | undefined, used: number): number {
+  if (isUnlimited(max) || (max as number) <= 0) return 0
+  return Math.min(100, Math.round((used / (max as number)) * 100))
+}
+
+/** Severity level for proactive threshold alerts. */
+export type UsageLevel = 'normal' | 'warning' | 'critical' | 'limit'
+
+/**
+ * normal  — under 80%
+ * warning — 80–89% (approaching limit)
+ * critical — 90–99% (nearly at limit)
+ * limit   — 100%+ (blocked)
+ */
+export function usageLevel(max: number | null | undefined, used: number): UsageLevel {
+  if (limitReached(max, used)) return 'limit'
+  const pct = usagePercent(max, used)
+  if (pct >= 90) return 'critical'
+  if (pct >= 80) return 'warning'
+  return 'normal'
+}
+
 /** "Unlimited rooms" / "Up to 20 rooms" — never "Up to -20 rooms". */
 export function describeLimit(max: number | null | undefined, noun: string): string {
   return isUnlimited(max) ? `Unlimited ${noun}` : `Up to ${max} ${noun}`

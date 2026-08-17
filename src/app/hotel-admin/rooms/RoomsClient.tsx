@@ -9,7 +9,7 @@ import RoomStatusToggle from './RoomStatusToggle'
 import DeleteRoomButton from './DeleteRoomButton'
 import { RoomRow, ActionsCell } from './RoomRow'
 import { formatCurrency } from '@/lib/currency'
-import { isUnlimited, limitReached } from '@/lib/plan-features'
+import { isUnlimited, limitReached, usagePercent, usageLevel } from '@/lib/plan-features'
 
 const statusBadge: Record<string, string> = {
   available: 'badge-green', booked: 'badge-blue',
@@ -418,15 +418,43 @@ export default function RoomsClient({
                 <p className="text-primary-300 text-xs leading-none mt-0.5">Maintenance</p>
               </div>
             </div>
-            {!isUnlimited(planMaxRooms) && (
-              <div className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm ${limitReached(planMaxRooms, totalRooms) ? 'bg-red-500/20' : 'bg-white/10 backdrop-blur'}`}>
-                <BedDouble className={`h-4 w-4 ${limitReached(planMaxRooms, totalRooms) ? 'text-red-300' : 'text-white/60'}`} />
-                <div>
-                  <p className="text-white font-bold leading-none">{totalRooms} / {planMaxRooms}</p>
-                  <p className="text-primary-300 text-xs leading-none mt-0.5 capitalize">{planName} limit</p>
+            {!isUnlimited(planMaxRooms) && (() => {
+              const level = usageLevel(planMaxRooms, totalRooms)
+              const pct   = usagePercent(planMaxRooms, totalRooms)
+              const chipBg    = level === 'limit'    ? 'bg-red-500/20'
+                              : level === 'critical' ? 'bg-orange-500/20'
+                              : level === 'warning'  ? 'bg-amber-500/20'
+                              : 'bg-white/10 backdrop-blur'
+              const iconColor = level === 'limit'    ? 'text-red-300'
+                              : level === 'critical' ? 'text-orange-300'
+                              : level === 'warning'  ? 'text-amber-300'
+                              : 'text-white/60'
+              const barColor  = level === 'limit'    ? 'bg-red-400'
+                              : level === 'critical' ? 'bg-orange-400'
+                              : 'bg-amber-400'
+              return (
+                <div className={`flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-sm ${chipBg} ${level === 'critical' ? 'animate-pulse' : ''}`}>
+                  <BedDouble className={`h-4 w-4 shrink-0 ${iconColor}`} />
+                  <div className="min-w-0">
+                    <p className="text-white font-bold leading-none">{totalRooms} / {planMaxRooms}</p>
+                    <p className="text-primary-300 text-xs leading-none mt-0.5 capitalize">{planName} limit</p>
+                    {level !== 'normal' && (
+                      <div className="mt-1.5 h-1 w-24 bg-white/15 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+                      </div>
+                    )}
+                  </div>
+                  {level !== 'normal' && (
+                    <Link
+                      href="/hotel-admin/billing"
+                      className="shrink-0 text-[10px] font-semibold text-white/70 hover:text-white underline underline-offset-2 transition-colors leading-none"
+                    >
+                      Upgrade
+                    </Link>
+                  )}
                 </div>
-              </div>
-            )}
+              )
+            })()}
             {limitReached(planMaxRooms, totalRooms) ? (
               <span className="flex items-center gap-2 bg-white/20 text-white/60 font-semibold text-sm px-4 py-2 rounded-xl cursor-not-allowed text-center" title={`Room limit reached (${planMaxRooms}). Upgrade your plan.`}>
                 <Plus className="h-4 w-4" /> Add Room
