@@ -53,39 +53,43 @@ export default function HotelSettingsPage() {
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return
-      setUserId(user.id)
-      setUserEmail(user.email ?? '')
+      try {
+        if (!user) return
+        setUserId(user.id)
+        setUserEmail(user.email ?? '')
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('tenant_id, full_name, role')
-        .eq('id', user.id)
-        .single()
-      if (!profile?.tenant_id) return
-      setTenantId(profile.tenant_id)
-      setDisplayName((profile.full_name as string) ?? '')
-      setUserRole((profile.role as string) ?? '')
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('tenant_id, full_name, role')
+          .eq('id', user.id)
+          .single()
+        if (!profile?.tenant_id) return
+        setTenantId(profile.tenant_id)
+        setDisplayName((profile.full_name as string) ?? '')
+        setUserRole((profile.role as string) ?? '')
 
-      const { data } = await supabase.from('hotels').select('*').eq('id', profile.tenant_id).single()
-      hotelForm.reset(data)
-      setHotelName((data?.name as string) ?? '')
-      setHotelImages(((data?.images as string[]) ?? []).filter(Boolean))
-      setCoverImage((data?.cover_image as string | undefined) ?? null)
-      waForm.reset({
-        whatsapp_number:           data?.whatsapp_number          ?? '',
-        whatsapp_phone_number_id:  data?.whatsapp_phone_number_id ?? '',
-        whatsapp_access_token:     data?.whatsapp_access_token    ?? '',
-      })
-      if (data?.country) {
-        const { Country } = await import('country-state-city')
-        const match = Country.getAllCountries().find(c => c.name === data.country)
-        if (match) setCountryCode(match.isoCode as string)
+        const { data } = await supabase.from('hotels').select('*').eq('id', profile.tenant_id).single()
+        hotelForm.reset(data)
+        setHotelName((data?.name as string) ?? '')
+        setHotelImages(((data?.images as string[]) ?? []).filter(Boolean))
+        setCoverImage((data?.cover_image as string | undefined) ?? null)
+        waForm.reset({
+          whatsapp_number:           data?.whatsapp_number          ?? '',
+          whatsapp_phone_number_id:  data?.whatsapp_phone_number_id ?? '',
+          whatsapp_access_token:     data?.whatsapp_access_token    ?? '',
+        })
+        if (data?.country) {
+          const { Country } = await import('country-state-city')
+          const match = Country.getAllCountries().find(c => c.name === data.country)
+          if (match) setCountryCode(match.isoCode as string)
+        }
+        setExtraServices((data?.extra_services as typeof extraServices) ?? [])
+      } finally {
+        setLoading(false)
       }
-      setExtraServices((data?.extra_services as typeof extraServices) ?? [])
-      setLoading(false)
-    })
-  }, [hotelForm, waForm])
+    }).catch(() => setLoading(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ── Hotel Profile ────────────────────────────────────────────────────
   const saveHotel = async (data: Record<string, unknown>) => {
@@ -196,8 +200,72 @@ export default function HotelSettingsPage() {
   }
 
   if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+    <div className="space-y-8">
+      <div className="space-y-1.5">
+        <div className="skeleton h-7 w-28 rounded-lg" />
+        <div className="skeleton h-4 w-48 rounded" />
+      </div>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
+        {/* Left column skeleton */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+          <div className="flex items-center gap-3 pb-1">
+            <div className="skeleton w-10 h-10 rounded-xl" />
+            <div className="space-y-1.5">
+              <div className="skeleton h-4 w-28 rounded" />
+              <div className="skeleton h-3 w-52 rounded" />
+            </div>
+          </div>
+          <div className="space-y-4">
+            {[1, 1, 1].map((_, i) => (
+              <div key={i} className="space-y-1.5">
+                <div className="skeleton h-3 w-20 rounded" />
+                <div className="skeleton h-10 w-full rounded-xl" />
+              </div>
+            ))}
+            <div className="grid grid-cols-2 gap-4">
+              {[0, 1, 0, 1].map((_, i) => (
+                <div key={i} className="space-y-1.5">
+                  <div className="skeleton h-3 w-16 rounded" />
+                  <div className="skeleton h-10 w-full rounded-xl" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="border-t border-gray-100 pt-4 space-y-4">
+            <div className="skeleton h-3 w-20 rounded" />
+            <div className="grid grid-cols-2 gap-4">
+              {[0, 1].map(i => (
+                <div key={i} className="space-y-1.5">
+                  <div className="skeleton h-3 w-16 rounded" />
+                  <div className="skeleton h-10 w-full rounded-xl" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="skeleton h-10 w-32 rounded-xl" />
+        </div>
+        {/* Right column skeleton */}
+        <div className="space-y-6">
+          {[0, 1].map(i => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+              <div className="flex items-center gap-3 pb-1">
+                <div className="skeleton w-10 h-10 rounded-xl" />
+                <div className="space-y-1.5">
+                  <div className="skeleton h-4 w-24 rounded" />
+                  <div className="skeleton h-3 w-40 rounded" />
+                </div>
+              </div>
+              {[0, 1].map(j => (
+                <div key={j} className="space-y-1.5">
+                  <div className="skeleton h-3 w-20 rounded" />
+                  <div className="skeleton h-10 w-full rounded-xl" />
+                </div>
+              ))}
+              <div className="skeleton h-10 w-28 rounded-xl" />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 
