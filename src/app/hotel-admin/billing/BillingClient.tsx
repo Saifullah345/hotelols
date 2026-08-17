@@ -7,6 +7,7 @@ import { Check, Zap, CreditCard, RefreshCw, XCircle, Loader2, AlertTriangle, Arr
 import { getPaddle, SUBSCRIPTION_EVENT } from '@/components/paddle/PaddleProvider'
 import { createClient } from '@/lib/supabase/client'
 import { planDirection, subscriptionIsLive } from '@/lib/plan-tier'
+import BillingHistory from './BillingHistory'
 
 type Plan = {
   id: string
@@ -411,6 +412,13 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
           })}
         </div>
       </div>
+
+      {/* ── Billing History ── */}
+      <BillingHistory
+        hotelName={hotel?.name ?? 'Your Hotel'}
+        nextBillingDate={hotel?.plan_expires_at ?? null}
+        currentPlanName={currentPlan?.name ?? null}
+      />
     </div>
   )
 }
