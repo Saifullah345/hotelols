@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { LogIn, LogOut, BedDouble, Calendar, Loader2, AlertTriangle, X } from 'lucide-react'
+import { LogIn, LogOut, BedDouble, Calendar, Loader2, AlertTriangle, X, AlertCircle, Clock } from 'lucide-react'
 import Link from 'next/link'
 import type { BookingEntry } from './page'
 
@@ -45,6 +45,7 @@ interface Props {
   inHouse: BookingEntry[]
   upcoming: BookingEntry[]
   departuresToday: number
+  today: string
 }
 
 // ── Avatar ─────────────────────────────────────────────────────────────────
@@ -68,26 +69,53 @@ function BookingCard({
   mode,
   loadingId,
   onAction,
+  today,
 }: {
   booking: BookingEntry
   mode: 'check_in' | 'check_out' | 'upcoming'
   loadingId: string | null
   onAction: (id: string, a: 'check_in' | 'check_out') => void
+  today?: string
 }) {
   const busy = loadingId === booking.id
   const n = nights(booking.check_in, booking.check_out)
 
+  const daysOverdue = today && mode === 'check_out' && booking.check_out < today
+    ? Math.round((new Date(today).getTime() - new Date(booking.check_out + 'T00:00:00').getTime()) / 86_400_000)
+    : 0
+  const departingToday = today && mode === 'check_out' && booking.check_out === today
+
+  const cardBorder = daysOverdue > 0
+    ? 'border-red-200 bg-red-50/40 hover:bg-red-50/70'
+    : departingToday
+      ? 'border-amber-200 bg-amber-50/40 hover:bg-amber-50/70'
+      : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50/60'
+
   return (
-    <div className="px-4 py-3.5 rounded-xl border border-gray-100 hover:border-gray-200 hover:bg-gray-50/60 transition-colors bg-white">
+    <div className={`px-4 py-3.5 rounded-xl border transition-colors bg-white ${cardBorder}`}>
       <div className="flex gap-3">
         <Avatar name={booking.userName} avatarUrl={booking.userAvatar} />
 
         <div className="flex-1 min-w-0">
           {/* Name row */}
           <div className="flex items-start justify-between gap-2">
-            <p className="font-semibold text-gray-900 text-sm leading-snug truncate">
-              {booking.userName}
-            </p>
+            <div className="flex items-center gap-2 min-w-0">
+              <p className="font-semibold text-gray-900 text-sm leading-snug truncate">
+                {booking.userName}
+              </p>
+              {daysOverdue > 0 && (
+                <span className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-100 text-red-700 text-[10px] font-bold">
+                  <AlertCircle className="h-3 w-3" />
+                  {daysOverdue}d overdue
+                </span>
+              )}
+              {departingToday && (
+                <span className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 text-[10px] font-bold">
+                  <Clock className="h-3 w-3" />
+                  Today
+                </span>
+              )}
+            </div>
 
             {mode === 'check_in' && (
               <button
@@ -104,7 +132,11 @@ function BookingCard({
               <button
                 onClick={() => onAction(booking.id, 'check_out')}
                 disabled={busy}
-                className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-semibold transition-colors disabled:opacity-60"
+                className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-60 ${
+                  daysOverdue > 0
+                    ? 'border border-red-300 bg-red-600 hover:bg-red-700 text-white'
+                    : 'border border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 text-gray-700'
+                }`}
               >
                 {busy && <Loader2 className="h-3 w-3 animate-spin" />}
                 Check Out
@@ -148,6 +180,7 @@ function Column({
   countCls,
   emptyIcon: EmptyIcon,
   emptyText,
+  filterBar,
   children,
 }: {
   icon: React.ElementType
@@ -159,12 +192,13 @@ function Column({
   countCls: string
   emptyIcon: React.ElementType
   emptyText: string
+  filterBar?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
-    <div className="flex flex-col bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <div className="flex flex-col bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden h-full">
       {/* Fixed header */}
-      <div className="flex-shrink-0 px-5 py-4 border-b border-gray-50">
+      <div className="flex-shrink-0 px-4 py-3 border-b border-gray-50">
         <div className="flex items-center gap-2.5">
           <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${iconBg}`}>
             <Icon className={`h-4 w-4 ${iconColor}`} />
@@ -177,6 +211,11 @@ function Column({
             {count}
           </span>
         </div>
+        {filterBar && (
+          <div className="flex items-center gap-1 flex-wrap mt-2.5 pt-2.5 border-t border-gray-50">
+            {filterBar}
+          </div>
+        )}
       </div>
 
       {/* Scrollable body — fills remaining column height */}
@@ -201,10 +240,51 @@ type PaymentBlock = {
   action: 'check_in' | 'check_out'
 }
 
-export default function CheckInClient({ arrivals, inHouse, upcoming, departuresToday }: Props) {
+type InHouseFilter  = 'all' | 'today' | 'overdue' | 'staying'
+type ArrivalFilter  = 'today' | 'upcoming' | 'all'
+
+export default function CheckInClient({ arrivals, inHouse, upcoming, departuresToday, today }: Props) {
   const router = useRouter()
-  const [loadingId, setLoadingId]       = useState<string | null>(null)
-  const [paymentBlock, setPaymentBlock] = useState<PaymentBlock | null>(null)
+  const [loadingId, setLoadingId]         = useState<string | null>(null)
+  const [paymentBlock, setPaymentBlock]   = useState<PaymentBlock | null>(null)
+  const [inHouseFilter, setInHouseFilter] = useState<InHouseFilter>('all')
+  const [arrivalFilter, setArrivalFilter] = useState<ArrivalFilter>('today')
+
+  const overdueGuests  = inHouse.filter(b => b.check_out < today)
+  const departingToday = inHouse.filter(b => b.check_out === today)
+  const stayingGuests  = inHouse.filter(b => b.check_out > today)
+  const overdueCount   = overdueGuests.length
+  const departingCount = departingToday.length
+
+  // Apply arrival filter — merges today's arrivals and upcoming as needed
+  const filteredArrivals = (() => {
+    if (arrivalFilter === 'today')    return arrivals
+    if (arrivalFilter === 'upcoming') return upcoming
+    return [...arrivals, ...upcoming].sort((a, b) => a.check_in.localeCompare(b.check_in))
+  })()
+
+  // Apply selected filter to the in-house list
+  const filteredInHouse = (() => {
+    const base =
+      inHouseFilter === 'today'   ? departingToday :
+      inHouseFilter === 'overdue' ? overdueGuests  :
+      inHouseFilter === 'staying' ? stayingGuests  :
+      inHouse
+    // Sort: overdue first → departing today → rest
+    return [...base].sort((a, b) => {
+      const urgency = (x: BookingEntry) =>
+        x.check_out < today ? 2 : x.check_out === today ? 1 : 0
+      return urgency(b) - urgency(a)
+    })
+  })()
+
+  // Insert overdue / departing-today notifications into the bell (once per day)
+  useEffect(() => {
+    if (overdueCount > 0 || departingCount > 0) {
+      fetch('/api/admin/notifications/checkin', { method: 'POST' }).catch(() => {})
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const doAction = async (bookingId: string, action: 'check_in' | 'check_out') => {
     setLoadingId(bookingId)
@@ -300,8 +380,7 @@ export default function CheckInClient({ arrivals, inHouse, upcoming, departuresT
 
   return (
     <>
-    {/* h-full fills main, min-h-0 lets columns shrink/scroll; mobile falls back to natural scroll */}
-    <div className="flex flex-col lg:h-full">
+    <div className="flex flex-col">
 
       {/* ── Compact page header ── */}
       <div className="flex-shrink-0 flex flex-wrap items-center justify-between gap-2 mb-5">
@@ -322,45 +401,141 @@ export default function CheckInClient({ arrivals, inHouse, upcoming, departuresT
             <BedDouble className="h-3.5 w-3.5" />
             {inHouse.length} in-house
           </span>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 text-red-600 text-xs font-semibold">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold">
             <LogOut className="h-3.5 w-3.5" />
-            {departuresToday} departing
+            {departuresToday} departing today
           </span>
+          {overdueCount > 0 && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-100 text-red-700 text-xs font-bold animate-pulse">
+              <AlertCircle className="h-3.5 w-3.5" />
+              {overdueCount} overdue
+            </span>
+          )}
         </div>
       </div>
 
-      {/* ── Kanban board — fills remaining height ── */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-5 min-h-0">
+
+      {/* ── Kanban board — viewport height minus header + page-header offset ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 h-[calc(100dvh-14rem)]">
 
         <Column
           icon={LogIn}
           iconBg="bg-primary-50"
           iconColor="text-primary-600"
-          title="Today's Arrivals"
-          subtitle="Check-in from 3:00 PM"
-          count={arrivals.length}
+          title={
+            arrivalFilter === 'upcoming' ? 'Upcoming Arrivals' :
+            arrivalFilter === 'all'      ? 'All Arrivals'      :
+            "Today's Arrivals"
+          }
+          subtitle={
+            arrivalFilter === 'upcoming' ? 'Next confirmed reservations' :
+            arrivalFilter === 'all'      ? 'Today + upcoming'            :
+            'Check-in from 3:00 PM'
+          }
+          count={filteredArrivals.length}
           countCls="text-primary-700 bg-primary-50"
           emptyIcon={LogIn}
-          emptyText="No arrivals today"
+          emptyText={
+            arrivalFilter === 'upcoming' ? 'No upcoming arrivals' :
+            arrivalFilter === 'all'      ? 'No pending arrivals'  :
+            'No arrivals today'
+          }
+          filterBar={
+            <>
+              {([
+                { key: 'today',    label: 'Today',    count: arrivals.length,                   cls: 'text-primary-600 bg-primary-50',  active: 'bg-primary-600 text-white'  },
+                { key: 'upcoming', label: 'Upcoming', count: upcoming.length,                   cls: 'text-blue-600 bg-blue-50',        active: 'bg-blue-600 text-white'     },
+                { key: 'all',      label: 'All',      count: arrivals.length + upcoming.length, cls: 'text-gray-500 bg-gray-100',       active: 'bg-gray-600 text-white'     },
+              ] as { key: ArrivalFilter; label: string; count: number; cls: string; active: string }[]).map(f => (
+                <button
+                  key={f.key}
+                  onClick={() => setArrivalFilter(f.key)}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors ${
+                    arrivalFilter === f.key ? f.active : `${f.cls} hover:opacity-70`
+                  }`}
+                >
+                  {f.label} <span className="opacity-70">{f.count}</span>
+                </button>
+              ))}
+            </>
+          }
         >
-          {arrivals.map(b => (
-            <BookingCard key={b.id} booking={b} mode="check_in" loadingId={loadingId} onAction={doAction} />
+          {filteredArrivals.map(b => (
+            <BookingCard
+              key={b.id}
+              booking={b}
+              mode={b.check_in === today ? 'check_in' : 'upcoming'}
+              loadingId={loadingId}
+              onAction={doAction}
+            />
           ))}
         </Column>
 
         <Column
-          icon={BedDouble}
-          iconBg="bg-teal-50"
-          iconColor="text-teal-600"
-          title="In-House Guests"
-          subtitle="Check-out by 12:00 PM"
-          count={inHouse.length}
-          countCls="text-teal-700 bg-teal-50"
+          icon={
+            inHouseFilter === 'today'   ? LogOut      :
+            inHouseFilter === 'overdue' ? AlertCircle :
+            BedDouble
+          }
+          iconBg={
+            inHouseFilter === 'today'   ? 'bg-amber-50' :
+            inHouseFilter === 'overdue' ? 'bg-red-50'   :
+            'bg-teal-50'
+          }
+          iconColor={
+            inHouseFilter === 'today'   ? 'text-amber-500' :
+            inHouseFilter === 'overdue' ? 'text-red-600'   :
+            'text-teal-600'
+          }
+          title={
+            inHouseFilter === 'today'   ? "Today's Checkouts"  :
+            inHouseFilter === 'overdue' ? 'Overdue Checkouts'  :
+            inHouseFilter === 'staying' ? 'Still Staying'      :
+            'In-House Guests'
+          }
+          subtitle={
+            inHouseFilter === 'today'   ? 'Check-out by 12:00 PM'      :
+            inHouseFilter === 'overdue' ? 'Checkout date has passed'    :
+            inHouseFilter === 'staying' ? 'Checking out in coming days' :
+            'Check-out by 12:00 PM'
+          }
+          count={filteredInHouse.length}
+          countCls={
+            inHouseFilter === 'today'   ? 'text-amber-700 bg-amber-100' :
+            inHouseFilter === 'overdue' ? 'text-red-700 bg-red-100'     :
+            overdueCount > 0 && inHouseFilter === 'all' ? 'text-red-700 bg-red-100' :
+            'text-teal-700 bg-teal-50'
+          }
           emptyIcon={BedDouble}
-          emptyText="No guests currently in-house"
+          emptyText={
+            inHouseFilter === 'today'   ? 'No checkouts today'            :
+            inHouseFilter === 'overdue' ? 'No overdue checkouts'          :
+            inHouseFilter === 'staying' ? 'No guests staying beyond today' :
+            'No guests currently in-house'
+          }
+          filterBar={
+            <>
+              {([
+                { key: 'all',     label: 'All',      count: inHouse.length,       cls: 'text-teal-600 bg-teal-50',   active: 'bg-teal-600 text-white'   },
+                { key: 'today',   label: 'Checkout', count: departingCount,       cls: 'text-amber-600 bg-amber-50', active: 'bg-amber-500 text-white'  },
+                { key: 'overdue', label: 'Overdue',  count: overdueCount,         cls: 'text-red-600 bg-red-50',     active: 'bg-red-600 text-white'    },
+                { key: 'staying', label: 'Staying',  count: stayingGuests.length, cls: 'text-gray-500 bg-gray-100',  active: 'bg-gray-600 text-white'   },
+              ] as { key: InHouseFilter; label: string; count: number; cls: string; active: string }[]).map(f => (
+                <button
+                  key={f.key}
+                  onClick={() => setInHouseFilter(f.key)}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors ${
+                    inHouseFilter === f.key ? f.active : `${f.cls} hover:opacity-70`
+                  } ${f.key === 'overdue' && overdueCount > 0 && inHouseFilter !== 'overdue' ? 'animate-pulse' : ''}`}
+                >
+                  {f.label} <span className="opacity-70">{f.count}</span>
+                </button>
+              ))}
+            </>
+          }
         >
-          {inHouse.map(b => (
-            <BookingCard key={b.id} booking={b} mode="check_out" loadingId={loadingId} onAction={doAction} />
+          {filteredInHouse.map(b => (
+            <BookingCard key={b.id} booking={b} mode="check_out" loadingId={loadingId} onAction={doAction} today={today} />
           ))}
         </Column>
 

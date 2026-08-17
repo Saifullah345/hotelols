@@ -101,6 +101,7 @@ export default async function CheckInPage() {
       inHouse={inHouse}
       upcoming={upcoming}
       departuresToday={departuresToday}
+      today={today}
     />
   )
 }
