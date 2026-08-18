@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { toast } from 'sonner'
 import {
   Pencil, Trash2, Loader2, X, AlertTriangle,
@@ -11,7 +12,7 @@ import {
 import { DEPARTMENTS, SHIFTS, type StaffStatus } from '@/lib/staff-constants'
 import { isValidEmail } from '@/lib/validation'
 import PhoneInput from '@/components/ui/PhoneInput'
-import { isUnlimited, limitReached } from '@/lib/plan-features'
+import { isUnlimited, limitReached, usagePercent, usageLevel } from '@/lib/plan-features'
 
 export type StaffMember = {
   id: string
@@ -467,16 +468,36 @@ export default function StaffClient({
       {/* Toolbar: Add button + view toggle */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
-          {!isUnlimited(planMaxStaff) && (
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border ${
-              limitReached(planMaxStaff, totalActiveStaff)
-                ? 'bg-red-50 text-red-700 border-red-200'
-                : 'bg-primary-50 text-primary-700 border-primary-100'
-            }`}>
-              {totalActiveStaff} / {planMaxStaff} staff
-              {planName && <span className="font-normal opacity-70 capitalize">· {planName}</span>}
-            </span>
-          )}
+          {!isUnlimited(planMaxStaff) && (() => {
+            const level = usageLevel(planMaxStaff, totalActiveStaff)
+            const pct   = usagePercent(planMaxStaff, totalActiveStaff)
+            const chipClass = level === 'limit'    ? 'bg-red-50 text-red-700 border-red-200'
+                            : level === 'critical' ? 'bg-orange-50 text-orange-700 border-orange-200'
+                            : level === 'warning'  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                            : 'bg-primary-50 text-primary-700 border-primary-100'
+            const barColor  = level === 'limit'    ? 'bg-red-400'
+                            : level === 'critical' ? 'bg-orange-400'
+                            : level === 'warning'  ? 'bg-amber-400'
+                            : 'bg-primary-400'
+            return (
+              <div className={`inline-flex flex-col gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold border ${chipClass} ${level === 'critical' ? 'animate-pulse' : ''}`}>
+                <div className="flex items-center gap-1.5">
+                  <span>{totalActiveStaff} / {planMaxStaff} staff</span>
+                  {planName && <span className="font-normal opacity-70 capitalize">· {planName}</span>}
+                  {level !== 'normal' && (
+                    <Link href="/hotel-admin/billing" className="ml-1 font-semibold underline underline-offset-2 opacity-80 hover:opacity-100 transition-opacity">
+                      Upgrade →
+                    </Link>
+                  )}
+                </div>
+                {level !== 'normal' && (
+                  <div className="h-1 w-full bg-black/10 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+                  </div>
+                )}
+              </div>
+            )
+          })()}
           {limitReached(planMaxStaff, totalActiveStaff) ? (
             <span
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-200 text-gray-400 text-sm font-semibold cursor-not-allowed"

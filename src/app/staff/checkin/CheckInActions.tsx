@@ -9,9 +9,10 @@ import { Loader2 } from 'lucide-react'
 interface Props {
   bookingId: string
   action: 'check_in' | 'check_out'
+  isOverdue?: boolean
 }
 
-export default function CheckInActions({ bookingId, action }: Props) {
+export default function CheckInActions({ bookingId, action, isOverdue = false }: Props) {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
@@ -86,11 +87,13 @@ export default function CheckInActions({ bookingId, action }: Props) {
     <button
       onClick={handle}
       disabled={loading}
-      className={`flex items-center gap-2 text-sm font-medium px-4 py-1.5 rounded-lg transition-colors ${
+      className={`flex items-center gap-2 text-sm font-medium px-4 py-1.5 rounded-lg transition-colors disabled:opacity-60 ${
         action === 'check_in'
           ? 'bg-green-600 hover:bg-green-700 text-white'
-          : 'bg-blue-600 hover:bg-blue-700 text-white'
-      } disabled:opacity-60`}
+          : isOverdue
+            ? 'bg-red-600 hover:bg-red-700 text-white'
+            : 'bg-blue-600 hover:bg-blue-700 text-white'
+      }`}
     >
       {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
       {action === 'check_in' ? 'Check In' : 'Check Out'}

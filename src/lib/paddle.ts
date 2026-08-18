@@ -184,6 +184,40 @@ export async function getPaddleTransaction(transactionId: string) {
   return paddleJson<Record<string, unknown>>(`/transactions/${transactionId}`)
 }
 
+export type PaddleTransaction = {
+  id: string
+  status: 'completed' | 'billed' | 'canceled' | 'past_due' | 'draft' | 'ready'
+  created_at: string
+  billed_at: string | null
+  invoice_number: string | null
+  details: {
+    totals: {
+      subtotal: string
+      discount: string
+      tax: string
+      total: string
+      currency_code: string
+    }
+  }
+  items: Array<{
+    price: { id: string; description: string }
+    quantity: number
+  }>
+  payments: Array<{
+    method_details: {
+      type: string
+      card?: { type: string; last4: string }
+    }
+  }>
+  billing_period: { starts_at: string; ends_at: string } | null
+}
+
+export async function listPaddleTransactions(subscriptionId: string) {
+  return paddleJson<PaddleTransaction[]>(
+    `/transactions?subscription_id=${encodeURIComponent(subscriptionId)}&order_by=created_at[DESC]&per_page=50`,
+  )
+}
+
 /** Paddle customer for an email address, if one exists. */
 export async function findPaddleCustomer(email: string) {
   const res = await paddleJson<Array<{ id: string; email: string }>>(
