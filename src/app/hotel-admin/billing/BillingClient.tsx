@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Check, Zap, CreditCard, RefreshCw, XCircle, Loader2, AlertTriangle, ArrowUp, Lock } from 'lucide-react'
+import { Check, Zap, CreditCard, RefreshCw, XCircle, Loader2, AlertTriangle, ArrowUp, Lock, ArrowDownCircle, X, MessageCircle, BedDouble, Users, Star } from 'lucide-react'
 import { getPaddle, SUBSCRIPTION_EVENT } from '@/components/paddle/PaddleProvider'
 import { createClient } from '@/lib/supabase/client'
 import { planDirection, subscriptionIsLive } from '@/lib/plan-tier'
@@ -47,11 +47,13 @@ const STATUS_BADGE: Record<string, string> = {
 export default function BillingClient({ hotel, currentPlan, plans }: Props) {
   const router = useRouter()
   const [billing, setBilling]   = useState<'monthly' | 'yearly'>('monthly')
-  const [busy, setBusy]         = useState(false)
-  const [canceling, setCanceling] = useState(false)
-  const [syncing, setSyncing]   = useState(false)
-  const [checking, setChecking] = useState(false)
-  const [problems, setProblems] = useState<string[] | null>(null)
+  const [busy, setBusy]               = useState(false)
+  const [canceling, setCanceling]     = useState(false)
+  const [syncing, setSyncing]         = useState(false)
+  const [checking, setChecking]       = useState(false)
+  const [problems, setProblems]       = useState<string[] | null>(null)
+  const [downgradeTarget, setDowngradeTarget] = useState<Plan | null>(null)
+  const [pendingCycle, setPendingCycle]       = useState<'monthly' | 'yearly' | null>(null)
 
   const hotelId = hotel?.id
 
@@ -322,7 +324,12 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
             {(['monthly', 'yearly'] as const).map(b => (
               <button
                 key={b}
-                onClick={() => setBilling(b)}
+                onClick={() => {
+                  if (b === billing) return
+                  // Show confirmation when there is a current plan to compare against
+                  if (currentPlan) setPendingCycle(b)
+                  else setBilling(b)
+                }}
                 className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
                   billing === b ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
@@ -383,13 +390,13 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
                     <RefreshCw className="h-4 w-4" /> Active plan
                   </div>
                 ) : blocked ? (
-                  <div
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 text-gray-400 text-sm font-medium cursor-not-allowed"
-                    title={`Your ${currentPlan?.name ?? 'current'} plan can only be changed to a higher plan. Contact support to move down a tier.`}
+                  <button
+                    onClick={() => setDowngradeTarget(plan)}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-500 text-sm font-medium hover:bg-gray-100 hover:text-gray-700 transition-colors"
                   >
-                    <Lock className="h-4 w-4" />
-                    {direction === 'downgrade' ? 'Lower than your plan' : 'Not an upgrade'}
-                  </div>
+                    <ArrowDownCircle className="h-4 w-4 shrink-0" />
+                    {direction === 'downgrade' ? 'Downgrade plan' : 'View details'}
+                  </button>
                 ) : (
                   <button
                     onClick={() => openCheckout(plan)}
@@ -412,6 +419,248 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
           })}
         </div>
       </div>
+
+      {/* ── Billing cycle confirmation modal ── */}
+      {pendingCycle && currentPlan && (() => {
+        const toYearly   = pendingCycle === 'yearly'
+        const monthly    = currentPlan.price_monthly
+        const yearly     = currentPlan.price_yearly
+        const annualNow  = monthly * 12
+        const savings    = annualNow - yearly
+        const perMonthYr = yearly / 12
+        const nextDate   = hotel?.plan_expires_at
+          ? new Date(hotel.plan_expires_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+          : null
+
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            onClick={() => setPendingCycle(null)}
+          >
+            <div
+              className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Close */}
+              <button
+                onClick={() => setPendingCycle(null)}
+                className="absolute top-4 right-4 w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+
+              {/* Header */}
+              <div className="px-6 pt-6 pb-5 border-b border-gray-100">
+                <h3 className="text-base font-bold text-gray-900 pr-8">
+                  Switch to {toYearly ? 'Annual' : 'Monthly'} Billing?
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  {toYearly
+                    ? 'Lock in a lower rate and pay once a year.'
+                    : 'Switch back to paying month-to-month.'}
+                </p>
+              </div>
+
+              {/* Price comparison */}
+              <div className="px-6 py-5 space-y-3">
+
+                {/* From → To */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.08em] mb-1">Current</p>
+                    <p className="text-xl font-bold text-gray-900">
+                      {toYearly ? `$${monthly}` : `$${yearly}`}
+                      <span className="text-sm font-normal text-gray-500 ml-1">
+                        /{toYearly ? 'mo' : 'yr'}
+                      </span>
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {toYearly ? 'Billed monthly' : 'Billed annually'}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-primary-200 bg-primary-50 p-4">
+                    <p className="text-[10px] font-bold text-primary-500 uppercase tracking-[0.08em] mb-1">New</p>
+                    <p className="text-xl font-bold text-gray-900">
+                      {toYearly ? `$${yearly}` : `$${monthly}`}
+                      <span className="text-sm font-normal text-gray-500 ml-1">
+                        /{toYearly ? 'yr' : 'mo'}
+                      </span>
+                    </p>
+                    <p className="text-xs text-primary-500 mt-0.5">
+                      {toYearly ? `$${perMonthYr.toFixed(2)}/mo equivalent` : 'Billed monthly'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Savings / details */}
+                <div className="rounded-xl border border-gray-100 divide-y divide-gray-100">
+                  {toYearly && savings > 0 && (
+                    <div className="flex items-center justify-between px-4 py-3">
+                      <span className="text-sm text-gray-600">You save</span>
+                      <span className="text-sm font-bold text-emerald-600">${savings.toFixed(0)}/year</span>
+                    </div>
+                  )}
+                  {toYearly && (
+                    <div className="flex items-center justify-between px-4 py-3">
+                      <span className="text-sm text-gray-600">Annual cost</span>
+                      <span className="text-sm font-semibold text-gray-900">${yearly}/year</span>
+                    </div>
+                  )}
+                  {!toYearly && (
+                    <div className="flex items-center justify-between px-4 py-3">
+                      <span className="text-sm text-gray-600">Monthly cost</span>
+                      <span className="text-sm font-semibold text-gray-900">${monthly}/month</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <span className="text-sm text-gray-600">
+                      {toYearly ? 'Amount due at checkout' : 'Due at next renewal'}
+                    </span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {toYearly ? `$${yearly}` : `$${monthly}`}
+                    </span>
+                  </div>
+                  {nextDate && (
+                    <div className="flex items-center justify-between px-4 py-3">
+                      <span className="text-sm text-gray-600">Next billing date</span>
+                      <span className="text-sm font-semibold text-gray-900">{nextDate}</span>
+                    </div>
+                  )}
+                </div>
+
+                {!toYearly && (
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                    Switching to monthly billing will cost ${(annualNow - yearly).toFixed(0)} more per year compared to the annual plan.
+                  </p>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="px-6 pb-6 flex gap-3">
+                <button
+                  onClick={() => { setBilling(pendingCycle); setPendingCycle(null) }}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold transition-colors"
+                >
+                  {toYearly ? <Check className="h-4 w-4" /> : <RefreshCw className="h-4 w-4" />}
+                  {toYearly ? 'Switch to Annual' : 'Switch to Monthly'}
+                </button>
+                <button
+                  onClick={() => setPendingCycle(null)}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* ── Downgrade modal ── */}
+      {downgradeTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setDowngradeTarget(null)}
+        >
+          <div
+            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Close */}
+            <button
+              onClick={() => setDowngradeTarget(null)}
+              className="absolute top-4 right-4 w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            {/* Header */}
+            <div className="px-6 pt-6 pb-5 border-b border-gray-100">
+              <div className="flex items-start gap-4">
+                <div className="w-11 h-11 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center shrink-0">
+                  <ArrowDownCircle className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">
+                    Downgrade to {downgradeTarget.name}?
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Downgrades require a support request so we can review your usage and
+                    make sure nothing is lost during the transition.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Impact section */}
+            <div className="px-6 py-5 space-y-3">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.08em]">
+                What to expect
+              </p>
+
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <BedDouble className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-900">Room limit may decrease</p>
+                    <p className="text-xs text-amber-700 mt-0.5">
+                      If your current room count exceeds the lower plan&apos;s limit, you will need to
+                      deactivate rooms before the downgrade takes effect.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Users className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-900">Staff seats may be reduced</p>
+                    <p className="text-xs text-amber-700 mt-0.5">
+                      Active staff members exceeding the lower plan&apos;s seat limit will need to
+                      be removed or deactivated first.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Star className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-900">Some features will be disabled</p>
+                    <p className="text-xs text-amber-700 mt-0.5">
+                      Features not included in the{' '}
+                      <span className="font-semibold capitalize">{downgradeTarget.name}</span> plan —
+                      such as advanced reports, online booking, or housekeeping — will no longer
+                      be accessible.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Your data is safe throughout this process. Our support team will guide you
+                through any adjustments needed before switching you to the lower plan.
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="px-6 pb-6 flex gap-3">
+              <a
+                href={`mailto:support@hotelos.com?subject=Plan downgrade request — ${hotel?.name}&body=Hi,%0A%0AI would like to downgrade my plan from ${currentPlan?.name ?? 'current plan'} to ${downgradeTarget.name}.%0A%0AHotel: ${hotel?.name}%0AHotel ID: ${hotel?.id}%0A%0APlease guide me through the process.%0A%0AThank you`}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold transition-colors"
+              >
+                <MessageCircle className="h-4 w-4" />
+                Contact Support
+              </a>
+              <button
+                onClick={() => setDowngradeTarget(null)}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold transition-colors"
+              >
+                <Lock className="h-4 w-4" />
+                Keep Current Plan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Billing History ── */}
       <BillingHistory
