@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { stripHtml } from '@/lib/sanitize'
 import { isValidEmail } from '@/lib/validation'
+import { blockIfExpired } from '@/lib/subscription-guard'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -16,6 +17,12 @@ export async function POST(request: Request) {
 
   const hotelId = caller.tenant_id
   if (!hotelId) return NextResponse.json({ error: 'No hotel associated with this account' }, { status: 400 })
+
+  // The dashboard already hides itself behind the plan gate; this is what
+  // actually stops a stale tab or a direct request from operating a hotel
+  // with no running subscription.
+  const blocked = await blockIfExpired(hotelId)
+  if (blocked) return blocked
 
   const body = await request.json().catch(() => ({}))
   const { name, email, phone, department, position, shift, salary } = body

@@ -1,5 +1,6 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { blockIfExpired } from '@/lib/subscription-guard'
 
 export async function DELETE(
   _request: Request,
@@ -34,6 +35,12 @@ export async function DELETE(
   if (payment.hotel_id !== profile.tenant_id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
+
+  // The dashboard already hides itself behind the plan gate; this is what
+  // actually stops a stale tab or a direct request from operating a hotel
+  // with no running subscription.
+  const blocked = await blockIfExpired(payment.hotel_id)
+  if (blocked) return blocked
 
   const { error } = await admin.from('payments').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })

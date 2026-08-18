@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { updatePlanInPaddle, deactivatePlanInPaddle } from '@/lib/paddle-plans'
 import { requireSuperAdmin } from '@/lib/api-auth'
-import { parsePlanLimit, parseTierRank } from '@/lib/plan-limits'
+import { parsePlanLimit, parseTierRank, parseTrialDays } from '@/lib/plan-limits'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -13,7 +13,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
 
   const { data: current } = await admin
     .from('plans')
-    .select('id, name, price_monthly, price_yearly, is_active, paddle_product_id, paddle_price_id_monthly, paddle_price_id_yearly')
+    .select('*')
     .eq('id', id)
     .single()
   if (!current) return NextResponse.json({ error: 'Plan not found' }, { status: 404 })
@@ -36,22 +36,29 @@ export async function PATCH(request: Request, { params }: Ctx) {
     return NextResponse.json({ error: 'Yearly price must be greater than 0' }, { status: 400 })
   }
 
+  const trial = parseTrialDays(body.trial_days === undefined ? current.trial_days : body.trial_days)
+  if ('error' in trial) return NextResponse.json({ error: trial.error }, { status: 400 })
+
   const sync = await updatePlanInPaddle(
     {
       name: current.name,
       price_monthly: Number(current.price_monthly),
       price_yearly:  Number(current.price_yearly),
+      trial_days:    Number(current.trial_days ?? 0),
       paddle_product_id:       current.paddle_product_id,
       paddle_price_id_monthly: current.paddle_price_id_monthly,
       paddle_price_id_yearly:  current.paddle_price_id_yearly,
+      paddle_price_id_monthly_no_trial: current.paddle_price_id_monthly_no_trial ?? null,
+      paddle_price_id_yearly_no_trial:  current.paddle_price_id_yearly_no_trial  ?? null,
     },
-    { name, price_monthly: priceMonthly, price_yearly: priceYearly },
+    { name, price_monthly: priceMonthly, price_yearly: priceYearly, trial_days: trial.value },
   )
 
   const updates: Record<string, unknown> = {
     name,
     price_monthly: priceMonthly,
     price_yearly:  priceYearly,
+    trial_days:    trial.value,
     ...sync.ids,
   }
 

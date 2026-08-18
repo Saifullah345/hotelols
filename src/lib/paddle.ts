@@ -125,7 +125,10 @@ export async function createPaddlePrice(opts: {
   currency: string
   interval: 'month' | 'year'
   description: string
+  /** Free days before the first charge. 0 or absent bills immediately. */
+  trialDays?: number
 }) {
+  const trialDays = Math.round(opts.trialDays ?? 0)
   return paddleJson<PaddlePrice>('/prices', {
     method: 'POST',
     body: JSON.stringify({
@@ -136,6 +139,10 @@ export async function createPaddlePrice(opts: {
         currency_code: opts.currency,
       },
       billing_cycle: { interval: opts.interval, frequency: 1 },
+      // Paddle charges 0.00 up front and takes the real payment when the trial
+      // ends. Omitted entirely when there is no trial — sending a zero-length
+      // one is rejected.
+      ...(trialDays > 0 ? { trial_period: { interval: 'day', frequency: trialDays } } : {}),
       tax_mode: 'account_setting',
     }),
   })
@@ -199,23 +206,57 @@ export async function getPaddleSubscription(subscriptionId: string) {
   return json.data as PaddleSubscription
 }
 
-export async function cancelPaddleSubscription(subscriptionId: string) {
-  const res = await paddleFetch(`/subscriptions/${subscriptionId}/cancel`, {
-    method: 'POST',
-    body: JSON.stringify({ effective_from: 'next_billing_period' }),
-  })
-  return res.ok
+/**
+ * Cancels at the end of the period the hotel has already paid for.
+ *
+ * A subscription still in its trial has nothing paid for, and Paddle refuses
+ * `next_billing_period` on some of them; the fallback cancels immediately so a
+ * hotel that wants out during a trial is never told "could not cancel" and left
+ * facing a charge. The result says which of the two happened, because the two
+ * mean very different things to the person clicking the button.
+ */
+export async function cancelPaddleSubscription(
+  subscriptionId: string,
+  effectiveFrom: 'next_billing_period' | 'immediately' = 'next_billing_period',
+): Promise<{ ok: boolean; immediate: boolean; error?: string }> {
+  const attempt = async (from: 'next_billing_period' | 'immediately') =>
+    paddleJson<PaddleSubscription>(`/subscriptions/${subscriptionId}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({ effective_from: from }),
+    })
+
+  const first = await attempt(effectiveFrom)
+  if (!first.error) return { ok: true, immediate: effectiveFrom === 'immediately' }
+
+  if (effectiveFrom === 'next_billing_period') {
+    const retry = await attempt('immediately')
+    if (!retry.error) return { ok: true, immediate: true }
+    return { ok: false, immediate: false, error: retry.error }
+  }
+
+  return { ok: false, immediate: false, error: first.error }
 }
 
-export async function updatePaddleSubscription(subscriptionId: string, priceId: string) {
-  const res = await paddleFetch(`/subscriptions/${subscriptionId}`, {
+/**
+ * Moves a live subscription onto another plan's price.
+ *
+ * `do_not_bill` is what keeps a mid-trial plan change from restarting the
+ * trial or charging anything: the item is swapped, the billing period (which
+ * during a trial *is* the trial) is left exactly as it was, and the first
+ * charge still lands on the original trial end date.
+ */
+export async function updatePaddleSubscription(
+  subscriptionId: string,
+  priceId: string,
+  opts: { prorationBillingMode?: 'prorated_immediately' | 'do_not_bill' | 'full_immediately' } = {},
+): Promise<{ data?: PaddleSubscription; error?: string }> {
+  return paddleJson<PaddleSubscription>(`/subscriptions/${subscriptionId}`, {
     method: 'PATCH',
     body: JSON.stringify({
       items: [{ price_id: priceId, quantity: 1 }],
-      proration_billing_mode: 'prorated_immediately',
+      proration_billing_mode: opts.prorationBillingMode ?? 'prorated_immediately',
     }),
   })
-  return res.ok
 }
 
 export type PaddleSubscription = {
@@ -224,7 +265,14 @@ export type PaddleSubscription = {
   customer_id: string
   current_billing_period: { starts_at: string; ends_at: string } | null
   next_billed_at: string | null
-  items: Array<{ price: { id: string; product_id: string }; quantity: number }>
+  /** Set while a cancellation or pause is queued for the end of the period. */
+  scheduled_change: { action: 'cancel' | 'pause' | 'resume'; effective_at: string } | null
+  items: Array<{
+    price: { id: string; product_id: string }
+    quantity: number
+    /** Present on a trialing item: when the free period runs out. */
+    trial_dates?: { starts_at: string; ends_at: string } | null
+  }>
 }
 
 /** Verify a Paddle webhook signature.

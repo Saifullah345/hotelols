@@ -14,6 +14,7 @@ type Plan = {
   id: string
   name: string
   price_monthly: number
+  trial_days: number | null
   features: string[]
   feature_listing: boolean | null
   feature_online_booking: boolean | null
@@ -314,6 +315,11 @@ export default function CustomerRegisterHotelPage() {
                             {plan.price_monthly === 0 ? 'Free' : `$${plan.price_monthly}`}
                           </p>
                           {plan.price_monthly > 0 && <p className="text-xs text-gray-400">/month</p>}
+                          {Number(plan.trial_days ?? 0) > 0 && (
+                            <p className="mt-1 inline-block rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
+                              {plan.trial_days} days free
+                            </p>
+                          )}
                         </div>
                       </div>
                     </button>

@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { AlertTriangle, Clock, CreditCard } from 'lucide-react'
+import { AlertTriangle, Clock, CreditCard, Rocket } from 'lucide-react'
 import { subscriptionMessage, type SubscriptionInfo } from '@/lib/subscription'
 
 /**
@@ -15,7 +15,19 @@ export default function SubscriptionBanner({
   const message = subscriptionMessage(info, planName)
   if (!message) return null
 
-  const tone = info.state === 'expired' || info.state === 'past_due'
+  // Nothing has gone wrong for a hotel that simply hasn't subscribed yet — it
+  // is an invitation, not a warning, so it doesn't get the red treatment.
+  const tone = info.state === 'unsubscribed'
+    ? {
+        wrap: 'border-indigo-200 bg-indigo-50',
+        icon: 'text-indigo-500',
+        title: 'text-indigo-900',
+        body: 'text-indigo-700',
+        button: 'bg-indigo-600 hover:bg-indigo-700',
+        Icon: Rocket,
+        heading: 'Activate your hotel',
+      }
+    : info.state === 'expired' || info.state === 'past_due'
     ? {
         wrap: 'border-red-200 bg-red-50',
         icon: 'text-red-500',
@@ -48,7 +60,9 @@ export default function SubscriptionBanner({
         href="/hotel-admin/billing"
         className={`shrink-0 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-colors ${tone.button}`}
       >
-        {info.state === 'past_due' ? 'Update payment' : 'Renew now'}
+        {info.state === 'past_due' ? 'Update payment'
+          : info.state === 'unsubscribed' ? 'Choose a plan'
+          : 'Renew now'}
       </Link>
     </div>
   )

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { roomTypeNameSchema, amenitySchema } from '@/lib/validation'
+import { blockIfExpired } from '@/lib/subscription-guard'
 
 function validatePayload(body: Record<string, unknown>): string | null {
   const name = roomTypeNameSchema.safeParse(body.name)
@@ -61,6 +62,12 @@ export async function POST(request: Request) {
   if (!profile || !['super_admin', 'hotel_admin'].includes(profile.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
+
+  // The dashboard already hides itself behind the plan gate; this is what
+  // actually stops a stale tab or a direct request from operating a hotel
+  // with no running subscription.
+  const blocked = await blockIfExpired(profile.tenant_id)
+  if (blocked) return blocked
 
   const body = await request.json()
   const validationError = validatePayload(body)

@@ -1,5 +1,6 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { blockIfExpired } from '@/lib/subscription-guard'
 
 export async function POST(request: Request) {
   // Auth check using the user's session (respects RLS)
@@ -19,6 +20,12 @@ export async function POST(request: Request) {
 
   const hotelId = profile.tenant_id
   if (!hotelId) return NextResponse.json({ error: 'No hotel assigned' }, { status: 400 })
+
+  // The dashboard already hides itself behind the plan gate; this is what
+  // actually stops a stale tab or a direct request from operating a hotel
+  // with no running subscription.
+  const blocked = await blockIfExpired(hotelId)
+  if (blocked) return blocked
 
   const body = await request.json()
   const { booking_id, payment_method, payment_status, payment_notes } = body

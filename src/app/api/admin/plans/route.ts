@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createPlanInPaddle } from '@/lib/paddle-plans'
 import { requireSuperAdmin } from '@/lib/api-auth'
 
-import { parsePlanLimit, parseTierRank } from '@/lib/plan-limits'
+import { parsePlanLimit, parseTierRank, parseTrialDays } from '@/lib/plan-limits'
 
 export async function POST(request: Request) {
   const auth = await requireSuperAdmin()
@@ -37,6 +37,11 @@ export async function POST(request: Request) {
   const rank = parseTierRank(body.tier_rank, Math.max(Math.round(priceMonthly), 1))
   if ('error' in rank) return NextResponse.json({ error: rank.error }, { status: 400 })
 
+  // The trial goes onto the Paddle prices, so it has to be settled before the
+  // catalogue entry is created.
+  const trial = parseTrialDays(body.trial_days)
+  if ('error' in trial) return NextResponse.json({ error: trial.error }, { status: 400 })
+
   // Published to Paddle first: if the catalogue entry can't be made we still
   // want the plan saved, but with the ids we did get rather than none.
   const sync = await createPlanInPaddle({
@@ -44,6 +49,7 @@ export async function POST(request: Request) {
     price_monthly: priceMonthly,
     price_yearly: priceYearly,
     description: typeof body.description === 'string' ? body.description : null,
+    trial_days: trial.value,
   })
 
   const { data: plan, error } = await admin.from('plans').insert({
@@ -58,6 +64,9 @@ export async function POST(request: Request) {
     // which is the right order for an ordinary tier; a custom-priced one needs
     // its rank stated, or it lands at the bottom.
     tier_rank:     rank.value,
+    // Free days before the first charge. Paddle enforces it; this is the record
+    // of what was asked for, and what the pricing page advertises.
+    trial_days:    trial.value,
     feature_listing:          body.feature_listing          !== false,
     feature_housekeeping:     body.feature_housekeeping     !== false,
     feature_reviews:          body.feature_reviews          !== false,

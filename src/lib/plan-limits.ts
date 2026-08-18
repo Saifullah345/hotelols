@@ -32,3 +32,20 @@ export function parseTierRank(raw: unknown, fallback: number): LimitResult {
   if (n < 1) return { error: 'Tier rank must be 1 or higher' }
   return { value: Math.round(n) }
 }
+
+/**
+ * Free trial length, in days.
+ *
+ * 0 means "charge at checkout" and is perfectly valid, so this can't reuse the
+ * limit parser — there, 0 is a mistake. The ceiling matches the database
+ * constraint, so a value that passes here always saves.
+ */
+export function parseTrialDays(raw: unknown): LimitResult {
+  if (raw === undefined || raw === null || raw === '') return { value: 0 }
+  const n = Number(raw)
+  if (!Number.isFinite(n)) return { error: 'Trial days must be a number' }
+  if (!Number.isInteger(n)) return { error: 'Trial days must be a whole number' }
+  if (n < 0) return { error: 'Trial days cannot be negative. Use 0 for no trial.' }
+  if (n > 365) return { error: 'Trial days cannot exceed 365' }
+  return { value: n }
+}

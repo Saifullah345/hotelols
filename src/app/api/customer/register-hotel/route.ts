@@ -76,8 +76,11 @@ export async function POST(request: Request) {
     phone:    hotel_phone,
     email:    hotel_email,
     owner_id: user.id,
+    // Chosen, not bought. The hotel-admin dashboard stays locked behind
+    // "choose a plan" until a subscription is actually running.
     plan_id:  resolvedPlanId,
     status:   'pending',
+    subscription_status: 'unsubscribed',
     currency: 'USD',
   }).select('id').single()
 

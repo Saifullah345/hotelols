@@ -74,6 +74,14 @@ export default async function PlansPage() {
               )}
             </div>
 
+            {/* The trial is what a hotel actually experiences first, so it is
+                worth seeing at a glance on the plan list. */}
+            {Number(plan.trial_days ?? 0) > 0 && (
+              <p className="mb-4 inline-block rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
+                {plan.trial_days}-day free trial
+              </p>
+            )}
+
             <div className="space-y-2 mb-6">
               <div className="flex items-center gap-2 text-sm text-gray-700">
                 <Check className="h-4 w-4 text-green-500" />

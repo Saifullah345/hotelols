@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { roomNameSchema, roomNumberSchema } from '@/lib/validation'
+import { blockIfExpired } from '@/lib/subscription-guard'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -22,6 +23,12 @@ export async function PATCH(request: Request, { params }: Ctx) {
   if (profile.role !== 'super_admin' && room.hotel_id !== profile.tenant_id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
+
+  // The dashboard already hides itself behind the plan gate; this is what
+  // actually stops a stale tab or a direct request from operating a hotel
+  // with no running subscription.
+  const blocked = await blockIfExpired(room.hotel_id)
+  if (blocked) return blocked
 
   const body = await request.json()
   const { room_number, name, floor, price_per_night, room_type_id,
@@ -93,6 +100,12 @@ export async function DELETE(_request: Request, { params }: Ctx) {
   if (profile.role !== 'super_admin' && room.hotel_id !== profile.tenant_id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
+
+  // The dashboard already hides itself behind the plan gate; this is what
+  // actually stops a stale tab or a direct request from operating a hotel
+  // with no running subscription.
+  const blocked = await blockIfExpired(room.hotel_id)
+  if (blocked) return blocked
 
   // Block deletion if active bookings exist
   const { count } = await supabase

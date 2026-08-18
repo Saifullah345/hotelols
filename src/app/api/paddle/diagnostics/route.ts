@@ -2,13 +2,18 @@ import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { paddleConfigured, apiKeyProblem, getPaddlePrice, setPaddlePriceTrial } from '@/lib/paddle'
 
+/** Paddle states a trial as a count of intervals; the plan states it in days. */
+const PER_DAY: Record<string, number> = { day: 1, week: 7, month: 30, year: 365 }
+
 /**
  * Reports what Paddle actually has configured, so a billing problem can be
  * diagnosed from the app instead of guessed at from a dashboard screenshot.
  *
  * Answers, concretely: is the server configured, does each plan have prices,
- * do those prices exist, what do they cost, and do any of them carry a free
- * trial (which is what makes a first charge come out as 0.00).
+ * do those prices exist, what do they cost, and does the free trial on each
+ * price match the trial the plan advertises — a mismatch is what makes a first
+ * charge come out as 0.00 when it shouldn't, or bill immediately when the
+ * pricing page promised 14 free days.
  */
 export async function GET() {
   const supabase = await createClient()
@@ -46,7 +51,7 @@ export async function GET() {
 
   const { data: plans } = await admin
     .from('plans')
-    .select('id, name, price_monthly, price_yearly, is_active, paddle_product_id, paddle_price_id_monthly, paddle_price_id_yearly')
+    .select('id, name, price_monthly, price_yearly, trial_days, is_active, paddle_product_id, paddle_price_id_monthly, paddle_price_id_yearly')
     .order('price_monthly')
 
   const planReport = []
@@ -79,6 +84,8 @@ export async function GET() {
 
       const amount = price.unit_price ? Number(price.unit_price.amount) / 100 : null
       const trial  = price.trial_period ?? null
+      const trialDaysInPaddle = trial ? trial.frequency * (PER_DAY[trial.interval] ?? 1) : 0
+      const trialDaysWanted   = Number(plan.trial_days ?? 0)
 
       cycles[cycle] = {
         configured: true,
@@ -89,13 +96,20 @@ export async function GET() {
         currency: price.unit_price?.currency_code,
         billingCycle: price.billing_cycle,
         trial,
+        trialDays: trialDaysInPaddle,
+        trialDaysExpected: trialDaysWanted,
       }
 
-      // This is what makes a first payment come through as 0.00.
-      if (trial) {
+      // A trial is only a problem when it isn't the one the plan promises: an
+      // unexpected one is why a first payment comes through as 0.00, and a
+      // missing one is why a "14 days free" plan charges at checkout.
+      if (trialDaysInPaddle !== trialDaysWanted) {
         problems.push(
-          `Plan "${plan.name}" ${cycle} price has a free trial of ${trial.frequency} ${trial.interval}(s). ` +
-          `Paddle charges 0.00 up front and bills only when the trial ends. Remove the trial in Paddle, or POST here with {"removeTrialFrom":"${priceId}"}.`,
+          trialDaysWanted === 0
+            ? `Plan "${plan.name}" ${cycle} price has a ${trialDaysInPaddle}-day free trial in Paddle, but the plan offers no trial. ` +
+              `Paddle will charge 0.00 up front. Re-save the plan to republish it, or POST here with {"removeTrialFrom":"${priceId}"}.`
+            : `Plan "${plan.name}" ${cycle} price gives ${trialDaysInPaddle} trial days in Paddle but the plan promises ${trialDaysWanted}. ` +
+              'Re-save the plan to push the correct trial to Paddle.',
         )
       }
       if (price.status !== 'active') {
@@ -120,10 +134,10 @@ export async function GET() {
   if (profile.tenant_id) {
     const { data } = await admin
       .from('hotels')
-      .select('name, plan_id, subscription_status, plan_expires_at, billing_cycle, paddle_subscription_id, paddle_customer_id')
+      .select('name, plan_id, subscription_status, plan_expires_at, billing_cycle, paddle_subscription_id, paddle_customer_id, trial_ends_at, trial_used_at, subscription_cancel_at')
       .eq('id', profile.tenant_id).single()
     hotel = data
-    if (data && !data.paddle_subscription_id) {
+    if (data && !data.paddle_subscription_id && data.subscription_status !== 'unsubscribed') {
       problems.push('This hotel has no Paddle subscription recorded. If a payment has gone through, no webhook reached this server — use "Sync from Paddle" on the billing page to apply it now.')
     }
   }

@@ -62,16 +62,38 @@ export function subscriptionIsLive(status: string | null | undefined, expiresAt?
   return !Number.isFinite(end) || end > Date.now()
 }
 
+/** True while the hotel is inside a free trial that hasn't run out. */
+export function subscriptionIsTrialing(
+  status: string | null | undefined,
+  trialEndsAt?: string | null,
+): boolean {
+  if (status !== 'trialing') return false
+  if (!trialEndsAt) return true
+  const end = new Date(trialEndsAt).getTime()
+  return !Number.isFinite(end) || end > Date.now()
+}
+
 export type MoveCheck = { allowed: boolean; direction: PlanDirection; reason?: string }
 
-/** The rule itself: with a live subscription, only a higher-ranked plan is allowed. */
+/**
+ * The rule itself: with a live subscription, only a higher-ranked plan is
+ * allowed — except during a trial, when nothing has been paid for yet and the
+ * hotel is still deciding. Trying a cheaper tier is the entire point of a
+ * trial, so a move in either direction goes through.
+ */
 export function canMoveTo(
   current: RankablePlan | null | undefined,
   target: RankablePlan | null | undefined,
-  opts: { live: boolean },
+  opts: { live: boolean; trialing?: boolean },
 ): MoveCheck {
   const direction = planDirection(current, target)
   if (!opts.live) return { allowed: true, direction }
+
+  if (opts.trialing) {
+    return direction === 'same'
+      ? { allowed: false, direction, reason: `You are already on ${current?.name ?? 'this plan'}.` }
+      : { allowed: true, direction }
+  }
 
   if (direction === 'downgrade') {
     return {

@@ -4,16 +4,21 @@ import {
   paddleConfigured, createPaddleProduct, createPaddlePrice,
   archivePaddlePrice, getPaddlePrice, setPaddlePriceTrial,
 } from '@/lib/paddle'
-import { PLAN_CURRENCY } from '@/lib/paddle-plans'
+import { PLAN_CURRENCY, trialDaysOf } from '@/lib/paddle-plans'
 
 type Ctx = { params: Promise<{ id: string }> }
+
+/** Paddle states a trial as a count of intervals; the plan states it in days. */
+const PER_DAY: Record<string, number> = { day: 1, week: 7, month: 30, year: 365 }
 
 /**
  * Brings one plan's Paddle catalogue entry into line with what's stored here.
  *
  * Repairs the three things that actually go wrong: a plan that was never
  * published (no product or prices), a price whose amount has drifted from the
- * plan, and a free trial that makes the first charge come out as 0.00.
+ * plan, and a trial in Paddle that isn't the one the plan promises — either an
+ * unwanted one making the first charge 0.00, or a missing one on a plan sold as
+ * "14 days free".
  *
  * Paddle price amounts are immutable, so a drifted price is replaced and the
  * old one archived — existing subscribers keep the price they signed up on.
@@ -35,16 +40,22 @@ export async function POST(request: Request, { params }: Ctx) {
   }
 
   const body = await request.json().catch(() => ({}))
-  // Default on: a trial is almost never what's wanted on a repair.
-  const removeTrials = body.removeTrials !== false
+  // The plan's own trial_days is the target. `removeTrials` overrides it for a
+  // one-off repair — a plan that should not be selling a free period at all.
+  const forceRemove = body.removeTrials === true
 
   const admin = await createAdminClient()
   const { data: plan } = await admin
     .from('plans')
-    .select('id, name, price_monthly, price_yearly, paddle_product_id, paddle_price_id_monthly, paddle_price_id_yearly')
+    .select('*')
     .eq('id', id)
     .single()
   if (!plan) return NextResponse.json({ error: 'Plan not found' }, { status: 404 })
+
+  const wantedTrialDays = forceRemove ? 0 : trialDaysOf(plan)
+  const wantedTrial = wantedTrialDays > 0
+    ? { interval: 'day' as const, frequency: wantedTrialDays }
+    : null
 
   const changes: string[] = []
   const problems: string[] = []
@@ -84,15 +95,23 @@ export async function POST(request: Request, { params }: Ctx) {
       } else {
         const paddleAmount = price.unit_price ? Number(price.unit_price.amount) / 100 : null
 
+        const trialInPaddle = price.trial_period
+          ? price.trial_period.frequency * (PER_DAY[price.trial_period.interval] ?? 1)
+          : 0
+
         if (paddleAmount !== null && Math.abs(paddleAmount - cycle.amount) > 0.005) {
           needsNewPrice = true
           changes.push(`${cycle.label} price ${paddleAmount} → ${cycle.amount}`)
-        } else if (price.trial_period && removeTrials) {
-          // Amount is right; only the trial has to go. Patching keeps the id,
+        } else if (trialInPaddle !== wantedTrialDays) {
+          // Amount is right; only the trial is off. Patching keeps the price id,
           // so existing subscriptions are untouched.
-          const cleared = await setPaddlePriceTrial(cycle.priceId, null)
-          if (cleared.error) problems.push(`could not remove the ${cycle.label} trial: ${cleared.error}`)
-          else changes.push(`removed the ${price.trial_period.frequency}-${price.trial_period.interval} trial from the ${cycle.label} price`)
+          const patched = await setPaddlePriceTrial(cycle.priceId, wantedTrial)
+          if (patched.error) problems.push(`could not set the ${cycle.label} trial: ${patched.error}`)
+          else changes.push(
+            wantedTrialDays === 0
+              ? `removed the ${trialInPaddle}-day trial from the ${cycle.label} price`
+              : `${cycle.label} trial ${trialInPaddle} → ${wantedTrialDays} days`,
+          )
         }
 
         if (price.status !== 'active' && !needsNewPrice) {
@@ -110,6 +129,7 @@ export async function POST(request: Request, { params }: Ctx) {
       currency: PLAN_CURRENCY,
       interval: cycle.interval,
       description: `${plan.name} — ${cycle.label}`,
+      trialDays: wantedTrialDays,
     })
     if (created.error || !created.data) {
       problems.push(`could not create the ${cycle.label} price: ${created.error}`)

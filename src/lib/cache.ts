@@ -22,6 +22,10 @@ export type HotelCached = {
   subscription_status: string | null
   plan_expires_at: string | null
   paddle_subscription_id: string | null
+  /** Trial state, so the countdown banner needs no extra query. */
+  trial_ends_at: string | null
+  trial_used_at: string | null
+  subscription_cancel_at: string | null
   plan: PlanDbData | null
 }
 
@@ -38,6 +42,7 @@ export function getCachedHotel(hotelId: string): Promise<HotelCached | null> {
         .select(`
           id, name, currency, status,
           subscription_status, plan_expires_at, paddle_subscription_id,
+          trial_ends_at, trial_used_at, subscription_cancel_at,
           plan:plans(
             name, max_rooms, max_staff,
             feature_listing, feature_housekeeping, feature_reviews, feature_online_booking,

@@ -47,6 +47,7 @@ type Plan = {
   max_staff: number
   feature_listing: boolean | null
   feature_online_booking: boolean | null
+  trial_days: number | null
 }
 
 const STEP_1_FIELDS: (keyof FormData)[] = ['full_name', 'email', 'password', 'confirm_password']
@@ -160,9 +161,9 @@ export default function RegisterHotelPage() {
           <p className="font-semibold mb-1">What happens next?</p>
           <ol className="list-decimal list-inside space-y-1">
             <li>Verify your email address</li>
-            <li>Our team reviews and approves your hotel</li>
-            <li>Your selected plan is activated</li>
-            <li>Sign in and start managing your hotel</li>
+            <li>Sign in and start your plan — free trial first, if the plan has one</li>
+            <li>Your dashboard unlocks straight away</li>
+            <li>Our team approves your hotel for the public site</li>
           </ol>
         </div>
         <Link href="/login" className="mt-6 inline-block text-sm text-primary-600 hover:text-primary-700 font-medium">
@@ -348,7 +349,8 @@ export default function RegisterHotelPage() {
           <>
             <div>
               <p className="text-sm text-gray-500 mb-4">
-                Select the plan that best fits your hotel. Your plan will be activated once our team approves your account — no payment required now.
+                Select the plan that best fits your hotel — nothing is charged now. You will be
+                asked to start it the first time you sign in, and you can change your mind then.
               </p>
 
               {plansLoading ? (
@@ -424,6 +426,11 @@ export default function RegisterHotelPage() {
                             </p>
                             {plan.price_monthly > 0 && (
                               <p className="text-xs text-gray-400">/month</p>
+                            )}
+                            {Number(plan.trial_days ?? 0) > 0 && (
+                              <p className="mt-1 inline-block rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
+                                {plan.trial_days} days free
+                              </p>
                             )}
                           </div>
                         </div>

@@ -18,15 +18,15 @@ export default async function BillingPage() {
 
   const admin = await createAdminClient()
 
+  // `*` rather than a column list so the page still renders on a database where
+  // migration 032 hasn't been applied yet — the trial columns simply come back
+  // undefined and the page reads as "no trial".
   const { data: hotel } = await admin
     .from('hotels')
-    .select('id, name, plan_id, subscription_status, paddle_subscription_id, plan_activated_at, plan_expires_at')
+    .select('*')
     .eq('id', hotelId)
     .single()
 
-  // `*` rather than a column list so the page still renders on a database where
-  // migration 032 (plans.tier_rank) hasn't been applied yet — the ranking helper
-  // falls back to price when the column is absent.
   const { data: plans } = await admin
     .from('plans')
     .select('*')

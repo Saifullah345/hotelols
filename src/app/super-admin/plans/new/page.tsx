@@ -38,6 +38,15 @@ const planSchema = z.object({
     v => (typeof v === 'number' && Number.isNaN(v) ? undefined : v),
     z.number().int('Tier rank must be a whole number').min(1, 'Must be 1 or higher').optional(),
   ),
+  // 0 is a real answer here ("charge at checkout"), so an empty box means 0
+  // rather than "not filled in".
+  trial_days: z.preprocess(
+    v => (typeof v === 'number' && Number.isNaN(v) ? 0 : v),
+    z.number().int('Trial days must be a whole number')
+      .min(0, 'Cannot be negative - use 0 for no trial')
+      .max(365, 'Cannot exceed 365 days')
+      .default(0),
+  ),
   features: z.string().transform(v => v.split('\n').filter(f => f.trim())),
   is_active: z.boolean().default(true),
   feature_listing:          z.boolean().default(true),
@@ -90,6 +99,7 @@ export default function NewPlanPage() {
     resolver: zodResolver(planSchema),
     defaultValues: {
       is_active: true,
+      trial_days: 0,
       unlimited_rooms: false,
       unlimited_staff: false,
       feature_listing:          true,
@@ -257,6 +267,27 @@ export default function NewPlanPage() {
             Starter 10 · Hotel Management 20 · Growth 30 · Pro 40 · Enterprise 50.
           </p>
           {errors.tier_rank && <p className="text-red-600 text-sm mt-1">{errors.tier_rank.message}</p>}
+        </div>
+
+        {/* Free trial */}
+        <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4">
+          <label className="label">Free Trial (days)</label>
+          <input
+            type="number"
+            min={0}
+            max={365}
+            step={1}
+            {...register('trial_days', { valueAsNumber: true })}
+            className="input max-w-[200px]"
+            placeholder="0"
+          />
+          <p className="mt-2 text-xs text-indigo-700">
+            How long a hotel uses this plan before paying anything. Paddle takes 0.00 at checkout
+            and charges in full the day the trial ends — 0 charges straight away. A hotel gets one
+            trial ever: changing plan mid-trial keeps the same end date, and it cannot be restarted
+            by cancelling and signing up again.
+          </p>
+          {errors.trial_days && <p className="text-red-600 text-sm mt-1">{errors.trial_days.message}</p>}
         </div>
 
         <div>

@@ -67,9 +67,15 @@ export async function POST(request: Request) {
       }
     }
 
+    // No subscription to read: fall back to the transaction. A 0.00 total is a
+    // trial checkout, so calling it "active" here would end the trial before it
+    // started.
+    const totals = (txn.details as { totals?: { grand_total?: string } } | undefined)?.totals
+    const paid = Number(totals?.grand_total ?? '0') > 0
+
     const result = await applySubscription(admin, txn, {
       hotelId,
-      status: 'active',
+      ...(paid ? { status: 'active' } : { keepStatus: true, status: 'trialing' }),
       subscriptionId: subId,
     })
     return respond(result, admin)
@@ -147,6 +153,11 @@ async function respond(
     expiresAt: result.expiresAt,
     upgraded: result.direction === 'upgrade',
     previousPlanName: result.previousPlanName,
+    // The billing page says "trial started — 14 days free" rather than
+    // "payment received" when nothing was actually charged.
+    trialEndsAt: result.trialEndsAt ?? null,
+    trialStarted: result.trialStarted ?? false,
+    status: result.status,
     // Set when the payment landed but no plan matched the price — the admin
     // needs to know the price id isn't on any plan rather than assume success.
     warning: result.reason,

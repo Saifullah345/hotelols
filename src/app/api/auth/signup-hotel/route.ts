@@ -96,8 +96,12 @@ export async function POST(request: Request) {
       phone: hotel_phone,
       email: hotel_email,
       owner_id: userId,
+      // The plan they picked is a preference, not an entitlement: nothing is
+      // active until it has been paid for. `unsubscribed` is what keeps the
+      // dashboard shut until then.
       plan_id: plan.id,
       status: 'pending',
+      subscription_status: 'unsubscribed',
       currency: 'USD',
       ...(cover_image ? { cover_image, images: [cover_image] } : {}),
     }).select('id').single()

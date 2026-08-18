@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { stripHtml } from '@/lib/sanitize'
 import { isValidEmail } from '@/lib/validation'
+import { blockIfExpired } from '@/lib/subscription-guard'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -28,6 +29,12 @@ async function authorise(staffId: string) {
   if (caller.role !== 'super_admin' && member.hotel_id !== caller.tenant_id) {
     return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
+
+  // The dashboard already hides itself behind the plan gate; this is what
+  // actually stops a stale tab or a direct request from operating a hotel
+  // with no running subscription.
+  const blocked = await blockIfExpired(member.hotel_id)
+  if (blocked) return { error: blocked }
 
   return { admin, member, caller, user }
 }
