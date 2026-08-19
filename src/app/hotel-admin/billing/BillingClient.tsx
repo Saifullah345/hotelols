@@ -212,7 +212,6 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
           user_id:  user.id,
         },
         settings: {
-          successUrl: `${window.location.origin}/hotel-admin/billing?success=1`,
           theme: 'light',
         },
       })
@@ -494,7 +493,7 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
       </div>
 
       {/* ── Plan selection ── */}
-      <div>
+      <div id="plans">
         <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
           <div>
             <h3 className="text-lg font-bold text-gray-900">
@@ -536,6 +535,8 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {plans.map(plan => {
             const isCurrent   = plan.id === hotel?.plan_id && !neverSubscribed
+            // isCurrent but subscription is canceled/paused/expired → user needs to re-subscribe
+            const isRenewable = isCurrent && !['active', 'trialing'].includes(hotel?.subscription_status ?? '')
             const price       = billing === 'monthly' ? plan.price_monthly : plan.price_yearly
             const priceId     = billing === 'monthly' ? plan.paddle_price_id_monthly : plan.paddle_price_id_yearly
             const hasPrice    = !!priceId
@@ -553,13 +554,19 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
               <div
                 key={plan.id}
                 className={`relative bg-white rounded-2xl border-2 p-5 shadow-sm transition-all ${
-                  isCurrent ? 'border-primary-400 ring-2 ring-primary-100' : blocked ? 'border-gray-200 opacity-60' : 'border-gray-200'
+                  isRenewable   ? 'border-amber-400 ring-2 ring-amber-100'
+                  : isCurrent   ? 'border-primary-400 ring-2 ring-primary-100'
+                  : blocked     ? 'border-gray-200 opacity-60'
+                  : 'border-gray-200'
                 }`}
               >
                 {isCurrent && (
                   <div className="absolute -top-3 left-4">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary-600 text-white text-[11px] font-bold uppercase tracking-wide">
-                      <Zap className="h-3 w-3" /> {trialing ? 'On trial' : 'Current'}
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide text-white ${
+                      isRenewable ? 'bg-amber-500' : 'bg-primary-600'
+                    }`}>
+                      <Zap className="h-3 w-3" />
+                      {trialing ? 'On trial' : isRenewable ? 'Renew' : 'Current'}
                     </span>
                   </div>
                 )}
@@ -588,10 +595,20 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
                   ))}
                 </ul>
 
-                {isCurrent ? (
+                {isCurrent && !isRenewable ? (
                   <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 text-gray-500 text-sm font-medium">
                     <RefreshCw className="h-4 w-4" /> {trialing ? 'Trialing this plan' : 'Active plan'}
                   </div>
+                ) : isRenewable ? (
+                  <button
+                    onClick={() => openCheckout(plan)}
+                    disabled={busy || !hasPrice}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={!hasPrice ? 'Price not configured — contact support' : `Resubscribe to ${plan.name}`}
+                  >
+                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    {busy ? 'Working…' : 'Resubscribe'}
+                  </button>
                 ) : blocked ? (
                   <button
                     onClick={() => setDowngradeTarget(plan)}

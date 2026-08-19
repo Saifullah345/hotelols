@@ -57,7 +57,7 @@ export default function SubscriptionBanner({
         <p className={`mt-0.5 text-xs ${tone.body}`}>{message}</p>
       </div>
       <Link
-        href="/hotel-admin/billing"
+        href="/hotel-admin/billing#plans"
         className={`shrink-0 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-colors ${tone.button}`}
       >
         {info.state === 'past_due' ? 'Update payment'
