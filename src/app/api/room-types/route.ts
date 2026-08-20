@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { getAuthContext } from '@/lib/auth'
 import { roomTypeNameSchema, amenitySchema } from '@/lib/validation'
 import { blockIfExpired } from '@/lib/subscription-guard'
 
@@ -35,11 +36,9 @@ function validatePayload(body: Record<string, unknown>): string | null {
 
 export async function GET() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user, profile } = await getAuthContext()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: profile } = await supabase
-    .from('profiles').select('role, tenant_id').eq('id', user.id).single()
   if (!profile?.tenant_id) return NextResponse.json({ error: 'No hotel assigned' }, { status: 400 })
 
   const { data, error } = await supabase
@@ -54,11 +53,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user, profile } = await getAuthContext()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: profile } = await supabase
-    .from('profiles').select('role, tenant_id').eq('id', user.id).single()
   if (!profile || !['super_admin', 'hotel_admin'].includes(profile.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }

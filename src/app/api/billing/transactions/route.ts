@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { getAuthContext } from '@/lib/auth'
 import { listPaddleTransactions, type PaddleTransaction } from '@/lib/paddle'
 
 type NormalizedTransaction = {
@@ -48,11 +49,9 @@ function normalizeTransaction(txn: PaddleTransaction): NormalizedTransaction {
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user, profile } = await getAuthContext()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: profile } = await supabase
-    .from('profiles').select('tenant_id').eq('id', user.id).single()
   const hotelId = profile?.tenant_id
   if (!hotelId) return NextResponse.json({ transactions: [] })
 

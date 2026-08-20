@@ -1,19 +1,15 @@
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { getAuthContext } from '@/lib/auth'
 import { isValidEmail, validateHotelName } from '@/lib/validation'
 import { generateHotelSlug } from '@/lib/slug'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user, profile } = await getAuthContext()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   // Only customers (or any logged-in user without a hotel yet) can use this endpoint
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, full_name')
-    .eq('id', user.id)
-    .single()
 
   if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
 
