@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getAuthContext } from '@/lib/auth'
 import { roomNameSchema, roomNumberSchema } from '@/lib/validation'
 import { limitReached } from '@/lib/plan-features'
 import { blockIfExpired } from '@/lib/subscription-guard'
 
 export async function GET(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user, profile } = await getAuthContext()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: profile } = await supabase.from('profiles').select('role, tenant_id').eq('id', user.id).single()
   const { searchParams } = new URL(request.url)
   const hotelId = searchParams.get('hotel_id') ?? profile?.tenant_id
 
@@ -35,10 +35,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user, profile } = await getAuthContext()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: profile } = await supabase.from('profiles').select('role, tenant_id').eq('id', user.id).single()
   if (!profile) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   if (!['super_admin', 'hotel_admin'].includes(profile?.role)) {
