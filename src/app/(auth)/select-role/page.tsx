@@ -59,8 +59,9 @@ export default function SelectRolePage() {
       setActivating(null)
       return
     }
+    // push() alone: the destination is a dynamic route and is fetched fresh
+    // with the new role cookie. Adding refresh() here rendered it twice.
     router.push(ROLE_REDIRECTS[r.role] ?? '/')
-    router.refresh()
   }, [router])
 
   useEffect(() => {

@@ -99,8 +99,10 @@ function LoginPageInner() {
     } else {
       router.push('/select-role')
     }
-
-    router.refresh()
+    // No router.refresh() here. Every destination above is a dynamic route, so
+    // push() already fetches it fresh with the cookies activate-role just set.
+    // The extra refresh() made the server render the whole dashboard a second
+    // time — two full renders, ~2s each, for one login.
   }
 
   const resendVerification = async () => {

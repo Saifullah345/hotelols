@@ -38,23 +38,75 @@ export type AuthContext = {
   role: string | null
 }
 
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>
+
+const fetchProfile = async (
+  supabase: SupabaseServerClient,
+  id: string,
+): Promise<AuthProfile | null> => {
+  const { data } = await supabase.from('profiles').select('*').eq('id', id).single()
+  return (data ?? null) as AuthProfile | null
+}
+
+/**
+ * The `sub` claim, read straight out of the session cookie's access token.
+ *
+ * Deliberately no signature check: this value is used for one thing only —
+ * deciding which `profiles` row to ask for — and never as proof of who the
+ * caller is. A forged token names a row PostgREST will refuse to return, and
+ * `getCurrentUser()` below rejects the request regardless. Returns null on
+ * anything unexpected so the caller falls back to the verified path.
+ */
+function unverifiedSubject(accessToken: string | undefined): string | null {
+  if (!accessToken) return null
+  try {
+    const payload = accessToken.split('.')[1]
+    if (!payload) return null
+    const json = Buffer.from(payload.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8')
+    const sub = (JSON.parse(json) as { sub?: unknown }).sub
+    return typeof sub === 'string' && sub ? sub : null
+  } catch {
+    return null
+  }
+}
+
 /**
  * User + profile row in one memoized pass. Selects every column because the
  * admin layout renders the full profile; pages that only want `tenant_id` read
  * it off the same cached row instead of issuing a second query.
+ *
+ * The two reads run concurrently rather than one after the other. Fetching the
+ * profile normally has to wait for `getUser()` to come back with an id, which
+ * put two serial Supabase round-trips in front of every authenticated page.
+ * Reading the id from the session cookie instead costs nothing and lets both
+ * go out at once.
+ *
+ * It stays honest about which of the two is authoritative: the speculative row
+ * is used only if it belongs to the user `getUser()` actually verified, and
+ * otherwise it is thrown away and re-fetched the slow way. Worst case is the
+ * behaviour this replaced; it is never less correct, only sometimes slower.
  */
 export const getAuthContext = cache(async (): Promise<AuthContext> => {
-  const user = await getCurrentUser()
+  const supabase = await createClient()
+
+  let claimedId: string | null = null
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    claimedId = unverifiedSubject(session?.access_token)
+  } catch {
+    claimedId = null
+  }
+
+  const [user, speculative] = await Promise.all([
+    getCurrentUser(),
+    claimedId ? fetchProfile(supabase, claimedId) : Promise.resolve(null),
+  ])
+
   if (!user) return { user: null, profile: null, tenantId: null, role: null }
 
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single()
-
-  const profile = (data ?? null) as AuthProfile | null
+  const profile = speculative?.id === user.id
+    ? speculative
+    : await fetchProfile(supabase, user.id)
   return {
     user,
     profile,
