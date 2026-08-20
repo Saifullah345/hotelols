@@ -112,7 +112,6 @@ export default function PublicNavbar() {
         {/* Center links — desktop */}
         <nav className="hidden md:flex items-center gap-1">
           <Link href="/" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors">Stays</Link>
-          <Link href="/hotel-management" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors">For Hotel Owners</Link>
           <Link href="/about" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors">About</Link>
           <Link href="/contact" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors">Contact</Link>
         </nav>
@@ -183,6 +182,9 @@ export default function PublicNavbar() {
               <Link href="/register" className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 rounded-lg hover:bg-gray-50 transition-colors">
                 Register
               </Link>
+              <Link href="/login" className="px-4 py-2 text-sm font-semibold text-indigo-600 border border-indigo-200 hover:bg-indigo-50 rounded-lg transition-colors">
+                Register your property
+              </Link>
               <Link href="/login" className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors">
                 Sign in
               </Link>
@@ -204,7 +206,6 @@ export default function PublicNavbar() {
       {open && (
         <div className="md:hidden border-t border-gray-100 bg-white px-4 py-3 space-y-1">
           <Link href="/" onClick={() => setOpen(false)} className="block px-3 py-2.5 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50">Stays</Link>
-          <Link href="/hotel-management" onClick={() => setOpen(false)} className="block px-3 py-2.5 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50">For Hotel Owners</Link>
           <Link href="/about" onClick={() => setOpen(false)} className="block px-3 py-2.5 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50">About</Link>
           <Link href="/contact" onClick={() => setOpen(false)} className="block px-3 py-2.5 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50">Contact</Link>
 
@@ -238,6 +239,7 @@ export default function PublicNavbar() {
             ) : !loading ? (
               <div className="flex flex-col gap-2">
                 <Link href="/register" onClick={() => setOpen(false)} className="text-center py-2.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg">Register</Link>
+                <Link href="/login" onClick={() => setOpen(false)} className="text-center py-2.5 text-sm font-semibold text-indigo-600 border border-indigo-200 rounded-lg">Register your property</Link>
                 <Link href="/login" onClick={() => setOpen(false)} className="text-center py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-lg">Sign in</Link>
               </div>
             ) : null}
