@@ -179,6 +179,9 @@ export default function PublicNavbar() {
           ) : !loading ? (
             /* ── Guest links ── */
             <>
+              <Link href="/register-hotel" className="px-4 py-2 text-sm font-semibold text-indigo-600 border border-indigo-200 hover:bg-indigo-50 rounded-lg transition-colors">
+                List your property
+              </Link>
               <Link href="/register" className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 rounded-lg hover:bg-gray-50 transition-colors">
                 Register
               </Link>
@@ -235,6 +238,7 @@ export default function PublicNavbar() {
               </div>
             ) : !loading ? (
               <div className="flex flex-col gap-2">
+                <Link href="/register-hotel" onClick={() => setOpen(false)} className="text-center py-2.5 text-sm font-semibold text-indigo-600 border border-indigo-200 rounded-lg">List your property</Link>
                 <Link href="/register" onClick={() => setOpen(false)} className="text-center py-2.5 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg">Register</Link>
                 <Link href="/login" onClick={() => setOpen(false)} className="text-center py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-lg">Sign in</Link>
               </div>
