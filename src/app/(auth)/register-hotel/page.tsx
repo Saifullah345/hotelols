@@ -203,18 +203,20 @@ export default function RegisterHotelPage() {
       )}
 
       {/* Step indicator */}
-      <div className="flex items-center gap-2 mb-7">
-        {STEPS.map(({ n, label, icon: Icon }, i) => (
-          <div key={n} className="flex items-center gap-1.5 flex-1 min-w-0">
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors ${
-              step === n ? 'bg-indigo-600 text-white' : step > n ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-400'
-            }`}>
-              {step > n ? '✓' : n}
+      <div className="flex items-center mb-7">
+        {STEPS.map(({ n, label }, i) => (
+          <div key={n} className="flex items-center">
+            <div className="flex items-center gap-1.5 shrink-0">
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-colors ${
+                step === n ? 'bg-indigo-600 text-white' : step > n ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-400'
+              }`}>
+                {step > n ? '✓' : n}
+              </div>
+              <span className={`text-xs font-medium whitespace-nowrap ${step === n ? 'text-gray-900' : 'text-gray-400'}`}>
+                {label}
+              </span>
             </div>
-            <span className={`text-xs font-medium hidden sm:inline truncate ${step === n ? 'text-gray-900' : 'text-gray-400'}`}>
-              {label}
-            </span>
-            {i < STEPS.length - 1 && <div className="flex-1 h-px bg-gray-200 mx-1 min-w-[8px]" />}
+            {i < STEPS.length - 1 && <div className="flex-1 h-px bg-gray-200 mx-3 min-w-[16px]" />}
           </div>
         ))}
       </div>
