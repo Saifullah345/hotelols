@@ -112,11 +112,11 @@ export default async function HotelManagementPage() {
             A complete management system — bookings, rooms, payments, staff, and reports — all in one place. Try any plan free for 14 days.
           </p>
           <div className="mt-8 flex items-center justify-center gap-3 flex-wrap">
-            <Link href="/login" className="btn-gradient inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold">
-              Start free trial <ArrowRight className="h-4 w-4" />
+            <Link href="/register-hotel" className="btn-gradient inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold">
+              Register your hotel <ArrowRight className="h-4 w-4" />
             </Link>
-            <Link href="/login" className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
-              Sign in to dashboard
+            <Link href="/login?role=hotel" className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+              Hotel owner sign in
             </Link>
           </div>
           <p className="mt-4 text-xs text-gray-400">14 days free on every plan · Cancel any time · No credit card needed to start</p>
@@ -132,6 +132,95 @@ export default async function HotelManagementPage() {
                 <CheckCircle2 className="h-3.5 w-3.5 text-indigo-500" /> {t}
               </span>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Features ── */}
+      <section className="border-b border-gray-100 bg-gray-50">
+        <div className="mx-auto max-w-5xl px-6 py-20">
+          <div className="text-center mb-12">
+            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">Features</p>
+            <h2 className="text-3xl font-extrabold text-gray-900">Everything your hotel needs</h2>
+            <p className="mt-3 text-gray-500 max-w-xl mx-auto">Built for independent hotels and boutique properties that want to work smarter without complex enterprise software.</p>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {FEATURES.map(f => (
+              <div key={f.title} className="rounded-2xl border border-gray-100 bg-white p-6 hover:border-indigo-100 hover:shadow-sm transition-all">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center mb-4">
+                  <f.icon className="h-5 w-5 text-indigo-600" />
+                </div>
+                <h3 className="font-bold text-gray-900 text-base mb-2">{f.title}</h3>
+                <p className="text-sm text-gray-500 leading-relaxed">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── How it works ── */}
+      <section className="border-b border-gray-100 bg-white">
+        <div className="mx-auto max-w-5xl px-6 py-20">
+          <div className="text-center mb-12">
+            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">How it works</p>
+            <h2 className="text-3xl font-extrabold text-gray-900">Up and running in minutes</h2>
+            <p className="mt-3 text-gray-500">No training needed. Just register, add your rooms and start taking bookings.</p>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {STEPS.map((step, i) => (
+              <div key={step.num} className="relative">
+                <p className="text-4xl font-black text-indigo-100 mb-3">{step.num}</p>
+                <h3 className="font-bold text-gray-900 mb-2">{step.title}</h3>
+                <p className="text-sm text-gray-500 leading-relaxed">{step.desc}</p>
+                {i < STEPS.length - 1 && (
+                  <ChevronRight className="hidden lg:block absolute top-4 -right-3 h-5 w-5 text-gray-200" />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Benefits ── */}
+      <section className="border-b border-gray-100 bg-gray-50">
+        <div className="mx-auto max-w-5xl px-6 py-20">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">Why Hotelos</p>
+              <h2 className="text-3xl font-extrabold text-gray-900 leading-snug">Replace paper registers &amp; scattered spreadsheets.</h2>
+              <div className="mt-8 space-y-5">
+                {[
+                  { icon: Clock,         title: 'Save hours every day',           desc: 'Check in guests in under 30 seconds. No more hunting through notebooks.' },
+                  { icon: Receipt,       title: 'Professional receipts instantly', desc: 'Auto-generated receipts for advance and final payments every time.' },
+                  { icon: ClipboardList, title: 'Full audit trail',               desc: 'Every payment, booking change, and check-in is logged with timestamps.' },
+                  { icon: Smartphone,    title: 'Works on any device',            desc: 'Manage your hotel from a phone, tablet or desktop — anywhere.' },
+                  { icon: ShieldCheck,   title: 'Secure & reliable',              desc: 'Enterprise-grade security with daily backups — you never lose a record.' },
+                ].map(b => (
+                  <div key={b.title} className="flex gap-4">
+                    <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <b.icon className="h-4 w-4 text-indigo-600" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900 text-sm">{b.title}</p>
+                      <p className="text-sm text-gray-500 mt-0.5 leading-relaxed">{b.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { value: '14 days', label: 'Free trial on every plan' },
+                { value: '< 2 min', label: 'Average check-in time' },
+                { value: '24/7',    label: 'Access from anywhere' },
+                { value: '100%',    label: 'Payment accuracy' },
+              ].map(s => (
+                <div key={s.label} className="rounded-2xl border border-gray-100 bg-white p-6 text-center">
+                  <p className="text-3xl font-black text-indigo-600 mb-1">{s.value}</p>
+                  <p className="text-sm text-gray-500">{s.label}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -258,7 +347,7 @@ export default async function HotelManagementPage() {
 
                       <div className="mt-auto pt-2">
                         <Link
-                          href="/login"
+                          href="/register-hotel"
                           className={`flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
                             isPopular
                               ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
@@ -279,95 +368,6 @@ export default async function HotelManagementPage() {
         </div>
       </section>
 
-      {/* ── Features ── */}
-      <section className="border-b border-gray-100 bg-gray-50">
-        <div className="mx-auto max-w-5xl px-6 py-20">
-          <div className="text-center mb-12">
-            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">Features</p>
-            <h2 className="text-3xl font-extrabold text-gray-900">Everything your hotel needs</h2>
-            <p className="mt-3 text-gray-500 max-w-xl mx-auto">Built for independent hotels and boutique properties that want to work smarter without complex enterprise software.</p>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {FEATURES.map(f => (
-              <div key={f.title} className="rounded-2xl border border-gray-100 bg-white p-6 hover:border-indigo-100 hover:shadow-sm transition-all">
-                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center mb-4">
-                  <f.icon className="h-5 w-5 text-indigo-600" />
-                </div>
-                <h3 className="font-bold text-gray-900 text-base mb-2">{f.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{f.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── How it works ── */}
-      <section className="border-b border-gray-100 bg-white">
-        <div className="mx-auto max-w-5xl px-6 py-20">
-          <div className="text-center mb-12">
-            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">How it works</p>
-            <h2 className="text-3xl font-extrabold text-gray-900">Up and running in minutes</h2>
-            <p className="mt-3 text-gray-500">No training needed. Just register, add your rooms and start taking bookings.</p>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {STEPS.map((step, i) => (
-              <div key={step.num} className="relative">
-                <p className="text-4xl font-black text-indigo-100 mb-3">{step.num}</p>
-                <h3 className="font-bold text-gray-900 mb-2">{step.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{step.desc}</p>
-                {i < STEPS.length - 1 && (
-                  <ChevronRight className="hidden lg:block absolute top-4 -right-3 h-5 w-5 text-gray-200" />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Benefits ── */}
-      <section className="border-b border-gray-100 bg-gray-50">
-        <div className="mx-auto max-w-5xl px-6 py-20">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">Why Hotelos</p>
-              <h2 className="text-3xl font-extrabold text-gray-900 leading-snug">Replace paper registers &amp; scattered spreadsheets.</h2>
-              <div className="mt-8 space-y-5">
-                {[
-                  { icon: Clock,         title: 'Save hours every day',           desc: 'Check in guests in under 30 seconds. No more hunting through notebooks.' },
-                  { icon: Receipt,       title: 'Professional receipts instantly', desc: 'Auto-generated receipts for advance and final payments every time.' },
-                  { icon: ClipboardList, title: 'Full audit trail',               desc: 'Every payment, booking change, and check-in is logged with timestamps.' },
-                  { icon: Smartphone,    title: 'Works on any device',            desc: 'Manage your hotel from a phone, tablet or desktop — anywhere.' },
-                  { icon: ShieldCheck,   title: 'Secure & reliable',              desc: 'Enterprise-grade security with daily backups — you never lose a record.' },
-                ].map(b => (
-                  <div key={b.title} className="flex gap-4">
-                    <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <b.icon className="h-4 w-4 text-indigo-600" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-900 text-sm">{b.title}</p>
-                      <p className="text-sm text-gray-500 mt-0.5 leading-relaxed">{b.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              {[
-                { value: '14 days', label: 'Free trial on every plan' },
-                { value: '< 2 min', label: 'Average check-in time' },
-                { value: '24/7',    label: 'Access from anywhere' },
-                { value: '100%',    label: 'Payment accuracy' },
-              ].map(s => (
-                <div key={s.label} className="rounded-2xl border border-gray-100 bg-white p-6 text-center">
-                  <p className="text-3xl font-black text-indigo-600 mb-1">{s.value}</p>
-                  <p className="text-sm text-gray-500">{s.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ── CTA ── */}
       <section className="bg-white">
         <div className="mx-auto max-w-5xl px-6 py-20 text-center">
@@ -380,11 +380,11 @@ export default async function HotelManagementPage() {
             Try any plan free for 14 days. No credit card required. Full access from day one.
           </p>
           <div className="mt-8 flex items-center justify-center gap-3 flex-wrap">
-            <Link href="/login" className="btn-gradient inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold">
-              Start your free trial <ArrowRight className="h-4 w-4" />
+            <Link href="/register-hotel" className="btn-gradient inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold">
+              Register your hotel <ArrowRight className="h-4 w-4" />
             </Link>
-            <Link href="/login" className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
-              Already have an account? Sign in
+            <Link href="/login?role=hotel" className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+              Already registered? Sign in
             </Link>
           </div>
         </div>

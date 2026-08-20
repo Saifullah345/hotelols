@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2, Eye, EyeOff, MailCheck, ArrowRight } from 'lucide-react'
@@ -37,6 +37,8 @@ const inputCls = 'w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const isHotelFlow = searchParams.get('role') === 'hotel'
   const [showPassword, setShowPassword] = useState(false)
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null)
   const [resending, setResending] = useState(false)
@@ -214,8 +216,8 @@ export default function LoginPage() {
         </div>
       )}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
-        <p className="mt-1.5 text-sm text-gray-500">Sign in to your account to continue.</p>
+        <h1 className="text-2xl font-bold text-gray-900">{isHotelFlow ? 'Hotel owner sign in' : 'Welcome back'}</h1>
+        <p className="mt-1.5 text-sm text-gray-500">{isHotelFlow ? 'Sign in to your hotel dashboard.' : 'Sign in to your account to continue.'}</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
@@ -245,7 +247,9 @@ export default function LoginPage() {
 
       <p className="text-center text-sm text-gray-500 mt-6">
         Don&apos;t have an account?{' '}
-        <Link href="/register" className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors">Create one</Link>
+        <Link href={isHotelFlow ? '/register-hotel' : '/register'} className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors">
+          {isHotelFlow ? 'Register your hotel' : 'Create one'}
+        </Link>
       </p>
     </div>
   )

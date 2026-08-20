@@ -166,7 +166,7 @@ export default function RegisterHotelPage() {
             <li>Our team approves your hotel for the public site</li>
           </ol>
         </div>
-        <Link href="/login" className="mt-6 inline-block text-sm text-primary-600 hover:text-primary-700 font-medium">
+        <Link href="/login?role=hotel" className="mt-6 inline-block text-sm text-indigo-600 hover:text-indigo-700 font-semibold transition-colors">
           Back to sign in
         </Link>
       </div>
@@ -195,7 +195,7 @@ export default function RegisterHotelPage() {
           <div>
             <p className="font-semibold">Account already exists</p>
             <p className="mt-0.5 text-amber-700">{inlineError}</p>
-            <Link href="/login" className="mt-1.5 inline-block font-semibold text-amber-800 underline underline-offset-2 hover:text-amber-900">
+            <Link href="/login?role=hotel" className="mt-1.5 inline-block font-semibold text-amber-800 underline underline-offset-2 hover:text-amber-900">
               Sign in →
             </Link>
           </div>
@@ -464,11 +464,11 @@ export default function RegisterHotelPage() {
 
       <p className="text-center text-sm text-gray-500 mt-6">
         Already have an account?{' '}
-        <Link href="/login" className="text-primary-600 hover:text-primary-700 font-medium">Sign in</Link>
+        <Link href="/login?role=hotel" className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors">Sign in</Link>
       </p>
       <p className="text-center text-sm text-gray-500 mt-2">
         Just a customer?{' '}
-        <Link href="/register" className="text-primary-600 hover:text-primary-700 font-medium">Create a guest account</Link>
+        <Link href="/register" className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors">Create a guest account</Link>
       </p>
     </>
   )

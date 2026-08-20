@@ -178,6 +178,10 @@ export default function RegisterPage() {
         Already have an account?{' '}
         <Link href="/login" className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors">Sign in</Link>
       </p>
+      <p className="text-center text-sm text-gray-500 mt-2">
+        Hotel owner?{' '}
+        <Link href="/register-hotel" className="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors">Register your hotel</Link>
+      </p>
     </div>
   )
 }
