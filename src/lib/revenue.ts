@@ -31,15 +31,27 @@ const monthLabel = (iso: string) =>
  * yet, so the dashboard keeps working on a database that hasn't had migration
  * 033 applied.
  */
+/** Set once if the database has no `hotel_revenue_summary` function yet. */
+let rpcMissing = false
+
 export async function getRevenueSummary(
   supabase: SupabaseClient,
   hotelId: string,
   monthsBack = 6,
 ): Promise<RevenueSummary> {
+  if (rpcMissing) return fallbackSummary(supabase, hotelId, monthsBack)
+
   const { data, error } = await supabase.rpc('hotel_revenue_summary', {
     p_hotel_id: hotelId,
     months_back: monthsBack,
   })
+
+  // PGRST202 is "no function matches" — migration 033 hasn't been applied here.
+  // Remember that for the life of the process so the dashboard stops paying for
+  // a round-trip it already knows will fail.
+  if (error && (error.code === 'PGRST202' || /find the function/i.test(error.message ?? ''))) {
+    rpcMissing = true
+  }
 
   if (!error && Array.isArray(data)) {
     const rows = data as SummaryRow[]
