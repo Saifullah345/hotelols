@@ -8,26 +8,29 @@ export const metadata = { title: 'Super Admin Dashboard' }
 export default async function SuperAdminDashboard() {
   const supabase = await createClient()
 
+  // Three separate head-counts over `hotels` became one read of the status
+  // column, and a sixth query (`plan:plans(name)` over every hotel) was dropped
+  // outright — its result was never used but it scanned the whole table and
+  // joined plans on each page load.
   const [
-    { count: totalHotels },
-    { count: activeHotels },
-    { count: suspendedHotels },
+    { data: hotelStatuses },
     { count: totalUsers },
     { data: recentHotels },
-    { data: planStats },
   ] = await Promise.all([
-    supabase.from('hotels').select('*', { count: 'exact', head: true }),
-    supabase.from('hotels').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-    supabase.from('hotels').select('*', { count: 'exact', head: true }).eq('status', 'suspended'),
-    supabase.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'super_admin'),
+    supabase.from('hotels').select('status'),
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).neq('role', 'super_admin'),
     supabase.from('hotels').select('id, name, status, created_at, plan:plans(name)').order('created_at', { ascending: false }).limit(5),
-    supabase.from('hotels').select('plan:plans(name)', { count: 'exact' }),
   ])
 
+  const statuses = (hotelStatuses ?? []) as { status: string }[]
+  const totalHotels = statuses.length
+  const activeHotels = statuses.filter(h => h.status === 'active').length
+  const suspendedHotels = statuses.filter(h => h.status === 'suspended').length
+
   const stats = [
-    { title: 'Total Hotels', value: totalHotels ?? 0, icon: Hotel, iconBg: 'bg-blue-50', iconColor: 'text-blue-600' },
-    { title: 'Active Hotels', value: activeHotels ?? 0, icon: Building2, iconBg: 'bg-green-50', iconColor: 'text-green-600', change: 12 },
-    { title: 'Suspended', value: suspendedHotels ?? 0, icon: AlertCircle, iconBg: 'bg-red-50', iconColor: 'text-red-600' },
+    { title: 'Total Hotels', value: totalHotels, icon: Hotel, iconBg: 'bg-blue-50', iconColor: 'text-blue-600' },
+    { title: 'Active Hotels', value: activeHotels, icon: Building2, iconBg: 'bg-green-50', iconColor: 'text-green-600', change: 12 },
+    { title: 'Suspended', value: suspendedHotels, icon: AlertCircle, iconBg: 'bg-red-50', iconColor: 'text-red-600' },
     { title: 'Total Users', value: totalUsers ?? 0, icon: Users, iconBg: 'bg-purple-50', iconColor: 'text-purple-600', change: 8 },
   ]
 

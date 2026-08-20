@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { requireTenant } from '@/lib/auth'
 import Link from 'next/link'
 import { Sparkles } from 'lucide-react'
 import { getPlanFeatures } from '@/lib/plan-features'
@@ -25,16 +25,7 @@ export type StaffOption = { id: string; name: string }
 
 export default async function HousekeepingPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('tenant_id')
-    .eq('id', user.id)
-    .single()
-  const tenantId = profile?.tenant_id
-  if (!tenantId) redirect('/login')
+  const { tenantId } = await requireTenant()
 
   const { data: hotelPlan } = await supabase
     .from('hotels').select(

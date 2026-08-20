@@ -2,7 +2,7 @@
 
 import { type ChangeEvent, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, getBrowserUser } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import {
   Loader2, Save, MessageCircle, Copy, ExternalLink, ImagePlus, Trash2,
@@ -52,7 +52,7 @@ export default function HotelSettingsPage() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+    getBrowserUser(supabase).then(async (user) => {
       try {
         if (!user) return
         setUserId(user.id)

@@ -9,7 +9,7 @@ import {
   X, MessageCircle, BedDouble, Users, Star,
 } from 'lucide-react'
 import { getPaddle, SUBSCRIPTION_EVENT } from '@/components/paddle/PaddleProvider'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, getBrowserUser } from '@/lib/supabase/client'
 import { planDirection, subscriptionIsLive, subscriptionIsTrialing } from '@/lib/plan-tier'
 import { trialCountdown } from '@/lib/subscription'
 import BillingHistory from './BillingHistory'
@@ -177,7 +177,7 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
     }
 
     const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = await getBrowserUser(supabase)
     if (!user) { toast.error('Please sign in first'); return }
 
     setBusyPlanId(plan.id)

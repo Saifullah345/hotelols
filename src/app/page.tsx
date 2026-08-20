@@ -4,6 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { redirect } from 'next/navigation'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
+import { getAuthContext } from '@/lib/auth'
 import PublicNavbar from '@/components/layout/PublicNavbar'
 import PublicFooter from '@/components/layout/PublicFooter'
 import HeroSearchBar from './HeroSearchBar'
@@ -43,20 +44,12 @@ export default async function LandingPage({
   const { city, check_in, check_out, adults, children } = await searchParams
 
   const authSupabase = await createClient()
-  const { data: { user } } = await authSupabase.auth.getUser()
-  const isLoggedIn = !!user
-
-  // Admins and staff have their own dashboards — redirect them away from the
-  // customer-facing landing page so they can't accidentally book rooms.
-  if (user) {
-    const { data: profile } = await authSupabase
-      .from('profiles').select('role').eq('id', user.id).single()
-    if (profile?.role === 'hotel_admin') redirect('/hotel-admin/dashboard')
-    if (profile?.role === 'super_admin') redirect('/super-admin/dashboard')
-    if (profile?.role === 'staff') redirect('/staff/dashboard')
-  }
-
   const supabase = await createAdminClient()
+
+  // Who's asking doesn't change which hotels are listed, so the session lookup
+  // and the search run side by side instead of one after the other. Started
+  // here, awaited below — the redirect still happens before anything renders.
+  const identity = getAuthContext()
 
   // The field is labelled "City or hotel name", so match every location column.
   // Multi-word entries are matched token by token — "wah place" has to be able
@@ -79,23 +72,38 @@ export default async function LandingPage({
 
   if (tokens.length) q = q.or(buildOrFilter(tokens))
 
-  const { data: hotels } = await q
+  const [{ data: hotels }, { user, role }] = await Promise.all([q, identity])
+  const isLoggedIn = !!user
+
+  // Admins and staff have their own dashboards — redirect them away from the
+  // customer-facing landing page so they can't accidentally book rooms.
+  if (role === 'hotel_admin') redirect('/hotel-admin/dashboard')
+  if (role === 'super_admin') redirect('/super-admin/dashboard')
+  if (role === 'staff')       redirect('/staff/dashboard')
 
   const matchedIds = (hotels ?? []).map(h => h.id)
 
-  // Rooms that could actually host this stay: bookable, big enough, and not
-  // already taken for the requested nights.
-  const { data: roomRows } = matchedIds.length
-    ? await supabase
-        .from('rooms')
-        .select('id, hotel_id, price_per_night, capacity')
-        .in('hotel_id', matchedIds)
-        .eq('status', 'available')
-    : { data: [] }
-
-  const bookedRoomIds = datesApplied
-    ? await getBookedRoomIds(supabase, matchedIds, check_in!, check_out!)
-    : new Set<string>()
+  // Rooms that could host this stay, the rooms already taken for the requested
+  // nights, and the viewer's saved list all key off the same hotel ids, so they
+  // go out together rather than in a three-step chain. Saved hotels are fetched
+  // for the whole matched set — a superset of what ends up on screen, and
+  // cheaper than waiting for the filter to finish first.
+  const [roomsResult, bookedRoomIds, savedResult] = await Promise.all([
+    matchedIds.length
+      ? supabase
+          .from('rooms')
+          .select('id, hotel_id, price_per_night, capacity')
+          .in('hotel_id', matchedIds)
+          .eq('status', 'available')
+      : Promise.resolve({ data: [] as { id: string; hotel_id: string; price_per_night: number; capacity: number }[] }),
+    datesApplied
+      ? getBookedRoomIds(supabase, matchedIds, check_in!, check_out!)
+      : Promise.resolve(new Set<string>()),
+    user && matchedIds.length
+      ? authSupabase.from('saved_hotels').select('hotel_id').eq('user_id', user.id).in('hotel_id', matchedIds)
+      : Promise.resolve({ data: [] as { hotel_id: string }[] }),
+  ])
+  const roomRows = roomsResult.data
 
   // Cheapest free room per hotel + total free capacity, so a party of 4 still
   // sees a hotel offering two doubles rather than only 4-bed rooms.
@@ -134,18 +142,7 @@ export default async function LandingPage({
     )
     .slice(0, filtersApplied ? 24 : 9)
 
-  const ids = hotelList.map(h => h.id)
-
-  // Fetch saved hotel IDs for the logged-in user
-  const savedSet = new Set<string>()
-  if (user && ids.length) {
-    const { data: saved } = await authSupabase
-      .from('saved_hotels')
-      .select('hotel_id')
-      .eq('user_id', user.id)
-      .in('hotel_id', ids)
-    ;(saved ?? []).forEach(s => savedSet.add(s.hotel_id))
-  }
+  const savedSet = new Set<string>((savedResult.data ?? []).map(s => s.hotel_id))
 
   const hasFilter = filtersApplied
   const nightCount = datesApplied ? nightsBetween(check_in!, check_out!) : 0

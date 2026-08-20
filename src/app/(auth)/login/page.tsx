@@ -7,7 +7,7 @@ import { z } from 'zod'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, getBrowserUser } from '@/lib/supabase/client'
 import { Loader2, Eye, EyeOff, MailCheck, ArrowRight } from 'lucide-react'
 
 const schema = z.object({
@@ -73,7 +73,7 @@ function LoginPageInner() {
       toast.error(error.message)
       return
     }
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = await getBrowserUser(supabase)
     if (!user) { toast.error('Login failed'); return }
 
     const { data: roles } = await supabase

@@ -1,5 +1,7 @@
 ﻿import { createClient } from '@/lib/supabase/server'
+import { getAuthContext } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+import { getRevenueSummary } from '@/lib/revenue'
 import { StatsCard } from '@/components/dashboard/StatsCard'
 import { RevenueChart } from '@/components/dashboard/RevenueChart'
 import { BedDouble, CalendarCheck, Clock, TrendingUp, Building2, Sparkles } from 'lucide-react'
@@ -10,11 +12,8 @@ export const metadata = { title: 'Dashboard' }
 
 export default async function HotelAdminDashboard() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user, tenantId } = await getAuthContext()
   if (!user) redirect('/login')
-
-  const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
-  const tenantId = profile?.tenant_id
 
   if (!tenantId) {
     return (
@@ -33,51 +32,51 @@ export default async function HotelAdminDashboard() {
 
   const today = new Date().toISOString().split('T')[0]
 
-  const [{ data: hotelInfo }, { count: totalRooms },
-    { count: availableRooms },
+  // Two reads replace four here. `id` instead of `*` on the head-counts stops
+  // PostgREST from planning a select over every column, and the room and
+  // booking status tallies each come back as one grouped read instead of one
+  // round-trip per status.
+  const [{ data: hotelInfo },
+    { data: roomStatuses },
     { count: totalBookings },
     { count: pendingBookings },
-    { data: revenueData },
+    revenue,
     { data: recentBookings },
     { count: checkedInToday },
     { count: bookedToday },
   ] = await Promise.all([
     supabase.from('hotels').select('currency, name, city').eq('id', tenantId).single(),
-    supabase.from('rooms').select('*', { count: 'exact', head: true }).eq('hotel_id', tenantId),
-    supabase.from('rooms').select('*', { count: 'exact', head: true }).eq('hotel_id', tenantId).eq('status', 'available'),
-    supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('hotel_id', tenantId),
-    supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('hotel_id', tenantId).eq('status', 'pending'),
-    supabase.from('payments').select('amount, created_at').eq('hotel_id', tenantId).eq('status', 'completed'),
+    supabase.from('rooms').select('status').eq('hotel_id', tenantId),
+    supabase.from('bookings').select('id', { count: 'exact', head: true }).eq('hotel_id', tenantId),
+    supabase.from('bookings').select('id', { count: 'exact', head: true }).eq('hotel_id', tenantId).eq('status', 'pending'),
+    getRevenueSummary(supabase, tenantId),
     supabase.from('bookings')
       .select('id, status, check_in, check_out, total_amount, guest_name, user:profiles(full_name, email), room:rooms(room_number)')
       .eq('hotel_id', tenantId)
       .order('created_at', { ascending: false })
       .limit(5),
-    supabase.from('bookings').select('*', { count: 'exact', head: true })
+    supabase.from('bookings').select('id', { count: 'exact', head: true })
       .eq('hotel_id', tenantId).eq('status', 'checked_in').eq('check_in', today),
-    // Reservations taken today, whatever their stay dates â€” the day's intake.
-    supabase.from('bookings').select('*', { count: 'exact', head: true })
+    // Reservations taken today, whatever their stay dates — the day's intake.
+    supabase.from('bookings').select('id', { count: 'exact', head: true })
       .eq('hotel_id', tenantId).gte('created_at', `${today}T00:00:00`),
   ])
+
+  const statuses = (roomStatuses ?? []) as { status: string }[]
+  const totalRooms = statuses.length
+  const availableRooms = statuses.filter(r => r.status === 'available').length
 
   const hotel = hotelInfo as { currency?: string; name?: string; city?: string } | null
   const currency = hotel?.currency ?? 'USD'
   const hotelName = hotel?.name ?? 'Your Hotel'
   const hotelCity = hotel?.city
-  const totalRevenue = revenueData?.reduce((s, p) => s + p.amount, 0) ?? 0
-  const occupancyRate = totalRooms ? Math.round(((totalRooms - (availableRooms ?? 0)) / totalRooms) * 100) : 0
-
-  const monthlyRevenue = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(); d.setMonth(d.getMonth() - (5 - i))
-    const month = d.toLocaleDateString('en', { month: 'short' })
-    const revenue = revenueData?.filter(p => new Date(p.created_at).getMonth() === d.getMonth())
-      .reduce((s, p) => s + p.amount, 0) ?? 0
-    return { month, revenue, bookings: 0 }
-  })
+  const totalRevenue = revenue.total
+  const monthlyRevenue = revenue.monthly
+  const occupancyRate = totalRooms ? Math.round(((totalRooms - availableRooms) / totalRooms) * 100) : 0
 
   const stats = [
-    { title: 'Total Rooms', value: totalRooms ?? 0, icon: BedDouble, iconBg: 'bg-blue-50', iconColor: 'text-blue-600', href: '/hotel-admin/rooms' },
-    { title: 'Available Rooms', value: availableRooms ?? 0, icon: BedDouble, iconBg: 'bg-green-50', iconColor: 'text-green-600', href: '/hotel-admin/rooms?status=available' },
+    { title: 'Total Rooms', value: totalRooms, icon: BedDouble, iconBg: 'bg-blue-50', iconColor: 'text-blue-600', href: '/hotel-admin/rooms' },
+    { title: 'Available Rooms', value: availableRooms, icon: BedDouble, iconBg: 'bg-green-50', iconColor: 'text-green-600', href: '/hotel-admin/rooms?status=available' },
     { title: 'Total Bookings', value: totalBookings ?? 0, icon: CalendarCheck, iconBg: 'bg-purple-50', iconColor: 'text-purple-600', change: 15, href: '/hotel-admin/bookings' },
     { title: 'Total Revenue', value: formatCurrency(totalRevenue, currency), icon: currencyIcon(currency), iconBg: 'bg-green-50', iconColor: 'text-green-600', change: 8, href: '/hotel-admin/reports' },
   ]

@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, getBrowserUser } from '@/lib/supabase/client'
 import {
   Loader2, ArrowLeft, Hash, Tag,
   Settings2, Camera, ImagePlus, X, Plus,
@@ -55,7 +55,7 @@ export default function NewRoomPage() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+    getBrowserUser(supabase).then(async (user) => {
       if (!user) return
       const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
       if (profile?.tenant_id) {

@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { createServerClient } from '@supabase/ssr'
 import { cookies, headers } from 'next/headers'
 import { getSupabaseAnonKey, getSupabaseServiceRoleKey, getSupabaseUrl } from './env'
@@ -22,7 +23,12 @@ async function createClientFromBearerToken(token: string) {
   return client
 }
 
-export async function createClient() {
+// `cache()` scopes one client to one request. Before this, a layout + page +
+// every nested server component each built their own client, and each client
+// kept its own empty auth cache — so `auth.getUser()` hit the GoTrue endpoint
+// once per call site instead of once per request. One instance means the
+// session is fetched once and reused, and the token is refreshed at most once.
+export const createClient = cache(async () => {
   const hdrs = await headers()
   const authHeader = hdrs.get('authorization')
   const bearerMatch = authHeader?.match(/^Bearer\s+(.+)$/i)
@@ -50,11 +56,13 @@ export async function createClient() {
       },
     }
   )
-}
+})
 
-export async function createAdminClient() {
+// Also memoized: the service-role client holds no per-caller state, so one per
+// request is enough and it saves re-importing supabase-js on every call.
+export const createAdminClient = cache(async () => {
   const { createClient } = await import('@supabase/supabase-js')
   return createClient(getSupabaseUrl(), getSupabaseServiceRoleKey(), {
     auth: { autoRefreshToken: false, persistSession: false },
   })
-}
+})

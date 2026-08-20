@@ -1,18 +1,13 @@
 import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import BookingsClient, { type RoomOption } from './BookingsClient'
+import { requireTenant } from '@/lib/auth'
+import BookingsClient, { type Booking, type RoomOption } from './BookingsClient'
 import { markExpiredBookings } from '@/lib/bookings'
 
 export const metadata = { title: 'Bookings' }
 
 export default async function BookingsPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
-  const tenantId = profile?.tenant_id
-  if (!tenantId) redirect('/login')
+  const { tenantId } = await requireTenant()
 
   const todayISO = new Date().toISOString().slice(0, 10)
 
@@ -24,7 +19,16 @@ export default async function BookingsPage() {
   const [{ data: bookings }, { data: hotelInfo }, { data: rooms }] = await Promise.all([
     supabase
       .from('bookings')
-      .select('*, user:profiles(full_name, email, avatar_url), room:rooms(id, room_number, name, price_per_night, capacity, room_type:room_types(name))')
+      // Named columns instead of `*`: the list only renders these, and the
+      // dropped ones (hotel_id, updated_at, cancellation_reason) were being
+      // serialised for every booking the hotel has ever taken.
+      .select(`
+        id, created_at, check_in, check_out, status, total_amount, source,
+        adults, children, special_requests, guest_name, guest_phone,
+        user_id, room_id, room_ids,
+        user:profiles(full_name, email, avatar_url),
+        room:rooms(id, room_number, name, price_per_night, capacity, room_type:room_types(name))
+      `)
       .eq('hotel_id', tenantId)
       .order('created_at', { ascending: false }),
     supabase.from('hotels').select('currency').eq('id', tenantId).single(),
@@ -45,7 +49,7 @@ export default async function BookingsPage() {
 
   return (
     <BookingsClient
-      bookings={bookings ?? []}
+      bookings={(bookings ?? []) as unknown as Booking[]}
       currency={currency}
       rooms={(rooms ?? []) as RoomOption[]}
       today={today}

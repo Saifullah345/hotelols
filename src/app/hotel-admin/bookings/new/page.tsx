@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, getBrowserUser } from '@/lib/supabase/client'
 import {
   Loader2, ArrowLeft, Search, User, BedDouble,
   MessageCircle, Phone, DoorOpen, Globe,
@@ -402,7 +402,7 @@ export default function NewBookingPage() {
   useEffect(() => {
     const init = async () => {
       const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
+      const user = await getBrowserUser(supabase)
       if (!user) return
       const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
       if (!profile?.tenant_id) return

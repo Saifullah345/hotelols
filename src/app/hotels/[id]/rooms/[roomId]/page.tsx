@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/auth'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -84,7 +85,7 @@ export default async function RoomDetailPage({
   const { check_in, check_out, adults: adultsParam, children: childrenParam } = await searchParams
 
   const authSupabase = await createClient()
-  const { data: { user } } = await authSupabase.auth.getUser()
+  const user = await getCurrentUser()
 
   const supabase = await createAdminClient()
 

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, getBrowserUser } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Loader2, Save, ArrowLeft, Camera, Trash2, User, AlertCircle } from 'lucide-react'
 import { phoneSchema, nameSchema } from '@/lib/validation'
@@ -44,7 +44,7 @@ export default function CustomerProfilePage() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+    getBrowserUser(supabase).then(async (user) => {
       if (!user) return
       const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
       setProfile(data)
@@ -62,7 +62,7 @@ export default function CustomerProfilePage() {
 
   const onSubmit = async (data: FormData) => {
     const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = await getBrowserUser(supabase)
     if (!user) return
     const { error } = await supabase.from('profiles').update({
       full_name: data.full_name,

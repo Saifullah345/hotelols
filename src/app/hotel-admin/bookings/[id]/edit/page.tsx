@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { ArrowLeft, Loader2, Moon, DoorOpen, Phone, MessageCircle, Globe } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, getBrowserUser } from '@/lib/supabase/client'
 import PhoneInput from '@/components/ui/PhoneInput'
 import { formatCurrency } from '@/lib/currency'
 import { nameSchema, phoneSchema } from '@/lib/validation'
@@ -77,7 +77,7 @@ export default function EditBookingPage() {
   useEffect(() => {
     const init = async () => {
       const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
+      const user = await getBrowserUser(supabase)
       if (!user) { router.push('/login'); return }
 
       const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()

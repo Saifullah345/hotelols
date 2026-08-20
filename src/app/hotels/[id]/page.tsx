@@ -1,7 +1,9 @@
 export const revalidate = 30
 
 import type { Metadata } from 'next'
+import { cache } from 'react'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
+import { getAuthContext } from '@/lib/auth'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -28,16 +30,25 @@ function truncate(text: string, max = 155) {
   return `${clean.slice(0, max - 1).replace(/[\s,;:.-]+\S*$/, '')}…`
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
-  const { id } = await params
+/**
+ * Next calls generateMetadata and the page component separately, and both need
+ * the hotel row. `cache()` makes the second call free instead of a second
+ * round-trip to Supabase on every hotel page view.
+ */
+const getHotel = cache(async (id: string) => {
   const supabase = await createAdminClient()
-
-  const { data: hotel } = await supabase
+  const { data } = await supabase
     .from('hotels')
-    .select('name, description, address, city, country, cover_image, rating, review_count')
+    .select('*, plan:plans(name, feature_listing, feature_housekeeping, feature_reviews, feature_online_booking, feature_advanced_reports, feature_api_access, feature_multi_property)')
     .eq('id', id)
     .eq('status', 'active')
     .single()
+  return data
+})
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params
+  const hotel = await getHotel(id)
 
   if (!hotel) {
     return pageMetadata({
@@ -106,25 +117,47 @@ export default async function PublicHotelDetailPage({
   const guests = adults + childrenCount
 
   const authSupabase = await createClient()
-  const { data: { user } } = await authSupabase.auth.getUser()
-
-  // Non-customer accounts have their own dashboards — redirect them away.
-  if (user) {
-    const { data: profile } = await authSupabase
-      .from('profiles').select('role').eq('id', user.id).single()
-    if (profile?.role === 'hotel_admin') redirect('/hotel-admin/dashboard')
-    if (profile?.role === 'super_admin') redirect('/super-admin/dashboard')
-    if (profile?.role === 'staff') redirect('/staff/dashboard')
-  }
-
   const supabase = await createAdminClient()
 
-  const { data: hotel } = await supabase
-    .from('hotels')
-    .select('*, plan:plans(name, feature_listing, feature_housekeeping, feature_reviews, feature_online_booking, feature_advanced_reports, feature_api_access, feature_multi_property)')
-    .eq('id', id)
-    .eq('status', 'active')
-    .single()
+  // Everything on this page keys off the hotel id, which is known from the URL,
+  // so nothing has to wait for anything else. This used to be a six-step chain:
+  // session → role → hotel → rooms/reviews → booked rooms → saved flag.
+  const [hotel, { data: allRooms }, { data: reviews }, bookedRoomIds, { user, role }, savedResult] =
+    await Promise.all([
+      getHotel(id),
+      supabase
+        .from('rooms')
+        .select('*, room_type:room_types(name, description)')
+        .eq('hotel_id', id)
+        .eq('status', 'available')
+        .order('sort_order', { ascending: true })
+        .order('price_per_night'),
+      supabase
+        .from('reviews')
+        .select('*, user:profiles(full_name)')
+        .eq('hotel_id', id)
+        .eq('is_published', true)
+        .order('created_at', { ascending: false })
+        .limit(6),
+      // Drop rooms already taken for the requested nights — showing them would
+      // only fail later, when the booking trigger rejects the overlap.
+      datesApplied
+        ? getBookedRoomIds(supabase, [id], check_in!, check_out!)
+        : Promise.resolve(new Set<string>()),
+      getAuthContext(),
+      // Chained off the same cached session read, so the saved-hotel flag rides
+      // along with the batch instead of trailing it.
+      getAuthContext().then(({ user: u }) =>
+        u
+          ? authSupabase.from('saved_hotels').select('id').eq('user_id', u.id).eq('hotel_id', id).maybeSingle()
+          : null
+      ),
+    ])
+
+  // Non-customer accounts have their own dashboards — redirect them away.
+  if (role === 'hotel_admin') redirect('/hotel-admin/dashboard')
+  if (role === 'super_admin') redirect('/super-admin/dashboard')
+  if (role === 'staff')       redirect('/staff/dashboard')
 
   if (!hotel) notFound()
 
@@ -134,30 +167,8 @@ export default async function PublicHotelDetailPage({
 
   const { onlineBooking } = getPlanFeatures((hotel.plan ?? null) as import('@/lib/plan-features').PlanDbData | null)
 
-  const [{ data: allRooms }, { data: reviews }] = await Promise.all([
-    supabase
-      .from('rooms')
-      .select('*, room_type:room_types(name, description)')
-      .eq('hotel_id', id)
-      .eq('status', 'available')
-      .order('sort_order', { ascending: true })
-      .order('price_per_night'),
-    supabase
-      .from('reviews')
-      .select('*, user:profiles(full_name)')
-      .eq('hotel_id', id)
-      .eq('is_published', true)
-      .order('created_at', { ascending: false })
-      .limit(6),
-  ])
-
   const currency = (hotel.currency as string | null) ?? 'PKR'
 
-  // Drop rooms already taken for the requested nights — showing them would only
-  // fail later, when the booking trigger rejects the overlap.
-  const bookedRoomIds = datesApplied
-    ? await getBookedRoomIds(supabase, [id], check_in!, check_out!)
-    : new Set<string>()
   const rooms = (allRooms ?? []).filter(r => !bookedRoomIds.has(r.id))
   const unavailableCount = (allRooms?.length ?? 0) - rooms.length
 
@@ -166,17 +177,7 @@ export default async function PublicHotelDetailPage({
   const uniqueImages = Array.from(new Set(allImages))
   const fromPrice = rooms.length ? Math.min(...rooms.map(r => r.price_per_night)) : null
 
-  // Check if user has saved this hotel
-  let isSaved = false
-  if (user) {
-    const { data: savedRow } = await authSupabase
-      .from('saved_hotels')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('hotel_id', id)
-      .single()
-    isSaved = !!savedRow
-  }
+  const isSaved = !!savedResult?.data
 
   // ── Structured data ─────────────────────────────────────────────
   const hotelUrl = absoluteUrl(`/hotels/${id}`)

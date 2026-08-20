@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { requireTenant } from '@/lib/auth'
 import Link from 'next/link'
 import { UserCheck, Clock, BedDouble, ClipboardList } from 'lucide-react'
 
@@ -7,12 +7,7 @@ export const metadata = { title: 'Staff Dashboard' }
 
 export default async function StaffDashboard() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
-  const tenantId = profile?.tenant_id
-  if (!tenantId) redirect('/login')
+  const { user, tenantId } = await requireTenant()
 
   const today = new Date().toISOString().split('T')[0]
 

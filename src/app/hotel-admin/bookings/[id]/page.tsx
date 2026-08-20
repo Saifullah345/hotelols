@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -40,7 +41,7 @@ const fmtDate = (d: string) =>
 export default async function ViewBookingPage({ params }: Ctx) {
   const { id } = await params
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect('/login')
 
   const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()

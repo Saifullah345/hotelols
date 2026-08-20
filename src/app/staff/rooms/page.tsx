@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { requireTenant } from '@/lib/auth'
 import Link from 'next/link'
 
 export const metadata = { title: 'Rooms' }
@@ -18,12 +18,7 @@ export default async function StaffRoomsPage({
 }) {
   const { status } = await searchParams
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
-  const tenantId = profile?.tenant_id
-  if (!tenantId) redirect('/login')
+  const { tenantId } = await requireTenant()
 
   let query = supabase
     .from('rooms')

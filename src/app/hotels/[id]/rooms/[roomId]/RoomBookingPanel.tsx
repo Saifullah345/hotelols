@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/currency'
 import { addDays, todayISO } from '@/lib/date'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, getBrowserUser } from '@/lib/supabase/client'
 import { isProfileComplete, missingProfileFields } from '@/lib/profile'
 
 export type ExtraService = {
@@ -104,7 +104,7 @@ export default function RoomBookingPanel({
     // The hotel needs a name and phone to confirm the stay. Send the guest to
     // fill those in, then straight back here with the dates still filled in.
     const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = await getBrowserUser(supabase)
     if (user) {
       const { data: profile } = await supabase
         .from('profiles').select('full_name, phone').eq('id', user.id).single()

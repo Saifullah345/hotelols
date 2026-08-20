@@ -1,6 +1,7 @@
 import { cookies, headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getAuthContext } from '@/lib/auth'
 import { AdminShell } from '@/components/layout/AdminShell'
 import { noIndexMetadata } from '@/lib/seo'
 import { getPlanFeatures } from '@/lib/plan-features'
@@ -19,18 +20,22 @@ export const metadata = noIndexMetadata
 
 export default async function HotelAdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
 
+  // Cookies are a local read, so resolve them before anything awaits the
+  // network — a wrong role here means we redirect without querying at all.
   const store = await cookies()
   const activeRole     = store.get('bq_role')?.value
   const activeTenantId = store.get('bq_tenant')?.value
 
+  const { user, profile } = await getAuthContext()
+  if (!user) redirect('/login')
+
   if (activeRole !== 'hotel_admin' || !activeTenantId) redirect('/select-role')
 
-  // Role verification and profile/hotel fetch have no inter-dependency — run all
-  // three concurrently to save one sequential DB round-trip per page load.
-  const [roleResult, [{ data: profile }, hotel]] = await Promise.all([
+  // Role verification and the hotel record have no inter-dependency — run them
+  // concurrently. The profile row came from getAuthContext(), which the page
+  // rendering inside this layout shares, so it costs one query for both.
+  const [roleResult, hotel] = await Promise.all([
     supabase
       .from('user_roles')
       .select('id')
@@ -38,10 +43,7 @@ export default async function HotelAdminLayout({ children }: { children: React.R
       .eq('role', 'hotel_admin')
       .eq('tenant_id', activeTenantId)
       .maybeSingle(),
-    Promise.all([
-      supabase.from('profiles').select('*').eq('id', user.id).single(),
-      getCachedHotel(activeTenantId),
-    ]),
+    getCachedHotel(activeTenantId),
   ])
 
   if (!roleResult.data) redirect('/select-role')

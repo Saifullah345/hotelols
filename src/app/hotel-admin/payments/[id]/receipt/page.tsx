@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getAuthContext } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -41,11 +42,8 @@ const METHOD_LABELS: Record<string, string> = {
 export default async function ReceiptPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const [{ data: profile }, { data: payment }] = await Promise.all([
-    supabase.from('profiles').select('tenant_id').eq('id', user.id).single(),
+  const [{ user, tenantId }, { data: payment }] = await Promise.all([
+    getAuthContext(),
     supabase
       .from('payments')
       .select(`
@@ -60,7 +58,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
       .single(),
   ])
 
-  const tenantId = profile?.tenant_id
+  if (!user) redirect('/login')
   if (!tenantId) redirect('/login')
   if (!payment || payment.hotel_id !== tenantId) notFound()
 

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useState, useEffect, useRef } from 'react'
 import { Menu, X, CalendarDays, User, LogOut, ChevronDown, Building2 } from 'lucide-react'
 import Logo from '@/components/layout/Logo'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, getBrowserUser } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
 type UserInfo = { name: string; email: string; avatarUrl: string | null }
@@ -57,7 +57,7 @@ export default function PublicNavbar() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(async ({ data: { user: u } }) => {
+    getBrowserUser(supabase).then(async (u) => {
       if (u) {
         const { data: profile } = await supabase
           .from('profiles')

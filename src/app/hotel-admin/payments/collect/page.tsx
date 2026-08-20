@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, getBrowserUser } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import {
@@ -82,7 +82,7 @@ export default function CollectPaymentPage() {
     setLoading(true)
     const supabase = createClient()
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = await getBrowserUser(supabase)
     if (!user) return
 
     const { data: profile } = await supabase

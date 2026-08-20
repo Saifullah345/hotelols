@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { requireTenant } from '@/lib/auth'
 import ReportsClient from './ReportsClient'
 import { getPlanFeatures, type PlanDbData } from '@/lib/plan-features'
 import type { PaymentRow, BookingRow, RoomRow, ReviewRow } from '@/lib/reports'
@@ -8,32 +8,30 @@ export const metadata = { title: 'Reports & Analytics' }
 
 export default async function ReportsPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const { tenantId } = await requireTenant()
 
-  const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
-  const tenantId = profile?.tenant_id
-  if (!tenantId) redirect('/login')
-
+  // `bookings` and `rooms` used to be read twice each here — once for the
+  // report windows and once for the room-type/top-guest roll-ups — which meant
+  // two full scans of the hotel's biggest table per page load. One read per
+  // table now carries every column both consumers need.
   const [
     { data: payments },
     { data: bookings },
     { data: rooms },
     { data: reviews },
     { data: hotelInfo },
-    { data: bookingAmounts },
-    { data: allRooms },
     { data: allRoomTypes },
   ] = await Promise.all([
     supabase.from('payments').select('amount, created_at, status, payment_method').eq('hotel_id', tenantId),
-    supabase.from('bookings').select('created_at, check_in, check_out, status, total_amount, source').eq('hotel_id', tenantId),
-    supabase.from('rooms').select('status').eq('hotel_id', tenantId),
+    supabase.from('bookings').select('created_at, check_in, check_out, status, total_amount, source, room_id, user_id').eq('hotel_id', tenantId),
+    supabase.from('rooms').select('id, status, room_type_id').eq('hotel_id', tenantId),
     supabase.from('reviews').select('rating, created_at').eq('hotel_id', tenantId),
     supabase.from('hotels').select('currency, plan:plans(feature_advanced_reports, feature_housekeeping, feature_reviews, feature_online_booking, feature_listing, feature_api_access, feature_multi_property)').eq('id', tenantId).single(),
-    supabase.from('bookings').select('total_amount, room_id, user_id, status').eq('hotel_id', tenantId),
-    supabase.from('rooms').select('id, room_type_id').eq('hotel_id', tenantId),
     supabase.from('room_types').select('id, name').eq('hotel_id', tenantId),
   ])
+
+  const bookingAmounts = bookings
+  const allRooms = rooms
 
   const hotel = hotelInfo as { currency?: string; plan?: PlanDbData | null } | null
   const currency = hotel?.currency ?? 'USD'

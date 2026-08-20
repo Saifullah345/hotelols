@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { requireTenant } from '@/lib/auth'
 import GuestsClient, { type GuestRecord } from './GuestsClient'
 
 export const metadata = { title: 'Guest Directory' }
@@ -35,16 +35,7 @@ type HotelGuestRow = {
 
 export default async function GuestsPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('tenant_id')
-    .eq('id', user.id)
-    .single()
-  const tenantId = profile?.tenant_id
-  if (!tenantId) redirect('/login')
+  const { tenantId } = await requireTenant()
 
   const [{ data: bookings }, { data: hotelGuests }] = await Promise.all([
     supabase
@@ -53,7 +44,7 @@ export default async function GuestsPage() {
       .eq('hotel_id', tenantId),
     supabase
       .from('hotel_guests')
-      .select('*')
+      .select('id, hotel_id, user_id, name, email, phone, country, passport_id, notes, is_vip')
       .eq('hotel_id', tenantId),
   ])
 

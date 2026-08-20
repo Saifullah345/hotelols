@@ -35,7 +35,7 @@ export type RoomOption = {
 }
 
 type BookingRoom = { id: string; room_number: string; name: string | null; price_per_night: number; capacity: number; room_type: { name?: string } | null }
-type Booking = {
+export type Booking = {
   id: string
   created_at: string
   check_in: string

@@ -1,4 +1,5 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { getAuthContext } from '@/lib/auth'
 import BillingClient from './BillingClient'
 import { redirect } from 'next/navigation'
 import { planRank } from '@/lib/plan-tier'
@@ -7,13 +8,8 @@ export const metadata = { title: 'Billing & Subscription' }
 
 export default async function BillingPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user, tenantId: hotelId } = await getAuthContext()
   if (!user) redirect('/login')
-
-  const { data: profile } = await supabase
-    .from('profiles').select('tenant_id').eq('id', user.id).single()
-
-  const hotelId = profile?.tenant_id
   if (!hotelId) redirect('/select-role')
 
   const admin = await createAdminClient()

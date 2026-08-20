@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/currency'
 import { addDays, todayISO } from '@/lib/date'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, getBrowserUser } from '@/lib/supabase/client'
 import { isProfileComplete, missingProfileFields } from '@/lib/profile'
 
 /** Where a selection is parked while the guest completes their profile. */
@@ -136,7 +136,7 @@ export default function RoomsSection({
     // The hotel needs a name and phone to confirm the stay. Send the guest to
     // fill those in; the selection is put back when they come back.
     const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = await getBrowserUser(supabase)
     if (user) {
       const { data: profile } = await supabase
         .from('profiles').select('full_name, phone').eq('id', user.id).single()

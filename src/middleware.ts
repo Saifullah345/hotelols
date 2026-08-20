@@ -52,19 +52,26 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  let user = null
+  // `getClaims()` verifies the access token's signature against the project's
+  // JWKS, which is fetched once per server process and cached — so on every
+  // request after the first this is local crypto, not a round-trip to GoTrue.
+  // Middleware only needs to know "is this a valid session", which the verified
+  // claims answer completely. Projects still on a legacy symmetric JWT secret
+  // have no public key to verify against; there getClaims() falls back to the
+  // same getUser() call this used to make, so nothing regresses.
+  let user: { id: string } | null = null
   try {
-    const { data, error } = await supabase.auth.getUser()
+    const { data, error } = await supabase.auth.getClaims()
     if (error) {
       // Expired / revoked refresh token — clear cookies and treat as logged out
       if (error.status === 400 || error.message?.toLowerCase().includes('refresh token')) {
         await supabase.auth.signOut()
       }
-    } else {
-      user = data.user
+    } else if (data?.claims?.sub) {
+      user = { id: data.claims.sub }
     }
   } catch {
-    // Network or unexpected error — treat as unauthenticated
+    // Network, clock skew, or malformed token — treat as unauthenticated
   }
 
   // Unauthenticated: block protected routes and select-role

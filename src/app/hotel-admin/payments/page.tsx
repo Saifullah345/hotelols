@@ -1,5 +1,5 @@
 ﻿import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { requireTenant } from '@/lib/auth'
 import Link from 'next/link'
 import { Plus, CreditCard, CheckCircle2, Clock } from 'lucide-react'
 import PaymentsClient, { type PaymentRow } from './PaymentsClient'
@@ -9,13 +9,7 @@ export const metadata = { title: 'Payments' }
 
 export default async function PaymentsPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data: profile } = await supabase
-    .from('profiles').select('tenant_id').eq('id', user.id).single()
-  const tenantId = profile?.tenant_id
-  if (!tenantId) redirect('/login')
+  const { tenantId } = await requireTenant()
 
   const [{ data: payments }, { data: hotelInfo }] = await Promise.all([
     supabase

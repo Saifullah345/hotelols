@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/auth'
 import { Check, Zap, Edit2, Plus } from 'lucide-react'
 import Link from 'next/link'
 import SyncPlanButton from './SyncPlanButton'
@@ -12,7 +13,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function PlansPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
 
   if (!user) {
     return <div>Unauthorized</div>
