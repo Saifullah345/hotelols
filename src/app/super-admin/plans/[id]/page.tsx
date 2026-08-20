@@ -44,7 +44,29 @@ const planSchema = z.object({
       .max(365, 'Cannot exceed 365 days')
       .default(0),
   ),
-  features: z.string().transform(v => v.split('\n').filter(f => f.trim())),
+  features: z.string()
+    .superRefine((val, ctx) => {
+      const lines = val.split('\n').map(l => l.trim()).filter(Boolean)
+      if (lines.length > 20) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Too many features — max 20 (you have ${lines.length})` })
+        return
+      }
+      const invalid = /[^a-zA-Z0-9 &+\-.,/()'%!:]/
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]
+        const n = i + 1
+        if (line.length > 80) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Line ${n} is too long — keep each feature under 80 characters` }); return
+        }
+        if (invalid.test(line)) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Line ${n}: only letters, numbers, and basic punctuation (& + - . , / ( ) ' % ! :)` }); return
+        }
+        if (/(^|\s)-\d/.test(line)) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Line ${n}: use positive values (e.g. "up to 20 rooms" not "-20 rooms")` }); return
+        }
+      }
+    })
+    .transform(v => v.split('\n').filter(f => f.trim())),
   is_active: z.boolean(),
   paddle_price_id_monthly: z.string().optional(),
   paddle_price_id_yearly:  z.string().optional(),
@@ -364,6 +386,9 @@ export default function EditPlanPage() {
             rows={4}
             placeholder="Priority support&#10;Custom reports&#10;API access"
           />
+          <p className="text-xs text-gray-400 mt-1">
+            Max 20 features · 80 characters per line · letters, numbers, and basic punctuation only · no negative numbers
+          </p>
           {errors.features && <p className="text-red-600 text-sm mt-1">{errors.features.message}</p>}
         </div>
 
