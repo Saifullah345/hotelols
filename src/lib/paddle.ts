@@ -272,6 +272,22 @@ export async function cancelPaddleSubscription(
 }
 
 /**
+ * Removes a scheduled cancellation from a subscription so it renews normally.
+ *
+ * Called when a hotel has cancelled "at period end" during a trial and then
+ * changes their mind: clearing `scheduled_change` means the card is charged
+ * automatically when the trial ends instead of the subscription just stopping.
+ */
+export async function resumePaddleSubscription(
+  subscriptionId: string,
+): Promise<{ data?: PaddleSubscription; error?: string }> {
+  return paddleJson<PaddleSubscription>(`/subscriptions/${subscriptionId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ scheduled_change: null }),
+  })
+}
+
+/**
  * Moves a live subscription onto another plan's price.
  *
  * `do_not_bill` is what keeps a mid-trial plan change from restarting the

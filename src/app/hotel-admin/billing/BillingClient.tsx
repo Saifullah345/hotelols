@@ -83,6 +83,7 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
   )
   const [busyPlanId, setBusyPlanId] = useState<string | null>(null)
   const [canceling, setCanceling] = useState(false)
+  const [resuming, setResuming]   = useState(false)
   const [syncing, setSyncing]   = useState(false)
   const [checking, setChecking] = useState(false)
   const [problems, setProblems] = useState<string[] | null>(null)
@@ -301,6 +302,29 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
     }
   }
 
+  async function handleResume() {
+    if (!confirm(
+      `Keep your ${currentPlan?.name ?? 'subscription'} plan?\n\n` +
+      `Your card will be charged automatically when the trial ends. You can cancel any time before then.`,
+    )) return
+
+    setResuming(true)
+    try {
+      const res = await fetch('/api/paddle/resume', { method: 'POST' })
+      const json = await res.json().catch(() => ({}))
+      if (res.ok) {
+        toast.success(`Your ${json.planName ?? currentPlan?.name ?? 'subscription'} will continue after the trial.`)
+        router.refresh()
+      } else {
+        toast.error(json.error ?? 'Could not resume the subscription. Please try "Sync from Paddle".')
+      }
+    } catch {
+      toast.error('Could not reach the server. Please try again.')
+    } finally {
+      setResuming(false)
+    }
+  }
+
   // ── Where this hotel stands ────────────────────────────────────────
   const live      = subscriptionIsLive(hotel?.subscription_status, hotel?.plan_expires_at)
   const trialing  = subscriptionIsTrialing(hotel?.subscription_status, hotel?.trial_ends_at)
@@ -346,13 +370,27 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
               <p className="text-sm font-semibold text-indigo-900">
                 You&apos;re on a free trial of {currentPlan?.name ?? 'your plan'}
               </p>
-              <p className="mt-0.5 text-xs text-indigo-700">
-                {cancelsOn
-                  ? `Cancelled — access ends on ${cancelsOn} and nothing will be charged.`
-                  : trialEndsOn
+              {cancelsOn ? (
+                <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                  <p className="text-xs text-indigo-700">
+                    Cancelled — access ends on {cancelsOn} and nothing will be charged.
+                  </p>
+                  <button
+                    onClick={handleResume}
+                    disabled={resuming}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-900 underline underline-offset-2 hover:text-indigo-700 disabled:opacity-50 transition-colors"
+                  >
+                    {resuming ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                    {resuming ? 'Working…' : 'Keep plan →'}
+                  </button>
+                </div>
+              ) : (
+                <p className="mt-0.5 text-xs text-indigo-700">
+                  {trialEndsOn
                     ? `Ends on ${trialEndsOn}. Your card is charged automatically then, unless you cancel before.`
                     : 'Your card is charged automatically when the trial ends.'}
-              </p>
+                </p>
+              )}
             </div>
           </div>
           <p className="mt-3 text-xs text-indigo-700">
@@ -455,6 +493,18 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
             {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
             Check Paddle setup
           </button>
+
+          {/* Un-cancel: shown only when the subscription has a scheduled cancellation. */}
+          {trialing && cancelsOn && (
+            <button
+              onClick={handleResume}
+              disabled={resuming}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-emerald-300 text-emerald-700 text-sm font-medium hover:bg-emerald-50 transition-colors disabled:opacity-60"
+            >
+              {resuming ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              {resuming ? 'Working…' : 'Keep subscription'}
+            </button>
+          )}
 
           {/* Cancelling is offered during the trial too — a trial you can't get
               out of isn't one. */}
@@ -596,9 +646,20 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
                 </ul>
 
                 {isCurrent && !isRenewable ? (
-                  <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 text-gray-500 text-sm font-medium">
-                    <RefreshCw className="h-4 w-4" /> {trialing ? 'Trialing this plan' : 'Active plan'}
-                  </div>
+                  trialing && cancelsOn ? (
+                    <button
+                      onClick={handleResume}
+                      disabled={resuming}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {resuming ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                      {resuming ? 'Working…' : 'Keep plan'}
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-50 text-gray-500 text-sm font-medium">
+                      <RefreshCw className="h-4 w-4" /> {trialing ? 'Trialing this plan' : 'Active plan'}
+                    </div>
+                  )
                 ) : isRenewable ? (
                   <button
                     onClick={() => openCheckout(plan)}
