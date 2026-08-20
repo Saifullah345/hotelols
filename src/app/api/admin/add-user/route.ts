@@ -210,8 +210,9 @@ export async function POST(request: Request) {
     try {
       await sendEmail({ to: email, subject: pendingEmail.subject, html: pendingEmail.html })
     } catch (emailError) {
-      console.error('Failed to send account email:', emailError)
-      emailWarning = 'Account created, but the notification email could not be sent.'
+      const reason = emailError instanceof Error ? emailError.message : String(emailError)
+      console.error('Failed to send account email:', reason)
+      emailWarning = `Account created, but the notification email could not be sent: ${reason}`
     }
   }
 
