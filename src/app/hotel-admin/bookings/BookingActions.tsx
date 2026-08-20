@@ -535,6 +535,7 @@ function RefundModal({
 
 // ─── Extend Stay Modal ─────────────────────────────────────────────────────
 // Pushes out the check-out date and adds extra night charges to the bill.
+// Checks room availability live before allowing submission.
 
 function ExtendStayModal({
   ids, onClose, onSuccess,
@@ -545,34 +546,83 @@ function ExtendStayModal({
 }) {
   const primaryId = ids[0]
 
-  const [fetching,    setFetching]   = useState(true)
-  const [checkIn,     setCheckIn]    = useState('')
-  const [checkOut,    setCheckOut]   = useState('')
-  const [currency,    setCurrency]   = useState('USD')
-  const [rows,        setRows]       = useState<{ id: string; total_amount: number }[]>([])
-  const [newCheckOut, setNewCheckOut] = useState('')
-  const [submitting,  setSubmitting] = useState(false)
+  const [fetching,         setFetching]         = useState(true)
+  const [checkIn,          setCheckIn]          = useState('')
+  const [checkOut,         setCheckOut]         = useState('')
+  const [currency,         setCurrency]         = useState('USD')
+  const [rows,             setRows]             = useState<{ id: string; total_amount: number }[]>([])
+  // All physical room IDs covered by this booking (used for conflict detection)
+  const [roomIds,          setRoomIds]          = useState<string[]>([])
+  const [newCheckOut,      setNewCheckOut]      = useState('')
+  const [checking,         setChecking]         = useState(false)
+  const [conflictingRooms, setConflictingRooms] = useState<string[]>([])
+  const [submitting,       setSubmitting]       = useState(false)
 
+  // Load booking data
   useEffect(() => {
     const supabase = createClient()
     Promise.all([
-      supabase.from('bookings').select('id, check_in, check_out, total_amount, hotel:hotels(currency)').eq('id', primaryId).single(),
+      supabase.from('bookings').select('id, check_in, check_out, total_amount, room_id, room_ids, hotel:hotels(currency)').eq('id', primaryId).single(),
       ids.length > 1
-        ? supabase.from('bookings').select('id, total_amount').in('id', ids.slice(1))
-        : Promise.resolve({ data: [] }),
+        ? supabase.from('bookings').select('id, total_amount, room_id, room_ids').in('id', ids.slice(1))
+        : Promise.resolve({ data: [] as { id: string; total_amount: number; room_id: string; room_ids: string[] | null }[] }),
     ]).then(([{ data: primary }, { data: rest }]) => {
       if (primary) {
-        const p = primary as { id: string; check_in: string; check_out: string; total_amount: number; hotel?: { currency?: string } | null }
+        const p = primary as { id: string; check_in: string; check_out: string; total_amount: number; room_id: string; room_ids: string[] | null; hotel?: { currency?: string } | null }
         setCheckIn(p.check_in)
         setCheckOut(p.check_out)
         setNewCheckOut(p.check_out)
         setCurrency(p.hotel?.currency ?? 'USD')
-        const allRows = [{ id: p.id, total_amount: Number(p.total_amount) }, ...(rest ?? []).map((r: { id: string; total_amount: number }) => ({ id: r.id, total_amount: Number(r.total_amount) }))]
-        setRows(allRows)
+
+        type BookingRow = { id: string; total_amount: number; room_id: string; room_ids: string[] | null }
+        const allBookings: BookingRow[] = [
+          { id: p.id, total_amount: Number(p.total_amount), room_id: p.room_id, room_ids: p.room_ids },
+          ...(rest ?? []).map((r: BookingRow) => ({ ...r, total_amount: Number(r.total_amount) })),
+        ]
+        setRows(allBookings.map(b => ({ id: b.id, total_amount: b.total_amount })))
+
+        // Collect all physical room IDs
+        const allRoomIds = Array.from(new Set(
+          allBookings.flatMap(b => b.room_ids?.length ? b.room_ids : [b.room_id]).filter(Boolean)
+        ))
+        setRoomIds(allRoomIds)
       }
       setFetching(false)
     })
   }, [primaryId, ids])
+
+  // Live availability check — fires whenever the user picks a new date
+  useEffect(() => {
+    if (!newCheckOut || newCheckOut <= checkOut || roomIds.length === 0) {
+      setConflictingRooms([])
+      return
+    }
+    setChecking(true)
+    const supabase = createClient()
+    supabase
+      .from('bookings')
+      .select('id, room_id, room_ids')
+      .neq('status', 'cancelled')
+      .neq('status', 'checked_out')
+      .neq('status', 'no_show')
+      .lt('check_in', newCheckOut)   // other booking starts before our new checkout
+      .gt('check_out', checkOut)     // other booking ends after our current checkout
+      .then(({ data }) => {
+        // Find which of our rooms are claimed by another booking
+        const taken = new Set<string>()
+        ;(data ?? [])
+          .filter(b => !ids.includes((b as { id: string }).id))
+          .forEach(b => {
+            const bRooms = ((b as { room_ids?: string[] | null; room_id?: string }).room_ids?.length
+              ? (b as { room_ids: string[] }).room_ids
+              : [(b as { room_id: string }).room_id]
+            ) as string[]
+            bRooms.forEach(rid => { if (roomIds.includes(rid)) taken.add(rid) })
+          })
+        setConflictingRooms([...taken])
+        setChecking(false)
+      })
+  }, [newCheckOut, checkOut, roomIds, ids])
 
   function daysBetween(from: string, to: string) {
     return Math.round((new Date(to).getTime() - new Date(from).getTime()) / 86_400_000)
@@ -581,13 +631,13 @@ function ExtendStayModal({
   const originalNights = checkIn && checkOut ? daysBetween(checkIn, checkOut) : 0
   const extraNights    = newCheckOut > checkOut ? daysBetween(checkOut, newCheckOut) : 0
   const pricePerNightPerRoom = originalNights > 0 ? (rows[0]?.total_amount ?? 0) / originalNights : 0
-  const extraCostPerRoom   = Math.round(pricePerNightPerRoom * extraNights * 100) / 100
-  const totalExtraCost     = rows.reduce((s, r) => {
+  const totalExtraCost = rows.reduce((s, r) => {
     const rate = originalNights > 0 ? r.total_amount / originalNights : 0
     return s + Math.round(rate * extraNights * 100) / 100
   }, 0)
 
-  const canSubmit = extraNights > 0 && !submitting
+  const hasConflict = conflictingRooms.length > 0
+  const canSubmit   = extraNights > 0 && !submitting && !checking && !hasConflict
 
   const submit = async () => {
     if (!canSubmit) return
@@ -595,13 +645,13 @@ function ExtendStayModal({
     const supabase = createClient()
 
     const updates = rows.map(r => {
-      const rate    = originalNights > 0 ? r.total_amount / originalNights : 0
+      const rate     = originalNights > 0 ? r.total_amount / originalNights : 0
       const newTotal = Math.round((r.total_amount + rate * extraNights) * 100) / 100
       return supabase.from('bookings').update({ check_out: newCheckOut, total_amount: newTotal }).eq('id', r.id)
     })
 
     const results = await Promise.all(updates)
-    const failed = results.find(r => r.error)
+    const failed  = results.find(r => r.error)
     if (failed?.error) {
       toast.error(failed.error.message)
       setSubmitting(false)
@@ -652,11 +702,28 @@ function ExtendStayModal({
                 min={checkOut}
                 value={newCheckOut}
                 onChange={e => setNewCheckOut(e.target.value)}
-                className="input"
+                className={`input ${hasConflict ? 'border-red-400 focus:ring-red-400' : ''}`}
               />
+              {/* Availability feedback */}
+              {checking && extraNights > 0 && (
+                <p className="flex items-center gap-1.5 text-xs text-gray-400 mt-1.5">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Checking availability…
+                </p>
+              )}
+              {!checking && hasConflict && (
+                <p className="flex items-center gap-1.5 text-xs text-red-600 mt-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                  {conflictingRooms.length === 1
+                    ? 'That room is already booked for some of those dates. Choose an earlier date.'
+                    : `${conflictingRooms.length} rooms are already booked for some of those dates. Choose an earlier date.`}
+                </p>
+              )}
+              {!checking && !hasConflict && extraNights > 0 && (
+                <p className="text-xs text-emerald-600 mt-1.5">✓ Room{rows.length > 1 ? 's are' : ' is'} available for the extension</p>
+              )}
             </div>
 
-            {extraNights > 0 && (
+            {!hasConflict && extraNights > 0 && (
               <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3 text-sm">
                 <p className="text-indigo-700 font-semibold">
                   +{extraNights} night{extraNights !== 1 ? 's' : ''}{rows.length > 1 ? ` × ${rows.length} rooms` : ''} · +{formatCurrency(totalExtraCost, currency)}
