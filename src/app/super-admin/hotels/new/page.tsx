@@ -10,14 +10,17 @@ import { createClient } from '@/lib/supabase/client'
 import { Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 import { CURRENCIES } from '@/lib/currency'
-import { nameSchema } from '@/lib/validation'
+import { nameSchema, validateHotelName, phoneSchema } from '@/lib/validation'
 import PhoneInput from '@/components/ui/PhoneInput'
 import { CountrySelect, CitySelect } from '@/components/ui/CountryCitySelect'
 
 const schema = z.object({
-  name: z.string().min(2, 'Hotel name required'),
-  email: z.union([z.string().email('Invalid email'), z.literal('')]).optional(),
-  phone: z.string().optional(),
+  name: z.string().superRefine((v, ctx) => {
+    const err = validateHotelName(v)
+    if (err) ctx.addIssue({ code: z.ZodIssueCode.custom, message: err })
+  }),
+  email: z.string().min(1, 'Hotel email is required').email('Invalid email format'),
+  phone: phoneSchema,
   address: z.string().optional(),
   city: z.string().min(2),
   country: z.string().min(2),
@@ -140,13 +143,13 @@ export default function NewHotelPage() {
           </div>
 
           <div>
-            <label className="label">Hotel Email <span className="text-gray-400 font-normal">(optional)</span></label>
+            <label className="label">Hotel Email</label>
             <input {...register('email')} type="email" className="input" placeholder="info@hotel.com" />
             {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
           </div>
 
           <div>
-            <label className="label">Phone <span className="text-gray-400 font-normal">(optional)</span></label>
+            <label className="label">Phone</label>
             <PhoneInput
               value={watch('phone') ?? ''}
               onChange={v => setValue('phone', v, { shouldValidate: true })}
