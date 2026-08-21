@@ -19,7 +19,7 @@ export async function GET(request: Request) {
 
   if (profile?.role === 'customer') {
     query = query.eq('user_id', user.id)
-  } else if (['hotel_admin', 'staff'].includes(profile?.role) && profile?.tenant_id) {
+  } else if (['hotel_admin', 'staff'].includes(profile?.role ?? '') && profile?.tenant_id) {
     query = query.eq('hotel_id', profile.tenant_id)
   }
 

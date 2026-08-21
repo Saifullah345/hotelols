@@ -515,17 +515,6 @@ export default function NewBookingPage() {
       return false
     }
 
-    // Guard against overbooking the selected rooms' combined capacity.
-    const partySize = (payload.adults ?? 1) + (payload.children ?? 0)
-    const totalCapacity = selectedRoomIds.reduce((sum, id) => {
-      const room = rooms.find(r => r.id === id)
-      return sum + (room?.capacity ?? 0)
-    }, 0)
-    if (totalCapacity > 0 && partySize > totalCapacity) {
-      toast.error(`Selected room${selectedRoomIds.length > 1 ? 's' : ''} can hold up to ${totalCapacity} guest${totalCapacity !== 1 ? 's' : ''}. Add another room or reduce the guest count.`)
-      return false
-    }
-
     setSubmitting(true)
 
     const res = await fetch('/api/admin/create-booking', {
