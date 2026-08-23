@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
@@ -35,7 +35,7 @@ type Room = {
 
 type RoomType = { id: string; name: string }
 
-/** One night from the given day â€” the default range for a single-day check. */
+/** One night from the given day – the default range for a single-day check. */
 const nextDay = (date: string) => addDays(date, 1)
 
 const fmtShort = (d: string) =>
@@ -93,7 +93,7 @@ function RoomGridCard({ room, rangeActive, occupancy, availFrom, availTo, curren
               {room.name ?? `Room ${room.room_number}`}
             </h3>
             <p className="text-xs text-gray-400 mt-0.5">
-              {room.room_type?.name ?? 'â€”'} Â· {room.floor === 0 ? 'Ground floor' : `Floor ${room.floor}`}
+              {room.room_type?.name ?? '–'} · {room.floor === 0 ? 'Ground floor' : `Floor ${room.floor}`}
             </p>
           </div>
           <div className="text-right shrink-0">
@@ -111,14 +111,14 @@ function RoomGridCard({ room, rangeActive, occupancy, availFrom, availTo, curren
             <div className="mt-2.5 px-3 py-2 rounded-lg bg-red-50 border border-red-100 flex items-center gap-1.5">
               <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
               <span className="text-xs text-red-700 font-medium truncate">
-                {taken.guest} Â· {fmtShort(taken.checkIn)}â€“{fmtShort(taken.checkOut)}
+                {taken.guest} · {fmtShort(taken.checkIn)}–{fmtShort(taken.checkOut)}
               </span>
             </div>
           ) : room.status === 'available' ? (
             <div className="mt-2.5 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center gap-1.5">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
               <span className="text-xs text-emerald-700 font-medium">
-                Free Â· {fmtShort(availFrom)}â€“{fmtShort(availTo)}
+                Free · {fmtShort(availFrom)}–{fmtShort(availTo)}
               </span>
             </div>
           ) : null
@@ -179,7 +179,7 @@ export default function RoomsClient({
   const saveTimer               = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // â”€â”€ Availability check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  // "Is this room free on that day?" â€” pick a range and every room is marked
+  // "Is this room free on that day?" – pick a range and every room is marked
   // against the bookings that actually overlap it.
   const [availFrom, setAvailFrom] = useState('')
   const [availTo, setAvailTo]     = useState('')
@@ -392,8 +392,8 @@ export default function RoomsClient({
             <h2 className="text-2xl font-extrabold text-white leading-tight">Rooms</h2>
             <p className="text-primary-300 text-sm mt-0.5">
               {rooms.length} total
-              {filtered.length !== rooms.length && ` Â· ${filtered.length} shown`}
-              {saving && <span className="ml-2 text-amber-400 animate-pulse">Savingâ€¦</span>}
+              {filtered.length !== rooms.length && ` · ${filtered.length} shown`}
+              {saving && <span className="ml-2 text-amber-400 animate-pulse">Saving…</span>}
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
@@ -468,7 +468,7 @@ export default function RoomsClient({
         </div>
       </div>
 
-      {/* Availability checker â€” a tool, not a list filter, so it reads as its
+      {/* Availability checker – a tool, not a list filter, so it reads as its
           own panel: pick a stay on the left, get the verdict on the right. */}
       <div className="rounded-2xl border border-primary-100 bg-primary-50/50 overflow-hidden">
         <div className="flex flex-col lg:flex-row lg:items-center gap-4 px-4 py-4 sm:px-5">
@@ -484,7 +484,7 @@ export default function RoomsClient({
             </div>
           </div>
 
-          {/* Dates â€” grouped so the two inputs read as one range */}
+          {/* Dates – grouped so the two inputs read as one range */}
           <div className="flex items-center gap-2 rounded-xl bg-white border border-primary-100 px-3 py-2 shadow-sm">
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Check-in</label>
@@ -532,7 +532,7 @@ export default function RoomsClient({
             <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
               {checking ? (
                 <span className="flex items-center gap-1.5 text-sm text-gray-500">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Checkingâ€¦
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking…
                 </span>
               ) : (
                 <span
@@ -544,7 +544,7 @@ export default function RoomsClient({
                 >
                   {freeCount > 0 ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
                   {freeCount} of {rooms.length} free
-                  <span className="font-medium opacity-70">Â· {fmtShort(availFrom)}â€“{fmtShort(availTo)}</span>
+                  <span className="font-medium opacity-70">· {fmtShort(availFrom)}–{fmtShort(availTo)}</span>
                 </span>
               )}
               <button
@@ -577,7 +577,7 @@ export default function RoomsClient({
           <input
             value={q}
             onChange={e => setQ(e.target.value)}
-            placeholder="Search name or numberâ€¦"
+            placeholder="Search name or number…"
             className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-400"
           />
         </div>
@@ -624,7 +624,7 @@ export default function RoomsClient({
 
       {!hasFilter && rooms.length > 1 && view === 'list' && (
         <p className="text-xs text-gray-400 flex items-center gap-1.5 -mt-2">
-          <GripVertical className="h-3.5 w-3.5" /> Drag rows to reorder â€” order is shown to customers.
+          <GripVertical className="h-3.5 w-3.5" /> Drag rows to reorder – order is shown to customers.
         </p>
       )}
 
@@ -643,7 +643,7 @@ export default function RoomsClient({
               <BedDouble className="h-9 w-9 text-gray-200 mx-auto mb-3" />
               <p className="text-gray-400 text-sm">
                 {rangeActive && freeOnly
-                  ? `No rooms free for ${fmtShort(availFrom)} â€“ ${fmtShort(availTo)}.`
+                  ? `No rooms free for ${fmtShort(availFrom)} – ${fmtShort(availTo)}.`
                   : hasFilter ? 'No rooms match your filters.' : 'No rooms yet.'}
               </p>
             </div>
@@ -743,7 +743,7 @@ export default function RoomsClient({
 
                     <td className="table-cell">
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                        {room.room_type?.name ?? 'â€”'}
+                        {room.room_type?.name ?? '–'}
                       </span>
                     </td>
 
@@ -772,7 +772,7 @@ export default function RoomsClient({
                                 <XCircle className="h-3 w-3" /> Booked
                               </span>
                               <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[150px]">
-                                {taken.guest} Â· {fmtShort(taken.checkIn)}â€“{fmtShort(taken.checkOut)}
+                                {taken.guest} · {fmtShort(taken.checkIn)}–{fmtShort(taken.checkOut)}
                               </p>
                             </>
                           ) : room.status === 'available' ? (
@@ -815,7 +815,7 @@ export default function RoomsClient({
                       <BedDouble className="h-9 w-9 text-gray-200 mx-auto mb-3" />
                       <p className="text-gray-400 text-sm">
                         {rangeActive && freeOnly
-                          ? `No rooms free for ${fmtShort(availFrom)} â€“ ${fmtShort(availTo)}.`
+                          ? `No rooms free for ${fmtShort(availFrom)} – ${fmtShort(availTo)}.`
                           : hasFilter ? 'No rooms match your filters.' : 'No rooms yet.'}
                       </p>
                     </td>
