@@ -4,12 +4,17 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { Loader2, X, Plus, Users, Baby } from 'lucide-react'
 
-export type CreatedRoomType = {
+export type RoomTypeRecord = {
   id: string
   name: string
+  description: string | null
   max_adults: number
   max_children: number
+  amenities: string[]
 }
+
+// Subset used by the room form (max_adults/max_children for capacity sync)
+export type CreatedRoomType = Pick<RoomTypeRecord, 'id' | 'name' | 'max_adults' | 'max_children'>
 
 const PRESET_AMENITIES = [
   'WiFi', 'Air Conditioning', 'TV', 'Mini Bar', 'Safe',
@@ -17,7 +22,7 @@ const PRESET_AMENITIES = [
   'Jacuzzi', 'Bathtub', 'Coffee Maker', 'Workspace', 'Sofa',
 ]
 
-function AmenityPicker({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+export function AmenityPicker({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
   const [custom, setCustom] = useState('')
 
   const toggle = (a: string) =>
@@ -93,36 +98,47 @@ function AmenityPicker({ value, onChange }: { value: string[]; onChange: (v: str
 export default function RoomTypeModal({
   open,
   onClose,
-  onCreated,
+  onSaved,
+  initial,
 }: {
   hotelId?: string
   open: boolean
   onClose: () => void
-  onCreated: (type: CreatedRoomType) => void
+  onSaved: (type: RoomTypeRecord) => void
+  initial?: RoomTypeRecord | null
 }) {
-  const [name,        setName]        = useState('')
-  const [description, setDescription] = useState('')
-  const [maxAdults,   setMaxAdults]   = useState(2)
-  const [maxChildren, setMaxChildren] = useState(1)
-  const [amenities,   setAmenities]   = useState<string[]>([])
+  const isEdit = !!initial
+
+  const [name,        setName]        = useState(initial?.name        ?? '')
+  const [description, setDescription] = useState(initial?.description ?? '')
+  const [maxAdults,   setMaxAdults]   = useState(initial?.max_adults  ?? 2)
+  const [maxChildren, setMaxChildren] = useState(initial?.max_children ?? 1)
+  const [amenities,   setAmenities]   = useState<string[]>(initial?.amenities ?? [])
   const [saving,      setSaving]      = useState(false)
 
-  const reset = () => {
+  const resetForm = () => {
     setName(''); setDescription(''); setMaxAdults(2); setMaxChildren(1); setAmenities([])
   }
 
-  const close = () => { if (saving) return; reset(); onClose() }
+  const close = () => { if (saving) return; if (!isEdit) resetForm(); onClose() }
 
   const save = async () => {
     const trimmedName = name.trim()
     if (!trimmedName) { toast.error('Name is required'); return }
     if (trimmedName.length < 2) { toast.error('Name must be at least 2 characters'); return }
     if (trimmedName.length > 60) { toast.error('Name is too long (max 60 characters)'); return }
+    if (/<[^>]+>/.test(trimmedName) || /[<>"'`;={}[\]\\|^%*!@~+?]/.test(trimmedName)) {
+      toast.error('Name contains invalid characters'); return
+    }
+    if (!/[a-zA-ZÀ-ɏ]/.test(trimmedName)) { toast.error('Name must include at least one letter'); return }
     if (maxAdults < 1) { toast.error('Max adults must be at least 1'); return }
 
     setSaving(true)
-    const res = await fetch('/api/room-types', {
-      method: 'POST',
+    const url    = isEdit ? `/api/room-types/${initial!.id}` : '/api/room-types'
+    const method = isEdit ? 'PATCH' : 'POST'
+
+    const res = await fetch(url, {
+      method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name: trimmedName,
@@ -137,13 +153,13 @@ export default function RoomTypeModal({
 
     if (!res.ok) {
       const isDuplicate = typeof json.error === 'string' && json.error.toLowerCase().includes('unique')
-      toast.error(isDuplicate ? `A room type named "${trimmedName}" already exists` : (json.error ?? 'Failed to create room type'))
+      toast.error(isDuplicate ? `A room type named "${trimmedName}" already exists` : (json.error ?? 'Failed to save'))
       return
     }
 
-    toast.success(`Room type "${json.name}" created`)
-    reset()
-    onCreated({ id: json.id, name: json.name, max_adults: json.max_adults, max_children: json.max_children })
+    toast.success(isEdit ? 'Room type updated' : `Room type "${json.name}" created`)
+    if (!isEdit) resetForm()
+    onSaved(json as RoomTypeRecord)
   }
 
   if (!open) return null
@@ -156,13 +172,13 @@ export default function RoomTypeModal({
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
-          <h3 className="text-base font-bold text-gray-900">New Room Type</h3>
+          <h3 className="text-base font-bold text-gray-900">{isEdit ? 'Edit Room Type' : 'New Room Type'}</h3>
           <button onClick={close} disabled={saving} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+        <div className="p-5 space-y-4">
           {/* Name */}
           <div>
             <label className="label">Type Name <span className="text-red-400">*</span></label>
@@ -171,7 +187,7 @@ export default function RoomTypeModal({
               onChange={e => setName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); save() } }}
               className="input"
-              placeholder="e.g. Deluxe Suite, Family Room"
+              placeholder="e.g. Deluxe Suite"
               autoFocus
             />
           </div>
@@ -251,7 +267,7 @@ export default function RoomTypeModal({
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold transition-colors disabled:opacity-60"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            {saving ? 'Creating…' : 'Create Type'}
+            {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Type'}
           </button>
         </div>
       </div>

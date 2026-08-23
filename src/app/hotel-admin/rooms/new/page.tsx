@@ -13,7 +13,7 @@ import {
   Wrench, Sparkles,
 } from 'lucide-react'
 import Link from 'next/link'
-import RoomTypeModal, { type CreatedRoomType } from '../RoomTypeModal'
+import RoomTypeModal, { type RoomTypeRecord } from '../RoomTypeModal'
 import { roomNameSchema, roomNumberSchema } from '@/lib/validation'
 
 type Floor = { id: string; floor_number: number; name: string }
@@ -121,7 +121,7 @@ export default function NewRoomPage() {
     })
   }, [])
 
-  const handleTypeCreated = (t: CreatedRoomType) => {
+  const handleTypeCreated = (t: RoomTypeRecord) => {
     setRoomTypes(prev => [...prev, t].sort((a, b) => a.name.localeCompare(b.name)))
     setValue('room_type_id', t.id, { shouldValidate: true, shouldDirty: true })
     setTypeModalOpen(false)
@@ -417,7 +417,7 @@ export default function NewRoomPage() {
           hotelId={tenantId}
           open={typeModalOpen}
           onClose={() => setTypeModalOpen(false)}
-          onCreated={handleTypeCreated}
+          onSaved={handleTypeCreated}
         />
       )}
     </div>

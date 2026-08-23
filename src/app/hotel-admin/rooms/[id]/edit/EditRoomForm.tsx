@@ -13,7 +13,7 @@ import {
   CheckCircle2, Wrench, Sparkles, CalendarCheck,
 } from 'lucide-react'
 import Link from 'next/link'
-import RoomTypeModal, { type CreatedRoomType } from '../../RoomTypeModal'
+import RoomTypeModal, { type RoomTypeRecord } from '../../RoomTypeModal'
 import { roomNameSchema, roomNumberSchema } from '@/lib/validation'
 
 type Floor = { id: string; floor_number: number; name: string }
@@ -182,7 +182,7 @@ export default function EditRoomForm({
     router.refresh()
   }
 
-  function handleTypeCreated(type: CreatedRoomType) {
+  function handleTypeCreated(type: RoomTypeRecord) {
     setTypes(prev => [...prev, type].sort((a, b) => a.name.localeCompare(b.name)))
     setValue('room_type_id', type.id, { shouldValidate: true, shouldDirty: true })
     setTypeModalOpen(false)
@@ -479,7 +479,7 @@ export default function EditRoomForm({
         hotelId={room.hotel_id}
         open={typeModalOpen}
         onClose={() => setTypeModalOpen(false)}
-        onCreated={handleTypeCreated}
+        onSaved={handleTypeCreated}
       />
 
       {/* ── Delete modal ─────────────────────────────────────────── */}
