@@ -349,101 +349,109 @@ export default function RegisterHotelPage() {
         {/* ── Step 3: Choose Plan ───────────────────────────────── */}
         {step === 3 && (
           <>
-            <div>
-              <p className="text-sm text-gray-500 mb-4">
-                Select the plan that best fits your hotel — nothing is charged now. You will be
-                asked to start it the first time you sign in, and you can change your mind then.
-              </p>
+            <p className="text-sm text-gray-500 -mt-1 mb-4">
+              Pick the plan that fits your property. Nothing is charged today — you start your
+              subscription the first time you sign in.
+            </p>
 
-              {plansLoading ? (
-                <div className="flex items-center justify-center py-10">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary-500" />
-                </div>
-              ) : plans.length === 0 ? (
-                <p className="text-center text-sm text-gray-400 py-6">No plans available. Please contact support.</p>
-              ) : (
-                <div className="space-y-3">
-                  {plans.map(plan => {
-                    const isSelected = plan.id === selectedPlanId
-                    const hasListing  = plan.feature_listing !== false
-                    const hasBooking  = plan.feature_online_booking !== false
-                    return (
-                      <button
-                        key={plan.id}
-                        type="button"
-                        onClick={() => setSelectedPlanId(plan.id)}
-                        className={`w-full text-left rounded-xl border-2 p-4 transition-all ${
-                          isSelected
-                            ? 'border-primary-500 bg-primary-50/60 shadow-sm'
-                            : 'border-gray-200 hover:border-gray-300 bg-white'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-start gap-3 min-w-0">
-                            {/* Radio dot */}
-                            <div className={`mt-0.5 h-4 w-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
-                              isSelected ? 'border-primary-600 bg-primary-600' : 'border-gray-300'
-                            }`}>
-                              {isSelected && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="font-semibold text-gray-900">{plan.name}</p>
-                              {/* Visibility badges */}
-                              <div className="flex flex-wrap gap-1.5 mt-1.5">
-                                {hasListing ? (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-                                    <Globe className="h-3 w-3" /> Listed on website
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
-                                    <LayoutDashboard className="h-3 w-3" /> Management only
-                                  </span>
-                                )}
-                                {hasListing && hasBooking && (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-                                    <ShoppingCart className="h-3 w-3" /> Online booking
-                                  </span>
-                                )}
-                              </div>
-                              {/* Feature list */}
-                              {Array.isArray(plan.features) && plan.features.length > 0 && (
-                                <ul className="mt-2 space-y-0.5">
-                                  {plan.features.slice(0, 4).map((f, i) => (
-                                    <li key={i} className="flex items-center gap-1.5 text-xs text-gray-600">
-                                      <CheckCircle2 className="h-3 w-3 flex-shrink-0 text-emerald-500" />
-                                      {f}
-                                    </li>
-                                  ))}
-                                  {plan.features.length > 4 && (
-                                    <li className="text-xs text-gray-400 pl-4">+{plan.features.length - 4} more</li>
-                                  )}
-                                </ul>
-                              )}
-                            </div>
-                          </div>
-                          {/* Price */}
-                          <div className="text-right flex-shrink-0">
-                            <p className="text-lg font-bold text-gray-900">
-                              {plan.price_monthly === 0 ? 'Free' : `$${plan.price_monthly}`}
-                            </p>
-                            {plan.price_monthly > 0 && (
-                              <p className="text-xs text-gray-400">/month</p>
-                            )}
-                            {Number(plan.trial_days ?? 0) > 0 && (
-                              <p className="mt-1 inline-block rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
-                                {plan.trial_days} days free
-                              </p>
-                            )}
-                          </div>
+            {plansLoading ? (
+              <div className="flex items-center justify-center py-10">
+                <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
+              </div>
+            ) : plans.length === 0 ? (
+              <p className="text-center text-sm text-gray-400 py-6">No plans available. Please contact support.</p>
+            ) : (
+              <div className="space-y-3">
+                {plans.map((plan, idx) => {
+                  const isSelected  = plan.id === selectedPlanId
+                  const hasListing  = plan.feature_listing !== false
+                  const hasBooking  = plan.feature_online_booking !== false
+                  const hasTrial    = Number(plan.trial_days ?? 0) > 0
+                  const isPopular   = idx === 1   // second plan gets the badge
+
+                  return (
+                    <button
+                      key={plan.id}
+                      type="button"
+                      onClick={() => setSelectedPlanId(plan.id)}
+                      className={`relative w-full text-left rounded-2xl border-2 p-4 transition-all ${
+                        isSelected
+                          ? 'border-indigo-500 bg-indigo-50/50 shadow-sm'
+                          : 'border-gray-200 hover:border-indigo-200 bg-white'
+                      }`}
+                    >
+                      {isPopular && (
+                        <span className="absolute -top-2.5 left-4 rounded-full bg-indigo-600 px-2.5 py-0.5 text-[11px] font-bold text-white tracking-wide uppercase">
+                          Popular
+                        </span>
+                      )}
+
+                      {/* ── Row 1: radio + name + price ── */}
+                      <div className="flex items-center gap-3">
+                        <div className={`h-5 w-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
+                          isSelected ? 'border-indigo-600 bg-indigo-600' : 'border-gray-300 bg-white'
+                        }`}>
+                          {isSelected && <div className="h-2 w-2 rounded-full bg-white" />}
                         </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
 
-            <div className="flex gap-3 pt-2">
+                        <p className="flex-1 font-bold text-base text-gray-900 capitalize">{plan.name}</p>
+
+                        <div className="text-right flex-shrink-0">
+                          <span className="text-xl font-bold text-gray-900">
+                            {plan.price_monthly === 0 ? 'Free' : `$${plan.price_monthly}`}
+                          </span>
+                          {plan.price_monthly > 0 && (
+                            <span className="text-xs text-gray-400 ml-1">/mo</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* ── Row 2: badges ── */}
+                      <div className="flex flex-wrap gap-1.5 mt-2.5 ml-8">
+                        {hasListing ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                            <Globe className="h-3 w-3" /> Listed on website
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 border border-gray-200 px-2.5 py-0.5 text-xs font-medium text-gray-500">
+                            <LayoutDashboard className="h-3 w-3" /> Management only
+                          </span>
+                        )}
+                        {hasListing && hasBooking && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                            <ShoppingCart className="h-3 w-3" /> Online booking
+                          </span>
+                        )}
+                        {hasTrial && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-medium text-amber-700">
+                            {plan.trial_days}-day free trial
+                          </span>
+                        )}
+                      </div>
+
+                      {/* ── Row 3: features ── */}
+                      {Array.isArray(plan.features) && plan.features.length > 0 && (
+                        <ul className="mt-2.5 ml-8 space-y-1">
+                          {plan.features.slice(0, 4).map((f, i) => (
+                            <li key={i} className="flex items-center gap-2 text-xs text-gray-600">
+                              <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 text-emerald-500" />
+                              {f}
+                            </li>
+                          ))}
+                          {plan.features.length > 4 && (
+                            <li className="text-xs text-gray-400 pl-5">
+                              +{plan.features.length - 4} more features
+                            </li>
+                          )}
+                        </ul>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-1">
               <button
                 type="button"
                 onClick={() => setStep(2)}
