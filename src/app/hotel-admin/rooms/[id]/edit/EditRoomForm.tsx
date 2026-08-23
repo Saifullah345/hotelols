@@ -9,11 +9,13 @@ import { toast } from 'sonner'
 import {
   Loader2, AlertTriangle, Info, Trash2, CalendarClock,
   Hash, Tag, Settings2, X, ImagePlus, Camera,
-  Plus,
+  Plus, Layers,
 } from 'lucide-react'
 import Link from 'next/link'
 import RoomTypeModal, { type CreatedRoomType } from '../../RoomTypeModal'
 import { roomNameSchema, roomNumberSchema } from '@/lib/validation'
+
+type Floor = { id: string; floor_number: number; name: string }
 
 const schema = z.object({
   room_number:     roomNumberSchema,
@@ -47,20 +49,21 @@ export interface EditRoomFormProps {
     hotel_id: string
   }
   roomTypes: RoomType[]
+  floors: Floor[]
   currency: string
   activeBookings: number
   upcomingBookings: number
 }
 
 export default function EditRoomForm({
-  room, roomTypes, currency, activeBookings, upcomingBookings,
+  room, roomTypes, floors: initialFloors, currency, activeBookings, upcomingBookings,
 }: EditRoomFormProps) {
   const router = useRouter()
   const [deleteOpen, setDeleteOpen]   = useState(false)
   const [deleting, setDeleting]       = useState(false)
-  const [customInput, setCustomInput] = useState('')
   const [typeModalOpen, setTypeModalOpen] = useState(false)
   const [types, setTypes] = useState<{ id: string; name: string }[]>(roomTypes)
+  const [floors]          = useState<Floor[]>(initialFloors)
 
   const totalLiveBookings = activeBookings + upcomingBookings
 
@@ -141,8 +144,10 @@ export default function EditRoomForm({
     router.refresh()
   }
 
-  function handleTypeCreated(type: CreatedRoomType): void {
-    throw new Error('Function not implemented.')
+  function handleTypeCreated(type: CreatedRoomType) {
+    setTypes(prev => [...prev, type].sort((a, b) => a.name.localeCompare(b.name)))
+    setValue('room_type_id', type.id, { shouldValidate: true, shouldDirty: true })
+    setTypeModalOpen(false)
   }
 
   return (
@@ -210,8 +215,29 @@ export default function EditRoomForm({
                 <p className="text-xs text-gray-400 mt-1">Safe to rename — bookings link by ID.</p>
               </div>
               <div>
-                <label className="label">Floor</label>
-                <input {...register('floor')} type="number" min={0} className="input" />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="label mb-0">Floor</label>
+                  <Link
+                    href="/hotel-admin/rooms/floors"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700 transition-colors"
+                  >
+                    <Layers className="h-3 w-3" /> Manage floors
+                  </Link>
+                </div>
+                {floors.length > 0 ? (
+                  <select {...register('floor')} className="input">
+                    {floors.map(f => (
+                      <option key={f.id} value={f.floor_number}>{f.name} (Floor {f.floor_number})</option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="input flex items-center justify-between text-gray-400 text-sm bg-gray-50 cursor-default select-none">
+                    <span>No floors defined</span>
+                    <Link href="/hotel-admin/rooms/floors" className="text-violet-600 font-medium hover:underline text-xs">
+                      Add floors →
+                    </Link>
+                  </div>
+                )}
                 {errors.floor && <p className="text-red-500 text-xs mt-1">{errors.floor.message}</p>}
               </div>
             </div>

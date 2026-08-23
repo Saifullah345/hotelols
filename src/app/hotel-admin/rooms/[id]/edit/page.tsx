@@ -35,12 +35,11 @@ export default async function EditRoomPage({
   if (!room) notFound()
   if (profile.role !== 'super_admin' && room.hotel_id !== profile.tenant_id) notFound()
 
-  // Load room types for this hotel
-  const { data: roomTypes } = await supabase
-    .from('room_types')
-    .select('id, name, max_adults, max_children')
-    .eq('hotel_id', room.hotel_id)
-    .order('name')
+  // Load room types and floors for this hotel
+  const [{ data: roomTypes }, { data: floors }] = await Promise.all([
+    supabase.from('room_types').select('id, name, max_adults, max_children').eq('hotel_id', room.hotel_id).order('name'),
+    supabase.from('hotel_floors').select('id, floor_number, name').eq('hotel_id', room.hotel_id).order('floor_number'),
+  ])
 
   // Hotel currency
   const { data: hotel } = await supabase
@@ -78,6 +77,7 @@ export default async function EditRoomPage({
       <EditRoomForm
         room={room}
         roomTypes={roomTypes ?? []}
+        floors={floors ?? []}
         currency={currency}
         activeBookings={activeBookings ?? 0}
         upcomingBookings={upcomingBookings ?? 0}

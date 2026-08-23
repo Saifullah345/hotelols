@@ -9,11 +9,13 @@ import { toast } from 'sonner'
 import { createClient, getBrowserUser } from '@/lib/supabase/client'
 import {
   Loader2, ArrowLeft, Hash, Tag,
-  Settings2, Camera, ImagePlus, X, Plus,
+  Settings2, Camera, ImagePlus, X, Plus, Layers,
 } from 'lucide-react'
 import Link from 'next/link'
 import RoomTypeModal, { type CreatedRoomType } from '../RoomTypeModal'
 import { roomNameSchema, roomNumberSchema } from '@/lib/validation'
+
+type Floor = { id: string; floor_number: number; name: string }
 
 const schema = z.object({
   room_number:     roomNumberSchema,
@@ -34,6 +36,7 @@ export default function NewRoomPage() {
   const [roomTypes, setRoomTypes] = useState<{ id: string; name: string; max_adults: number; max_children: number }[]>([])
   const [tenantId, setTenantId]   = useState<string | null>(null)
   const [typeModalOpen, setTypeModalOpen] = useState(false)
+  const [floors, setFloors] = useState<Floor[]>([])
 
   const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<RoomForm>({
     resolver: zodResolver(schema),
@@ -60,11 +63,12 @@ export default function NewRoomPage() {
       const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
       if (profile?.tenant_id) {
         setTenantId(profile.tenant_id)
-        const { data } = await supabase
-          .from('room_types')
-          .select('id, name, max_adults, max_children')
-          .eq('hotel_id', profile.tenant_id)
-        if (data) setRoomTypes(data)
+        const [{ data: types }, { data: floorData }] = await Promise.all([
+          supabase.from('room_types').select('id, name, max_adults, max_children').eq('hotel_id', profile.tenant_id),
+          supabase.from('hotel_floors').select('id, floor_number, name').eq('hotel_id', profile.tenant_id).order('floor_number'),
+        ])
+        if (types) setRoomTypes(types)
+        if (floorData) setFloors(floorData)
       }
     })
   }, [])
@@ -154,8 +158,29 @@ export default function NewRoomPage() {
                 {errors.room_number && <p className="text-red-500 text-xs mt-1">{errors.room_number.message}</p>}
               </div>
               <div>
-                <label className="label">Floor</label>
-                <input {...register('floor')} type="number" min={0} className="input" />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="label mb-0">Floor</label>
+                  <Link
+                    href="/hotel-admin/rooms/floors"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-primary-500 hover:text-primary-700 transition-colors"
+                  >
+                    <Layers className="h-3 w-3" /> Manage floors
+                  </Link>
+                </div>
+                {floors.length > 0 ? (
+                  <select {...register('floor')} className="input">
+                    {floors.map(f => (
+                      <option key={f.id} value={f.floor_number}>{f.name} (Floor {f.floor_number})</option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="input flex items-center justify-between text-gray-400 text-sm bg-gray-50 cursor-default select-none">
+                    <span>No floors defined</span>
+                    <Link href="/hotel-admin/rooms/floors" className="text-primary-500 font-medium hover:underline text-xs">
+                      Add floors →
+                    </Link>
+                  </div>
+                )}
                 {errors.floor && <p className="text-red-500 text-xs mt-1">{errors.floor.message}</p>}
               </div>
             </div>
