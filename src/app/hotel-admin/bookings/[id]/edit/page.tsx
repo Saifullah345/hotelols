@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { ArrowLeft, Loader2, Moon, DoorOpen, Phone, MessageCircle, Globe } from 'lucide-react'
+import { ArrowLeft, Loader2, Moon, DoorOpen, Phone, MessageCircle, Globe, Check, CalendarDays, Users } from 'lucide-react'
 import { createClient, getBrowserUser } from '@/lib/supabase/client'
 import PhoneInput from '@/components/ui/PhoneInput'
 import { formatCurrency } from '@/lib/currency'
@@ -14,11 +14,25 @@ import { guestLabel } from '@/lib/guest'
 import RoomPicker, { type PickableRoom } from '@/components/admin/RoomPicker'
 
 const SOURCES = [
-  { value: 'walk_in',  label: 'Walk-in',  icon: DoorOpen,      cls: 'text-orange-600 bg-orange-50 border-orange-200' },
-  { value: 'phone',    label: 'Phone',    icon: Phone,         cls: 'text-blue-600 bg-blue-50 border-blue-200'       },
-  { value: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, cls: 'text-green-600 bg-green-50 border-green-200'    },
-  { value: 'online',   label: 'Online',   icon: Globe,         cls: 'text-purple-600 bg-purple-50 border-purple-200' },
+  { value: 'walk_in',  label: 'Walk-in',  icon: DoorOpen,      color: 'text-orange-600', activeClass: 'border-orange-400 bg-orange-50 text-orange-700' },
+  { value: 'phone',    label: 'Phone',    icon: Phone,         color: 'text-blue-600',   activeClass: 'border-blue-400 bg-blue-50 text-blue-700'   },
+  { value: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, color: 'text-green-600',  activeClass: 'border-green-400 bg-green-50 text-green-700'  },
+  { value: 'online',   label: 'Online',   icon: Globe,         color: 'text-purple-600', activeClass: 'border-purple-400 bg-purple-50 text-purple-700' },
 ]
+
+function StepCard({ step, title, children }: { step: number; title: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
+        <div className="w-7 h-7 rounded-full bg-primary-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
+          {step}
+        </div>
+        <h3 className="font-semibold text-gray-900 text-sm">{title}</h3>
+      </div>
+      <div className="p-5">{children}</div>
+    </div>
+  )
+}
 
 type Booking = {
   id: string
@@ -300,75 +314,72 @@ export default function EditBookingPage() {
     : (booking?.room?.name ?? `Room ${booking?.room?.room_number}`)
 
   return (
-    <div className="max-w-xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-5">
 
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <Link href={`/hotel-admin/bookings/${id}`} className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-500">
+      <div className="flex items-center gap-4">
+        <Link href={`/hotel-admin/bookings/${id}`} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Edit Booking</h2>
-          <p className="text-sm text-gray-400 mt-0.5">{guest} · {roomLabel}</p>
+          <h2 className="text-2xl font-bold text-gray-900">Edit Booking</h2>
+          <p className="text-sm text-gray-500 mt-0.5">{guest} · {roomLabel}</p>
         </div>
       </div>
 
       {allRows.length > 1 && (
-        <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-2.5 text-xs text-blue-800">
+        <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-2.5 text-xs text-indigo-800">
           These {roomCount} rooms were booked as one stay across {allRows.length} reservations —
-          changes here are applied to all of them.
+          changes here are applied to all of them together.
         </div>
       )}
 
-      <div className="card p-6 space-y-6">
-
-        {/* Guest Info (offline only) */}
-        {isOffline && (
-          <div className="space-y-3">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Guest Info</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Full Name</label>
-                <input
-                  value={guestName}
-                  onChange={e => setGuestName(e.target.value.replace(/[^a-zA-ZÀ-ɏ\s'-]/g, ''))}
-                  className="input"
-                  placeholder="John Smith"
-                />
-              </div>
-              <div>
-                <label className="label">Phone</label>
-                <PhoneInput value={guestPhone} onChange={setGuestPhone} className="w-full" />
-              </div>
+      {/* Step 1 — Guest Info (offline only) */}
+      {isOffline && (
+        <StepCard step={1} title="Guest Information">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="label">Full Name</label>
+              <input
+                value={guestName}
+                onChange={e => setGuestName(e.target.value.replace(/[^a-zA-ZÀ-ɏ\s'-]/g, ''))}
+                className="input"
+                placeholder="John Smith"
+              />
             </div>
+            <div>
+              <label className="label">Phone</label>
+              <PhoneInput value={guestPhone} onChange={setGuestPhone} className="w-full" />
+            </div>
+          </div>
+        </StepCard>
+      )}
+
+      {/* Step 2 — Stay Dates */}
+      <StepCard step={isOffline ? 2 : 1} title="Stay Dates">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="label">Check-in</label>
+            <input type="date" value={checkIn} onChange={e => setCheckIn(e.target.value)} className="input" />
+          </div>
+          <div>
+            <label className="label">Check-out</label>
+            <input type="date" value={checkOut} onChange={e => setCheckOut(e.target.value)} min={checkIn} className="input" />
+          </div>
+        </div>
+        {n > 0 && (
+          <div className="mt-3 flex items-center justify-between px-3 py-2 bg-gray-50 rounded-xl text-sm text-gray-700 border border-gray-100">
+            <span className="flex items-center gap-1.5">
+              <CalendarDays className="h-3.5 w-3.5 text-primary-500" />
+              <strong>{n}</strong> night{n !== 1 ? 's' : ''}
+            </span>
+            {newTotal > 0 && <span className="font-bold text-primary-600">{formatCurrency(newTotal, currency)}</span>}
           </div>
         )}
+      </StepCard>
 
-        {/* Dates */}
-        <div className="space-y-3">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Stay</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">Check-in</label>
-              <input type="date" value={checkIn} onChange={e => setCheckIn(e.target.value)} className="input" />
-            </div>
-            <div>
-              <label className="label">Check-out</label>
-              <input type="date" value={checkOut} onChange={e => setCheckOut(e.target.value)} min={checkIn} className="input" />
-            </div>
-          </div>
-          {n > 0 && (
-            <div className="flex items-center justify-between px-3 py-2 bg-blue-50 rounded-xl text-sm text-blue-700">
-              <span className="flex items-center gap-1.5">
-                <Moon className="h-3.5 w-3.5" />
-                <strong>{n}</strong> night{n !== 1 ? 's' : ''}
-              </span>
-              {newTotal > 0 && <span className="font-bold">{formatCurrency(newTotal, currency)}</span>}
-            </div>
-          )}
-        </div>
-
-        {/* Rooms — remove, swap or add */}
+      {/* Step 3 — Rooms */}
+      <StepCard step={isOffline ? 3 : 2} title="Rooms">
         <RoomPicker
           rooms={hotelRooms}
           selected={roomIds}
@@ -377,66 +388,58 @@ export default function EditBookingPage() {
           onChange={setRoomIds}
           changed={roomsChanged}
         />
+      </StepCard>
 
-        {/* Guests */}
-        <div className="space-y-3">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Guests</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">Adults</label>
-              <input type="number" value={adults} onChange={e => setAdults(Number(e.target.value))}
-                min={1} max={20} className="input" />
-            </div>
-            <div>
-              <label className="label">Children</label>
-              <input type="number" value={children} onChange={e => setChildren(Number(e.target.value))}
-                min={0} max={20} className="input" />
-            </div>
+      {/* Step 4 — Guests */}
+      <StepCard step={isOffline ? 4 : 3} title="Guest Count">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="label">Adults</label>
+            <input type="number" value={adults} onChange={e => setAdults(Number(e.target.value))}
+              min={1} max={20} className="input" />
+          </div>
+          <div>
+            <label className="label">Children</label>
+            <input type="number" value={children} onChange={e => setChildren(Number(e.target.value))}
+              min={0} max={20} className="input" />
           </div>
         </div>
+      </StepCard>
 
-        {/* Source */}
-        <div className="space-y-3">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Booking Source</p>
-          <div className="grid grid-cols-4 gap-2">
-            {SOURCES.map(s => {
-              const Icon = s.icon
-              const active = source === s.value
-              return (
-                <button
-                  key={s.value}
-                  type="button"
-                  onClick={() => setSource(s.value)}
-                  className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 text-xs font-medium transition-all ${
-                    active ? `${s.cls} border-current` : 'border-gray-200 text-gray-500 hover:border-gray-300 bg-white'
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  {s.label}
-                </button>
-              )
-            })}
-          </div>
+      {/* Step 5 — Booking Source */}
+      <StepCard step={isOffline ? 5 : 4} title="Booking Source">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {SOURCES.map(s => {
+            const Icon = s.icon
+            const active = source === s.value
+            return (
+              <button key={s.value} type="button" onClick={() => setSource(s.value)}
+                className={`flex items-center gap-2.5 p-3 rounded-xl border-2 text-sm font-semibold transition-all ${
+                  active ? s.activeClass + ' border-current' : 'border-gray-200 text-gray-500 hover:border-gray-300 bg-white'
+                }`}>
+                <Icon className={`h-4 w-4 ${active ? '' : s.color}`} />
+                {s.label}
+              </button>
+            )
+          })}
         </div>
+      </StepCard>
 
-        {/* Special Requests */}
-        <div className="space-y-3">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-            Special Requests <span className="normal-case text-gray-400 font-normal">(optional)</span>
-          </p>
-          <textarea value={notes} onChange={e => setNotes(e.target.value)}
-            rows={4} className="input resize-none" placeholder="Any special requests, preferences, or notes…" />
-        </div>
-      </div>
+      {/* Step 6 — Special Requests */}
+      <StepCard step={isOffline ? 6 : 5} title="Special Requests">
+        <textarea value={notes} onChange={e => setNotes(e.target.value)}
+          rows={3} className="input resize-none" placeholder="Dietary needs, room preferences, early check-in…" />
+      </StepCard>
 
       {/* Actions */}
-      <div className="flex gap-3">
-        <Link href={`/hotel-admin/bookings/${id}`} className="flex-1 text-center px-4 py-2.5 rounded-xl border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
+      <div className="flex items-center justify-between gap-3 pt-1">
+        <Link href={`/hotel-admin/bookings/${id}`}
+          className="btn-secondary">
           Cancel
         </Link>
         <button onClick={save} disabled={saving}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors disabled:opacity-60">
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          className="btn-primary flex items-center gap-2 px-8">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
           {saving ? 'Saving…' : 'Save Changes'}
         </button>
       </div>
