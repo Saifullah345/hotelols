@@ -1,9 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { toast } from 'sonner'
-import { ArrowLeft, Plus, Pencil, Trash2, Layers, Check, X, Loader2, Building2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Layers, Check, X, Loader2, Building2 } from 'lucide-react'
 
 type Floor = { id: string; floor_number: number; name: string }
 
@@ -84,17 +83,6 @@ export default function FloorsClient({ initial }: { initial: Floor[] }) {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link href="/hotel-admin/rooms" className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Floor Management</h2>
-          <p className="text-gray-500 text-sm mt-0.5">Define floors so rooms can be assigned by name</p>
-        </div>
-      </div>
-
       {/* Add floor card */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">

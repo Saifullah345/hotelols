@@ -2,11 +2,12 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { BedDouble, Tag } from 'lucide-react'
+import { BedDouble, Tag, Layers } from 'lucide-react'
 
 const TABS = [
-  { href: '/hotel-admin/rooms',       label: 'Rooms',       icon: BedDouble, exact: true  },
-  { href: '/hotel-admin/rooms/types', label: 'Room Types',  icon: Tag,       exact: false },
+  { href: '/hotel-admin/rooms',        label: 'Rooms',       icon: BedDouble, exact: true  },
+  { href: '/hotel-admin/rooms/types',  label: 'Room Types',  icon: Tag,       exact: false },
+  { href: '/hotel-admin/rooms/floors', label: 'Floors',      icon: Layers,    exact: false },
 ]
 
 export default function RoomsTabNav() {
