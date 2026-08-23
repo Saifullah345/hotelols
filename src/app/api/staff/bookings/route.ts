@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
+import { getAuthContext } from '@/lib/auth'
 
 // Mirrors staff/bookings/page.tsx: staff have no RLS read access to `profiles`,
 // so the usual `user:profiles(...)` join comes back empty for them. Resolve
@@ -7,10 +8,9 @@ import { createAdminClient, createClient } from '@/lib/supabase/server'
 // bookings, and expose the merged result as JSON for the mobile app.
 export async function GET(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user, profile } = await getAuthContext()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: profile } = await supabase.from('profiles').select('role, tenant_id').eq('id', user.id).single()
   if (profile?.role !== 'staff' || !profile.tenant_id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }

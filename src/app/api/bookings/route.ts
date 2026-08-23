@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { getAuthContext } from '@/lib/auth'
 import { isProfileComplete, missingProfileFields, PROFILE_INCOMPLETE } from '@/lib/profile'
 import { blockIfExpired } from '@/lib/subscription-guard'
 
 export async function GET(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user, profile } = await getAuthContext()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: profile } = await supabase.from('profiles').select('role, tenant_id').eq('id', user.id).single()
   const { searchParams } = new URL(request.url)
   const status = searchParams.get('status')
 
@@ -19,7 +19,7 @@ export async function GET(request: Request) {
 
   if (profile?.role === 'customer') {
     query = query.eq('user_id', user.id)
-  } else if (['hotel_admin', 'staff'].includes(profile?.role) && profile?.tenant_id) {
+  } else if (['hotel_admin', 'staff'].includes(profile?.role ?? '') && profile?.tenant_id) {
     query = query.eq('hotel_id', profile.tenant_id)
   }
 

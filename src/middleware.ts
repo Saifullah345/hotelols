@@ -52,26 +52,31 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // `getClaims()` verifies the access token's signature against the project's
-  // JWKS, which is fetched once per server process and cached — so on every
-  // request after the first this is local crypto, not a round-trip to GoTrue.
-  // Middleware only needs to know "is this a valid session", which the verified
-  // claims answer completely. Projects still on a legacy symmetric JWT secret
-  // have no public key to verify against; there getClaims() falls back to the
-  // same getUser() call this used to make, so nothing regresses.
-  let user: { id: string } | null = null
+  // Deliberately `getUser()` and not `getClaims()`. getClaims() would verify the
+  // token locally against the project's JWKS and save this round-trip, but it
+  // reports an unverifiable token as AuthInvalidJwtError — which carries status
+  // 400, the same status a revoked refresh token uses. That made every JWKS
+  // hiccup fall into the signOut() branch below and destroy a perfectly good
+  // session, bouncing the user back to /login on every attempt. Don't reintroduce
+  // it without splitting these two cases apart first.
+  let user = null
   try {
-    const { data, error } = await supabase.auth.getClaims()
+    const { data, error } = await supabase.auth.getUser()
     if (error) {
-      // Expired / revoked refresh token — clear cookies and treat as logged out
-      if (error.status === 400 || error.message?.toLowerCase().includes('refresh token')) {
+      // Expired / revoked refresh token — clear cookies and treat as logged out.
+      // Scoped to refresh-token failures only: any other error means "couldn't
+      // confirm this request", which must not cost the user their session.
+      const isRefreshFailure =
+        error.message?.toLowerCase().includes('refresh token') ||
+        (error as { code?: string }).code === 'refresh_token_not_found'
+      if (isRefreshFailure) {
         await supabase.auth.signOut()
       }
-    } else if (data?.claims?.sub) {
-      user = { id: data.claims.sub }
+    } else {
+      user = data.user
     }
   } catch {
-    // Network, clock skew, or malformed token — treat as unauthenticated
+    // Network or unexpected error — treat as unauthenticated
   }
 
   // Unauthenticated: block protected routes and select-role

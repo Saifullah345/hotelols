@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { getAuthContext } from '@/lib/auth'
 import { paddleConfigured, apiKeyProblem, getPaddlePrice, setPaddlePriceTrial } from '@/lib/paddle'
 
 /** Paddle states a trial as a count of intervals; the plan states it in days. */
@@ -17,11 +18,9 @@ const PER_DAY: Record<string, number> = { day: 1, week: 7, month: 30, year: 365 
  */
 export async function GET() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user, profile } = await getAuthContext()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: profile } = await supabase
-    .from('profiles').select('role, tenant_id').eq('id', user.id).single()
   if (!profile || !['super_admin', 'hotel_admin'].includes(profile.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -148,11 +147,9 @@ export async function GET() {
 /** Removes a free trial from a price, so the next checkout charges in full. */
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user, profile } = await getAuthContext()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: profile } = await supabase
-    .from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'super_admin') {
     return NextResponse.json({ error: 'Only the platform owner can change prices' }, { status: 403 })
   }

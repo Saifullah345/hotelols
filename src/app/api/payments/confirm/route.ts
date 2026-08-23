@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getAuthContext } from '@/lib/auth'
 
 // The payments table constraint only allows these statuses. The form sends a
 // short verb (complete/fail/refund); map it to the stored past-tense status.
@@ -20,10 +21,9 @@ export async function POST(request: Request) {
   }
 
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user, profile } = await getAuthContext()
   if (!user) return NextResponse.redirect(`${origin}/login`, { status: 303 })
 
-  const { data: profile } = await supabase.from('profiles').select('role, tenant_id').eq('id', user.id).single()
   if (!profile || !['hotel_admin', 'staff'].includes(profile.role)) {
     return back({ error: 'You are not allowed to update payments.' })
   }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { getAuthContext } from '@/lib/auth'
 import { canMoveTo, subscriptionIsLive, subscriptionIsTrialing } from '@/lib/plan-tier'
 import { priceForCheckout, trialDaysOf } from '@/lib/paddle-plans'
 
@@ -18,11 +19,9 @@ import { priceForCheckout, trialDaysOf } from '@/lib/paddle-plans'
  */
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user, profile } = await getAuthContext()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: profile } = await supabase
-    .from('profiles').select('role, tenant_id').eq('id', user.id).single()
   if (profile?.role !== 'hotel_admin' || !profile.tenant_id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
