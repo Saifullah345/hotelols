@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import {
   LayoutDashboard, BedDouble, CalendarCheck, Users, BarChart3,
   CreditCard, Star, LogOut, Settings, Hotel, ClipboardList, UserCheck, Search,
-  MessageCircle, X, DoorOpen, Sparkles, Heart, Building2,
+  MessageCircle, X, DoorOpen, Sparkles, Heart, Building2, TrendingUp,
 } from 'lucide-react'
 import { LogoMark } from '@/components/layout/Logo'
 import { type PlanFeatures } from '@/lib/plan-features'
@@ -22,10 +22,11 @@ interface NavItem {
 
 const superAdminNav: NavItem[] = [
   { label: 'Dashboard', href: '/super-admin/dashboard', icon: LayoutDashboard },
-  { label: 'Hotels', href: '/super-admin/hotels', icon: Hotel },
-  { label: 'Plans', href: '/super-admin/plans', icon: CreditCard },
-  { label: 'Users', href: '/super-admin/users', icon: Users },
-  { label: 'Settings', href: '/super-admin/settings', icon: Settings },
+  { label: 'Hotels',    href: '/super-admin/hotels',    icon: Hotel           },
+  { label: 'Billing',   href: '/super-admin/billing',   icon: TrendingUp      },
+  { label: 'Plans',     href: '/super-admin/plans',     icon: CreditCard      },
+  { label: 'Users',     href: '/super-admin/users',     icon: Users           },
+  { label: 'Settings',  href: '/super-admin/settings',  icon: Settings        },
 ]
 
 const hotelAdminNav: NavItem[] = [
