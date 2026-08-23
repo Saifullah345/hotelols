@@ -27,9 +27,9 @@ const schema = z.object({
     .refine(v => /[a-zA-ZÀ-ɏ]/.test(v), 'Hotel name must contain at least one letter'),
   city:             z.string().min(2, 'City is required'),
   country:          z.string().min(2, 'Country is required'),
-  address:          z.string().optional(),
-  hotel_phone:      z.string().min(1, 'Hotel phone is required'),
-  hotel_email:      z.string().email('Enter a valid hotel email address'),
+  address:          z.string().min(3, 'Address is required'),
+  hotel_phone:      z.string().min(7, 'Hotel phone is required'),
+  hotel_email:      z.string().email('Enter a valid hotel email address').min(1, 'Hotel email is required'),
 }).refine(d => d.password === d.confirm_password, {
   message: 'Passwords do not match',
   path: ['confirm_password'],
@@ -51,7 +51,7 @@ type Plan = {
 }
 
 const STEP_1_FIELDS: (keyof FormData)[] = ['full_name', 'email', 'password', 'confirm_password']
-const STEP_2_FIELDS: (keyof FormData)[] = ['hotel_name', 'city', 'country']
+const STEP_2_FIELDS: (keyof FormData)[] = ['hotel_name', 'city', 'country', 'address', 'hotel_phone', 'hotel_email']
 
 export default function RegisterHotelPage() {
   const [step, setStep]           = useState<1 | 2 | 3>(1)
@@ -282,14 +282,14 @@ export default function RegisterHotelPage() {
         {step === 2 && (
           <>
             <div>
-              <label className="label">Hotel Name</label>
-              <input {...register('hotel_name')} className="input" placeholder="Grand Palace Hotel" />
+              <label className="label">Hotel Name <span className="text-red-500">*</span></label>
+              <input {...register('hotel_name')} className="input" placeholder="Grand Palace Hotel" autoFocus />
               {errors.hotel_name && <p className="text-red-500 text-xs mt-1">{errors.hotel_name.message}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">Country</label>
+                <label className="label">Country <span className="text-red-500">*</span></label>
                 <CountrySelect
                   value={countryCode}
                   onChange={(isoCode, name) => {
@@ -301,7 +301,7 @@ export default function RegisterHotelPage() {
                 {errors.country && <p className="text-red-500 text-xs mt-1">{errors.country.message}</p>}
               </div>
               <div>
-                <label className="label">City</label>
+                <label className="label">City <span className="text-red-500">*</span></label>
                 <CitySelect
                   countryCode={countryCode}
                   value={watch('city') ?? ''}
@@ -312,23 +312,24 @@ export default function RegisterHotelPage() {
             </div>
 
             <div>
-              <label className="label">Address <span className="text-gray-400 font-normal">(optional)</span></label>
-              <input {...register('address')} className="input" placeholder="Street address, area" />
+              <label className="label">Address <span className="text-red-500">*</span></label>
+              <input {...register('address')} className="input" placeholder="Street address, area, building" />
+              {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address.message}</p>}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Hotel Phone <span className="text-gray-400 font-normal">(optional)</span></label>
-                <PhoneInput
-                  value={watch('hotel_phone') ?? ''}
-                  onChange={v => setValue('hotel_phone', v)}
-                />
-              </div>
-              <div>
-                <label className="label">Hotel Email <span className="text-gray-400 font-normal">(optional)</span></label>
-                <input {...register('hotel_email')} type="email" className="input" placeholder="info@hotel.com" />
-                {errors.hotel_email && <p className="text-red-500 text-xs mt-1">{errors.hotel_email.message}</p>}
-              </div>
+            <div>
+              <label className="label">Hotel Phone <span className="text-red-500">*</span></label>
+              <PhoneInput
+                value={watch('hotel_phone') ?? ''}
+                onChange={v => setValue('hotel_phone', v, { shouldValidate: true })}
+              />
+              {errors.hotel_phone && <p className="text-red-500 text-xs mt-1">{errors.hotel_phone.message}</p>}
+            </div>
+
+            <div>
+              <label className="label">Hotel Email <span className="text-red-500">*</span></label>
+              <input {...register('hotel_email')} type="email" className="input" placeholder="info@hotel.com" />
+              {errors.hotel_email && <p className="text-red-500 text-xs mt-1">{errors.hotel_email.message}</p>}
             </div>
 
             <div className="flex gap-3 pt-1">
