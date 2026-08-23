@@ -104,7 +104,6 @@ export default function FloorsClient({ initial }: { initial: Floor[] }) {
                 placeholder="0"
                 className="input"
               />
-              <p className="text-[10px] text-gray-400 mt-1">0 = Ground</p>
             </div>
             <div>
               <label className="label">Floor Name <span className="text-red-500">*</span></label>
@@ -125,6 +124,7 @@ export default function FloorsClient({ initial }: { initial: Floor[] }) {
               Add
             </button>
           </div>
+          <p className="text-[10px] text-gray-400 mt-1.5">0 = Ground floor</p>
         </div>
       </div>
 
