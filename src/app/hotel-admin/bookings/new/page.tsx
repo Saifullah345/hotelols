@@ -10,7 +10,9 @@ import { createClient, getBrowserUser } from '@/lib/supabase/client'
 import {
   Loader2, ArrowLeft, Search, User, BedDouble,
   MessageCircle, Phone, DoorOpen, Globe,
-  Banknote, CreditCard, Building2, FileText, HelpCircle, CheckCircle, Users, Check, CalendarDays, AlertTriangle,
+  Banknote, CreditCard, Building2, FileText, HelpCircle,
+  CheckCircle, Users, Check, CalendarDays, AlertTriangle,
+  SlidersHorizontal, X, ChevronUp, ArrowUpDown, Star,
 } from 'lucide-react'
 import Link from 'next/link'
 import PhoneInput from '@/components/ui/PhoneInput'
@@ -18,7 +20,7 @@ import type { BookingSource } from '@/types'
 import { formatCurrency } from '@/lib/currency'
 import { phoneSchema, nameSchema } from '@/lib/validation'
 
-// ─── Schemas (no room_id — managed outside react-hook-form) ──────
+// ─── Schemas ─────────────────────────────────────────────────────────────────
 const dateRefineMsg = { message: 'Check-out must be after check-in', path: ['check_out'] }
 
 const onlineSchema = z.object({
@@ -58,12 +60,12 @@ type Room = {
 }
 type GuestProfile = { id: string; full_name: string; email: string }
 
-// ─── Config ──────────────────────────────────────────────────────
-const SOURCES: { value: BookingSource; label: string; icon: React.ElementType; color: string }[] = [
-  { value: 'walk_in',  label: 'Walk-in',  icon: DoorOpen,      color: 'text-orange-600 bg-orange-50 border-orange-200' },
-  { value: 'phone',    label: 'Phone',    icon: Phone,         color: 'text-blue-600 bg-blue-50 border-blue-200' },
-  { value: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, color: 'text-green-600 bg-green-50 border-green-200' },
-  { value: 'online',   label: 'Online',   icon: Globe,         color: 'text-purple-600 bg-purple-50 border-purple-200' },
+// ─── Config ──────────────────────────────────────────────────────────────────
+const SOURCES: { value: BookingSource; label: string; icon: React.ElementType; color: string; activeClass: string }[] = [
+  { value: 'walk_in',  label: 'Walk-in',  icon: DoorOpen,      color: 'text-orange-600', activeClass: 'border-orange-400 bg-orange-50 text-orange-700' },
+  { value: 'phone',    label: 'Phone',    icon: Phone,         color: 'text-blue-600',   activeClass: 'border-blue-400 bg-blue-50 text-blue-700'   },
+  { value: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, color: 'text-green-600',  activeClass: 'border-green-400 bg-green-50 text-green-700'  },
+  { value: 'online',   label: 'Online',   icon: Globe,         color: 'text-purple-600', activeClass: 'border-purple-400 bg-purple-50 text-purple-700' },
 ]
 
 const PAY_METHODS: { value: string; label: string; icon: React.ElementType }[] = [
@@ -74,7 +76,9 @@ const PAY_METHODS: { value: string; label: string; icon: React.ElementType }[] =
   { value: 'other',         label: 'Other',         icon: HelpCircle },
 ]
 
-// ── Payment Block (must be outside parent to keep input focus) ──────────
+type SortOption = 'default' | 'price_asc' | 'price_desc' | 'floor_asc'
+
+// ─── Payment Block ────────────────────────────────────────────────────────────
 function PaymentBlock({
   totalAmount, currency, nights, source,
   payMethod, setPayMethod,
@@ -93,12 +97,10 @@ function PaymentBlock({
   const advanceValue = Number(advanceAmount)
 
   return (
-    <div className="card p-5 space-y-4">
-      <p className="text-sm font-semibold text-gray-700">Payment Collection</p>
-
+    <div className="space-y-4">
       <div>
         <label className="label">Payment Method</label>
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+        <div className="grid grid-cols-5 gap-2">
           {PAY_METHODS.map(m => {
             const Icon = m.icon
             const active = payMethod === m.value
@@ -120,26 +122,26 @@ function PaymentBlock({
         <div className="grid grid-cols-2 gap-3">
           <button type="button" onClick={() => setPayNow(true)}
             className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${
-              payNow ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 text-gray-500 bg-white hover:border-gray-300'
+              payNow ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-500 bg-white hover:border-gray-300'
             }`}>
             <CheckCircle className="h-4 w-4" /> Paid Now
           </button>
           <button type="button" onClick={() => setPayNow(false)}
             className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${
-              !payNow ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-500 bg-white hover:border-gray-300'
+              !payNow ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-gray-200 text-gray-500 bg-white hover:border-gray-300'
             }`}>
-            <Loader2 className="h-4 w-4" /> Pay Later
+            <AlertTriangle className="h-4 w-4" /> Pay Later
           </button>
         </div>
       </div>
 
       {payNow && (
         <div>
-          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+          <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
             <input type="checkbox" checked={isAdvance}
               onChange={e => { setIsAdvance(e.target.checked); if (!e.target.checked) setAdvanceAmount('') }}
               className="rounded border-gray-300" />
-            Collect an advance instead of full amount
+            Collect advance deposit instead of full amount
           </label>
           {isAdvance && (
             totalAmount > 0 ? (
@@ -148,7 +150,7 @@ function PaymentBlock({
                   value={advanceAmount} onChange={e => setAdvanceAmount(e.target.value)}
                   className="input" placeholder={`Up to ${formatCurrency(totalAmount, currency)}`} />
                 <p className="text-xs text-gray-400 mt-1">
-                  Remaining {formatCurrency(Math.max(totalAmount - (advanceValue || 0), 0), currency)} collected later from Payments page.
+                  Remaining {formatCurrency(Math.max(totalAmount - (advanceValue || 0), 0), currency)} collected later.
                 </p>
               </div>
             ) : (
@@ -161,11 +163,11 @@ function PaymentBlock({
       <div>
         <label className="label">Reference / Notes <span className="text-gray-400 font-normal">(optional)</span></label>
         <input value={payNotes} onChange={e => setPayNotes(e.target.value)}
-          className="input" placeholder="Cheque no., transfer ref, receipt number..." />
+          className="input" placeholder="Cheque no., transfer ref, receipt number…" />
       </div>
 
       {payNow && nights > 0 && (
-        <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+        <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700">
           <CheckCircle className="h-4 w-4 flex-shrink-0" />
           <span>
             {formatCurrency(isAdvance ? (advanceValue || 0) : totalAmount, currency)} via {PAY_METHODS.find(m => m.value === payMethod)?.label}
@@ -175,20 +177,20 @@ function PaymentBlock({
         </div>
       )}
       {!payNow && source === 'walk_in' && (
-        <div className="flex items-start gap-2.5 p-3.5 bg-red-50 border border-red-300 rounded-lg">
+        <div className="flex items-start gap-2.5 p-3.5 bg-red-50 border border-red-200 rounded-xl">
           <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-semibold text-red-700">Advance payment is required for walk-in bookings</p>
-            <p className="text-xs text-red-600 mt-0.5">The guest is present — collect an advance now to confirm the booking.</p>
+            <p className="text-sm font-semibold text-red-700">Advance required for walk-in bookings</p>
+            <p className="text-xs text-red-600 mt-0.5">The guest is present — collect an advance now to confirm.</p>
           </div>
         </div>
       )}
       {!payNow && source !== 'walk_in' && (
-        <div className="flex items-start gap-2.5 p-3.5 bg-amber-50 border border-amber-200 rounded-lg">
+        <div className="flex items-start gap-2.5 p-3.5 bg-amber-50 border border-amber-200 rounded-xl">
           <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-semibold text-amber-700">Booking will be Pending</p>
-            <p className="text-xs text-amber-600 mt-0.5">No advance collected yet. Use <strong>Collect Payment</strong> once the guest transfers the advance to confirm this booking.</p>
+            <p className="text-xs text-amber-600 mt-0.5">Confirm after the guest transfers the advance.</p>
           </div>
         </div>
       )}
@@ -196,7 +198,7 @@ function PaymentBlock({
   )
 }
 
-// ── Standalone Room Picker (must be outside parent to keep input focus) ──
+// ─── Room Picker ──────────────────────────────────────────────────────────────
 function RoomPicker({
   rooms, selectedRoomIds, unavailableRoomIds, datesChosen, currency, nights, totalAmount, onToggle, checkingAvailability,
 }: {
@@ -210,74 +212,179 @@ function RoomPicker({
   onToggle: (id: string) => void
   checkingAvailability: boolean
 }) {
-  const [q, setQ] = useState('')
-  const lq = q.toLowerCase()
-  const visible = lq
-    ? rooms.filter(r =>
-        (r.name ?? '').toLowerCase().includes(lq) ||
-        r.room_number.toLowerCase().includes(lq) ||
-        (r.room_type?.name ?? '').toLowerCase().includes(lq)
-      )
-    : rooms
+  const [q,             setQ]             = useState('')
+  const [typeFilter,    setTypeFilter]    = useState('all')
+  const [floorFilter,   setFloorFilter]   = useState('all')
+  const [availableOnly, setAvailableOnly] = useState(false)
+  const [sortBy,        setSortBy]        = useState<SortOption>('default')
+
+  // Derived filter options from the rooms list
+  const roomTypes = Array.from(new Set(rooms.map(r => r.room_type?.name).filter(Boolean) as string[]))
+  const floors    = Array.from(new Set(rooms.map(r => r.floor))).sort((a, b) => a - b)
+  const floorLabel = (f: number) => f === 0 ? 'Ground' : `Floor ${f}`
+
+  const hasFilters = q || typeFilter !== 'all' || floorFilter !== 'all' || availableOnly || sortBy !== 'default'
+
+  const clearFilters = () => {
+    setQ(''); setTypeFilter('all'); setFloorFilter('all'); setAvailableOnly(false); setSortBy('default')
+  }
+
+  const filtered = rooms
+    .filter(r => {
+      const lq = q.toLowerCase()
+      if (lq && !(r.name ?? '').toLowerCase().includes(lq) && !r.room_number.toLowerCase().includes(lq) && !(r.room_type?.name ?? '').toLowerCase().includes(lq)) return false
+      if (typeFilter  !== 'all' && r.room_type?.name !== typeFilter)  return false
+      if (floorFilter !== 'all' && String(r.floor) !== floorFilter)  return false
+      if (availableOnly && unavailableRoomIds.has(r.id))             return false
+      return true
+    })
+    .sort((a, b) => {
+      if (sortBy === 'price_asc')  return a.price_per_night - b.price_per_night
+      if (sortBy === 'price_desc') return b.price_per_night - a.price_per_night
+      if (sortBy === 'floor_asc')  return a.floor - b.floor
+      return 0
+    })
 
   const availableCount = rooms.filter(r => !unavailableRoomIds.has(r.id)).length
 
   return (
-    <div className="card p-5 space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-gray-700">Rooms</p>
+    <div className="space-y-3">
+      {/* Status row */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           {checkingAvailability ? (
             <span className="inline-flex items-center gap-1.5 text-xs text-gray-400">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              Checking availability…
+              <Loader2 className="h-3 w-3 animate-spin" /> Checking…
             </span>
-          ) : unavailableRoomIds.size > 0 ? (
-            <span className="text-xs text-emerald-600 font-medium">
+          ) : datesChosen && unavailableRoomIds.size > 0 ? (
+            <span className="text-xs text-emerald-600 font-medium bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
               {availableCount} of {rooms.length} available
             </span>
-          ) : null}
-          {selectedRoomIds.length > 0 && (
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-              <Check className="h-3 w-3" />
-              {selectedRoomIds.length} selected
+          ) : datesChosen ? (
+            <span className="text-xs text-emerald-600 font-medium bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+              All {rooms.length} rooms available
             </span>
-          )}
+          ) : null}
         </div>
+        {selectedRoomIds.length > 0 && (
+          <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700 bg-primary-50 px-2.5 py-1 rounded-full border border-primary-200">
+            <Check className="h-3 w-3" /> {selectedRoomIds.length} room{selectedRoomIds.length > 1 ? 's' : ''} selected
+          </span>
+        )}
       </div>
 
-      {/* Availability is derived from the dates above, so say so plainly rather
-          than showing an unfiltered list that looks fully available. */}
-      {!datesChosen ? (
-        <p className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+      {/* Date pick prompt */}
+      {!datesChosen && (
+        <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
           <CalendarDays className="h-3.5 w-3.5 flex-shrink-0" />
-          Pick check-in and check-out above to see which rooms are free.
-        </p>
-      ) : (
-        <p className="flex items-center gap-1.5 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-          <Check className="h-3.5 w-3.5 flex-shrink-0" />
-          Showing availability for these dates
-          {unavailableRoomIds.size > 0 && ` — ${unavailableRoomIds.size} room${unavailableRoomIds.size === 1 ? '' : 's'} already booked`}.
-        </p>
+          Pick check-in and check-out dates above to see real-time availability.
+        </div>
       )}
 
+      {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
         <input
           value={q}
           onChange={e => setQ(e.target.value)}
           placeholder="Search by name, number or type…"
-          className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+          className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
         />
+        {q && (
+          <button onClick={() => setQ('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
 
-      {visible.length === 0 ? (
-        <p className="text-sm text-gray-400 py-4 text-center">
-          {rooms.length === 0 ? 'No rooms found' : 'No rooms match your search'}
-        </p>
+      {/* Filter row */}
+      <div className="space-y-2">
+        {/* Room type chips */}
+        {roomTypes.length > 1 && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-8">Type</span>
+            {['all', ...roomTypes].map(t => (
+              <button key={t} type="button" onClick={() => setTypeFilter(t)}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
+                  typeFilter === t
+                    ? 'bg-primary-600 text-white border-primary-600'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                }`}>
+                {t === 'all' ? 'All types' : t}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Floor chips */}
+        {floors.length > 1 && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-8">Floor</span>
+            {['all', ...floors.map(String)].map(f => (
+              <button key={f} type="button" onClick={() => setFloorFilter(f)}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${
+                  floorFilter === f
+                    ? 'bg-primary-600 text-white border-primary-600'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                }`}>
+                {f === 'all' ? 'All floors' : floorLabel(Number(f))}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Sort + available-only row */}
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            {/* Available only toggle */}
+            {datesChosen && (
+              <button type="button" onClick={() => setAvailableOnly(v => !v)}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  availableOnly
+                    ? 'bg-emerald-600 text-white border-emerald-600'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                }`}>
+                <Check className="h-3 w-3" /> Available only
+              </button>
+            )}
+
+            {/* Clear filters */}
+            {hasFilters && (
+              <button type="button" onClick={clearFilters}
+                className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                <X className="h-3 w-3" /> Clear filters
+              </button>
+            )}
+          </div>
+
+          {/* Sort */}
+          <div className="flex items-center gap-1.5">
+            <ArrowUpDown className="h-3 w-3 text-gray-400" />
+            <select value={sortBy} onChange={e => setSortBy(e.target.value as SortOption)}
+              className="text-xs border border-gray-200 rounded-lg py-1 pl-1.5 pr-6 bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-primary-500">
+              <option value="default">Default order</option>
+              <option value="price_asc">Price: low → high</option>
+              <option value="price_desc">Price: high → low</option>
+              <option value="floor_asc">Floor: low → high</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Room list */}
+      {filtered.length === 0 ? (
+        <div className="py-8 text-center">
+          <SlidersHorizontal className="h-8 w-8 text-gray-200 mx-auto mb-2" />
+          <p className="text-sm text-gray-400">
+            {rooms.length === 0 ? 'No rooms configured yet' : 'No rooms match your filters'}
+          </p>
+          {hasFilters && (
+            <button onClick={clearFilters} className="mt-2 text-xs text-primary-600 hover:underline">Clear filters</button>
+          )}
+        </div>
       ) : (
-        <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-          {visible.map(r => {
+        <div className="space-y-2 max-h-80 overflow-y-auto pr-1 -mr-1">
+          {filtered.map(r => {
             const unavailable = unavailableRoomIds.has(r.id)
             const selected    = selectedRoomIds.includes(r.id)
             return (
@@ -290,57 +397,85 @@ function RoomPicker({
                   unavailable
                     ? 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
                     : selected
-                    ? 'border-blue-400 bg-blue-50'
+                    ? 'border-primary-400 bg-primary-50 shadow-sm'
                     : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
                 }`}
               >
+                {/* Checkbox */}
                 <div className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border-2 transition-colors ${
-                  selected ? 'bg-blue-500 border-blue-500' : 'border-gray-300 bg-white'
+                  selected ? 'bg-primary-600 border-primary-600' : 'border-gray-300 bg-white'
                 }`}>
                   {selected && <Check className="h-3 w-3 text-white" />}
                 </div>
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${selected ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                  <BedDouble className={`h-4 w-4 ${selected ? 'text-blue-600' : 'text-gray-400'}`} />
+
+                {/* Room icon */}
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                  selected ? 'bg-primary-100' : 'bg-gray-100'
+                }`}>
+                  <BedDouble className={`h-4 w-4 ${selected ? 'text-primary-600' : 'text-gray-400'}`} />
                 </div>
+
+                {/* Room info */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="font-semibold text-sm text-gray-900">{r.name ?? `Room ${r.room_number}`}</span>
                     <span className="text-xs text-gray-400">#{r.room_number}</span>
                     {r.room_type?.name && (
-                      <span className="px-1.5 py-0.5 text-[11px] bg-gray-100 text-gray-500 rounded font-medium">{r.room_type.name}</span>
+                      <span className="px-1.5 py-0.5 text-[10px] bg-gray-100 text-gray-500 rounded-md font-semibold uppercase tracking-wide">{r.room_type.name}</span>
                     )}
-                    {unavailable && <span className="text-[11px] text-red-500 font-medium">Unavailable</span>}
+                    {unavailable && (
+                      <span className="px-1.5 py-0.5 text-[10px] bg-red-100 text-red-600 rounded-md font-semibold">Booked</span>
+                    )}
                   </div>
-                  <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400">
-                    <span>{r.floor === 0 ? 'Ground' : `Floor ${r.floor}`}</span>
-                    <span className="flex items-center gap-1"><Users className="h-3 w-3" />{r.max_adults}A · {r.max_children}C</span>
+                  <div className="flex items-center gap-3 mt-0.5 text-[11px] text-gray-400">
+                    <span>{floorLabel(r.floor)}</span>
+                    <span className="flex items-center gap-0.5">
+                      <Users className="h-2.5 w-2.5" />{r.max_adults}A · {r.max_children}C
+                    </span>
+                    {nights > 0 && (
+                      <span className="text-gray-300">·</span>
+                    )}
+                    {nights > 0 && (
+                      <span className="text-emerald-600 font-medium">{formatCurrency(r.price_per_night * nights, currency)} total</span>
+                    )}
                   </div>
                 </div>
-                <span className="text-sm font-bold text-gray-900 shrink-0">
-                  {formatCurrency(r.price_per_night, currency)}
-                  <span className="text-xs font-normal text-gray-400">/night</span>
-                </span>
+
+                {/* Price */}
+                <div className="text-right shrink-0">
+                  <p className="text-sm font-bold text-gray-900">{formatCurrency(r.price_per_night, currency)}</p>
+                  <p className="text-[10px] text-gray-400">/night</p>
+                </div>
               </button>
             )
           })}
         </div>
       )}
 
+      {/* Selected summary */}
       {selectedRoomIds.length > 0 && nights > 0 && (
-        <div className="border-t border-gray-100 pt-3 space-y-1.5">
-          {selectedRoomIds.map(id => {
-            const room = rooms.find(r => r.id === id)
-            if (!room) return null
-            return (
-              <div key={id} className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">{room.name ?? `Room ${room.room_number}`}</span>
-                <span className="text-gray-700">{nights} × {formatCurrency(room.price_per_night, currency)}</span>
-              </div>
-            )
-          })}
-          <div className="flex items-center justify-between text-sm font-bold text-gray-900 border-t border-gray-100 pt-1.5 mt-1">
-            <span>Total</span>
-            <span>{formatCurrency(totalAmount, currency)}</span>
+        <div className="border border-gray-100 rounded-xl overflow-hidden">
+          <div className="bg-gray-50 px-3 py-2 border-b border-gray-100">
+            <p className="text-xs font-semibold text-gray-500">Selected rooms · {nights} night{nights !== 1 ? 's' : ''}</p>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {selectedRoomIds.map(id => {
+              const room = rooms.find(r => r.id === id)
+              if (!room) return null
+              return (
+                <div key={id} className="flex items-center justify-between px-3 py-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <BedDouble className="h-3.5 w-3.5 text-gray-400" />
+                    <span className="text-gray-700">{room.name ?? `Room ${room.room_number}`}</span>
+                  </div>
+                  <span className="text-gray-600 font-medium">{formatCurrency(room.price_per_night * nights, currency)}</span>
+                </div>
+              )
+            })}
+          </div>
+          <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50 border-t border-gray-100">
+            <span className="text-sm font-bold text-gray-900">Total</span>
+            <span className="text-sm font-bold text-primary-600">{formatCurrency(totalAmount, currency)}</span>
           </div>
         </div>
       )}
@@ -348,34 +483,47 @@ function RoomPicker({
   )
 }
 
+// ─── Step Card ────────────────────────────────────────────────────────────────
+function StepCard({ step, title, children }: { step: number; title: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
+        <div className="w-7 h-7 rounded-full bg-primary-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
+          {step}
+        </div>
+        <h3 className="font-semibold text-gray-900 text-sm">{title}</h3>
+      </div>
+      <div className="p-5">{children}</div>
+    </div>
+  )
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function NewBookingPage() {
   const router = useRouter()
-  const [source, setSource]               = useState<BookingSource>('walk_in')
-  const [rooms, setRooms]                 = useState<Room[]>([])
+  const [source, setSource]                   = useState<BookingSource>('walk_in')
+  const [rooms, setRooms]                     = useState<Room[]>([])
   const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([])
-  const [guest, setGuest]                 = useState<GuestProfile | null>(null)
-  const [guestNotFound, setGuestNotFound] = useState(false)
-  const [searchingGuest, setSearchingGuest] = useState(false)
-  const [nights, setNights]               = useState(0)
-  const [totalAmount, setTotalAmount]     = useState(0)
-  const [submitting, setSubmitting]       = useState(false)
-  // Set once the booking is saved and we're navigating away — the destination
-  // is a server component, so the push can take a moment with no other feedback.
-  const [redirectMsg, setRedirectMsg]     = useState<string | null>(null)
-  const [currency, setCurrency]           = useState('USD')
-  const [tenantId, setTenantId]           = useState<string | null>(null)
+  const [guest, setGuest]                     = useState<GuestProfile | null>(null)
+  const [guestNotFound, setGuestNotFound]     = useState(false)
+  const [searchingGuest, setSearchingGuest]   = useState(false)
+  const [nights, setNights]                   = useState(0)
+  const [totalAmount, setTotalAmount]         = useState(0)
+  const [submitting, setSubmitting]           = useState(false)
+  const [redirectMsg, setRedirectMsg]         = useState<string | null>(null)
+  const [currency, setCurrency]               = useState('USD')
+  const [tenantId, setTenantId]               = useState<string | null>(null)
   const [unavailableRoomIds, setUnavailableRoomIds] = useState<Set<string>>(new Set())
   const [checkingAvailability, setCheckingAvailability] = useState(false)
 
-  // Payment state (offline only)
-  const [payMethod, setPayMethod]         = useState('cash')
-  const [payNow, setPayNow]               = useState(true)
-  const [payNotes, setPayNotes]           = useState('')
-  const [isAdvance, setIsAdvance]         = useState(false)
+  const [payMethod, setPayMethod]       = useState('cash')
+  const [payNow, setPayNow]             = useState(true)
+  const [payNotes, setPayNotes]         = useState('')
+  const [isAdvance, setIsAdvance]       = useState(false)
   const [advanceAmount, setAdvanceAmount] = useState('')
 
-  const isOffline      = source !== 'online'
-  const advanceValue   = Number(advanceAmount)
+  const isOffline     = source !== 'online'
+  const advanceValue  = Number(advanceAmount)
   const advanceInvalid = payNow && isAdvance && (
     !advanceAmount || !Number.isFinite(advanceValue) || advanceValue <= 0 || advanceValue > totalAmount
   )
@@ -395,7 +543,6 @@ export default function NewBookingPage() {
 
   const activeCheckIn  = isOffline ? checkInOff  : checkIn
   const activeCheckOut = isOffline ? checkOutOff : checkOut
-  // A complete, valid range — the point at which availability can be resolved.
   const datesChosen = Boolean(activeCheckIn && activeCheckOut && new Date(activeCheckOut) > new Date(activeCheckIn))
 
   // Load rooms + currency
@@ -412,7 +559,6 @@ export default function NewBookingPage() {
           .from('rooms')
           .select('id, room_number, name, floor, price_per_night, max_adults, max_children, capacity, room_type:room_types(name)')
           .eq('hotel_id', profile.tenant_id)
-          // Matches the drag order set on the Rooms page.
           .order('sort_order', { ascending: true })
           .order('room_number'),
         supabase.from('hotels').select('currency').eq('id', profile.tenant_id).single(),
@@ -423,8 +569,6 @@ export default function NewBookingPage() {
     init()
   }, [])
 
-  // Combined occupancy the hotel set for the picked rooms — the guest inputs
-  // are bounded by this rather than by a generic number.
   const selectedAdultCapacity = selectedRoomIds.reduce(
     (sum, id) => sum + (rooms.find(r => r.id === id)?.max_adults ?? 0), 0,
   )
@@ -432,7 +576,6 @@ export default function NewBookingPage() {
     (sum, id) => sum + (rooms.find(r => r.id === id)?.max_children ?? 0), 0,
   )
 
-  // Recalculate total when rooms or dates change
   useEffect(() => {
     if (!activeCheckIn || !activeCheckOut || selectedRoomIds.length === 0) {
       setNights(0); setTotalAmount(0); return
@@ -447,7 +590,6 @@ export default function NewBookingPage() {
     setTotalAmount(total)
   }, [activeCheckIn, activeCheckOut, selectedRoomIds, rooms])
 
-  // Check availability when dates change
   useEffect(() => {
     const check = async () => {
       if (!tenantId || !activeCheckIn || !activeCheckOut || new Date(activeCheckOut) <= new Date(activeCheckIn)) {
@@ -461,14 +603,12 @@ export default function NewBookingPage() {
         .in('status', ['confirmed', 'checked_in'])
         .lt('check_in', activeCheckOut)
         .gt('check_out', activeCheckIn)
-      // Every room on a booking is taken, not just its primary one
       const ids = new Set(
         (data ?? []).flatMap((b: { room_id: string; room_ids: string[] | null }) =>
           b.room_ids?.length ? b.room_ids : [b.room_id]
         )
       )
       setUnavailableRoomIds(ids)
-      // Deselect any rooms that became unavailable
       setSelectedRoomIds(prev => prev.filter(id => !ids.has(id)))
       setCheckingAvailability(false)
     }
@@ -491,32 +631,23 @@ export default function NewBookingPage() {
     else setGuestNotFound(true)
   }, [])
 
-  // Submit: ONE booking covering all selected rooms
   const createBookings = async (payload: {
     guest_name?: string; guest_phone?: string; guest_user_id?: string
     check_in: string; check_out: string; adults: number; children: number
     special_requests?: string; status: string
   }) => {
     if (selectedRoomIds.length === 0) { toast.error('Select at least one room'); return false }
-    const MAX_ROOMS = 10
-    if (selectedRoomIds.length > MAX_ROOMS) {
-      toast.error(`A single booking cannot include more than ${MAX_ROOMS} rooms. For large group bookings, please contact hotel management directly.`)
+    if (selectedRoomIds.length > 10) {
+      toast.error('A single booking cannot include more than 10 rooms.')
       return false
     }
-
-    // Guard against overbooking the selected rooms' combined capacity.
-    const partySize = (payload.adults ?? 1) + (payload.children ?? 0)
-    const totalCapacity = selectedRoomIds.reduce((sum, id) => {
-      const room = rooms.find(r => r.id === id)
-      return sum + (room?.capacity ?? 0)
-    }, 0)
+    const partySize     = (payload.adults ?? 1) + (payload.children ?? 0)
+    const totalCapacity = selectedRoomIds.reduce((sum, id) => sum + (rooms.find(r => r.id === id)?.capacity ?? 0), 0)
     if (totalCapacity > 0 && partySize > totalCapacity) {
-      toast.error(`Selected room${selectedRoomIds.length > 1 ? 's' : ''} can hold up to ${totalCapacity} guest${totalCapacity !== 1 ? 's' : ''}. Add another room or reduce the guest count.`)
+      toast.error(`Selected room${selectedRoomIds.length > 1 ? 's hold' : ' holds'} up to ${totalCapacity} guest${totalCapacity !== 1 ? 's' : ''}. Add another room or reduce guest count.`)
       return false
     }
-
     setSubmitting(true)
-
     const res = await fetch('/api/admin/create-booking', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -532,18 +663,12 @@ export default function NewBookingPage() {
         } : {}),
       }),
     })
-
     const json = await res.json()
-
     if (!res.ok) {
       setSubmitting(false)
       toast.error(json.error ?? 'Failed to create booking')
       return false
     }
-
-    // Booking is saved. Deliberately leave `submitting` set so the button stays
-    // disabled — the navigation below is what the user is now waiting on, and
-    // re-enabling it here would invite a duplicate booking.
     const roomCount = selectedRoomIds.length
     const roomLabel = roomCount > 1 ? ` (${roomCount} rooms)` : ''
     toast.success(
@@ -555,156 +680,124 @@ export default function NewBookingPage() {
     )
     const goToReceipt = Boolean(payNow && json.payment_id)
     setRedirectMsg(goToReceipt ? 'Preparing receipt…' : 'Opening bookings…')
-    router.push(
-      goToReceipt
-        ? `/hotel-admin/payments/${json.payment_id}/receipt`
-        : '/hotel-admin/bookings'
-    )
+    router.push(goToReceipt ? `/hotel-admin/payments/${json.payment_id}/receipt` : '/hotel-admin/bookings')
     return true
   }
 
   const submitOffline = async (data: OfflineForm) => {
     if (advanceInvalid) {
-      toast.error(`Advance amount must be greater than 0 and no more than ${formatCurrency(totalAmount, currency)}`)
+      toast.error(`Advance must be between 0 and ${formatCurrency(totalAmount, currency)}`)
       return
     }
     await createBookings({
-      guest_name:       data.guest_name,
-      guest_phone:      data.guest_phone,
-      check_in:         data.check_in,
-      check_out:        data.check_out,
-      adults:           data.adults,
-      children:         data.children,
-      special_requests: data.special_requests,
-      status:           data.status,
+      guest_name: data.guest_name, guest_phone: data.guest_phone,
+      check_in: data.check_in, check_out: data.check_out,
+      adults: data.adults, children: data.children,
+      special_requests: data.special_requests, status: data.status,
     })
   }
 
   const submitOnline = async (data: OnlineForm) => {
     if (!guest) { toast.error('Please find a valid guest first'); return }
     await createBookings({
-      guest_user_id:    guest.id,
-      check_in:         data.check_in,
-      check_out:        data.check_out,
-      adults:           data.adults,
-      children:         data.children,
-      special_requests: data.special_requests,
-      status:           data.status,
+      guest_user_id: guest.id,
+      check_in: data.check_in, check_out: data.check_out,
+      adults: data.adults, children: data.children,
+      special_requests: data.special_requests, status: data.status,
     })
   }
 
-  
-  // Payment is only actually taken on the offline flow; an online booking is
-  // paid by the guest afterwards, so it can still be left pending.
   const paymentTaken = payNow && isOffline
 
-  // Sync booking status with whether payment is actually being collected.
   useEffect(() => {
     offlineForm.setValue('status', paymentTaken ? 'confirmed' : 'pending')
   }, [paymentTaken]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const today = new Date().toISOString().split('T')[0]
 
-  // ── Dates block ───────────────────────────────────────────────
-  // Rendered above the room picker: room availability is derived from these
-  // dates, so choosing them first means the list is already filtered when the
-  // staff member picks a room.
-  const DatesBlock = (reg: Parameters<typeof onlineForm.register>[0] extends string ? any : any, errs: Record<string, { message?: string }>, ci: string) => (
-    <div className="card p-5 space-y-4">
-      <p className="text-sm font-semibold text-gray-700">Dates</p>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="label">Check-in</label>
-          <input {...reg('check_in')} type="date" min={today} className="input" />
-          {errs.check_in && <p className="text-red-500 text-xs mt-1">{errs.check_in.message}</p>}
-        </div>
-        <div>
-          <label className="label">Check-out</label>
-          <input {...reg('check_out')} type="date" min={ci || today} className="input" />
-          {errs.check_out && <p className="text-red-500 text-xs mt-1">{errs.check_out.message}</p>}
-        </div>
+  const DatesContent = (reg: any, errs: Record<string, { message?: string }>, ci: string) => (
+    <div className="grid grid-cols-2 gap-4">
+      <div>
+        <label className="label">Check-in <span className="text-red-500">*</span></label>
+        <input {...reg('check_in')} type="date" min={today} className="input" />
+        {errs.check_in && <p className="text-red-500 text-xs mt-1">{errs.check_in.message}</p>}
       </div>
+      <div>
+        <label className="label">Check-out <span className="text-red-500">*</span></label>
+        <input {...reg('check_out')} type="date" min={ci || today} className="input" />
+        {errs.check_out && <p className="text-red-500 text-xs mt-1">{errs.check_out.message}</p>}
+      </div>
+      {nights > 0 && (
+        <div className="col-span-2 flex items-center gap-2 text-sm text-gray-600 bg-gray-50 rounded-xl px-3 py-2">
+          <CalendarDays className="h-4 w-4 text-primary-500" />
+          <span><strong className="text-gray-900">{nights} night{nights !== 1 ? 's' : ''}</strong></span>
+          {totalAmount > 0 && (
+            <span className="text-gray-400">· Est. total <strong className="text-gray-900">{formatCurrency(totalAmount, currency)}</strong></span>
+          )}
+        </div>
+      )}
     </div>
   )
 
-  // ── Details block ─────────────────────────────────────────────
-  const DetailsBlock = (reg: Parameters<typeof onlineForm.register>[0] extends string ? any : any, errs: Record<string, { message?: string }>) => (
-    <div className="card p-5 space-y-4">
-      <p className="text-sm font-semibold text-gray-700">Details</p>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  const DetailsContent = (reg: any, errs: Record<string, { message?: string }>) => (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="label">Adults</label>
-          <input
-            {...reg('adults')}
-            type="number"
-            min={1}
-            max={selectedAdultCapacity || undefined}
-            className="input"
-          />
+          <label className="label">Adults <span className="text-red-500">*</span></label>
+          <input {...reg('adults')} type="number" min={1} max={selectedAdultCapacity || undefined} className="input" />
           {selectedAdultCapacity > 0 && (
-            <p className="text-xs text-gray-400 mt-1">Selected room{selectedRoomIds.length > 1 ? 's' : ''} take up to {selectedAdultCapacity} adult{selectedAdultCapacity === 1 ? '' : 's'}</p>
+            <p className="text-xs text-gray-400 mt-1">Max {selectedAdultCapacity} from selected room{selectedRoomIds.length > 1 ? 's' : ''}</p>
           )}
           {errs.adults && <p className="text-red-500 text-xs mt-1">{errs.adults.message}</p>}
         </div>
         <div>
           <label className="label">Children</label>
-          <input
-            {...reg('children')}
-            type="number"
-            min={0}
-            max={selectedChildCapacity || undefined}
-            className="input"
-          />
+          <input {...reg('children')} type="number" min={0} max={selectedChildCapacity || undefined} className="input" />
           {selectedChildCapacity > 0 && (
-            <p className="text-xs text-gray-400 mt-1">Up to {selectedChildCapacity} child{selectedChildCapacity === 1 ? '' : 'ren'}</p>
+            <p className="text-xs text-gray-400 mt-1">Max {selectedChildCapacity}</p>
           )}
         </div>
-        <div>
-          <label className="label">Status</label>
-          {/* Money already taken means the booking is confirmed. Offering
-              "Pending" here let the two contradict each other. */}
-          <select {...reg('status')} className="input" disabled={paymentTaken}>
-            <option value="confirmed">Confirmed</option>
-            {!paymentTaken && <option value="pending">Pending</option>}
-          </select>
-          {paymentTaken && (
-            <p className="text-xs text-gray-400 mt-1">Confirmed automatically — payment is being collected now.</p>
-          )}
-        </div>
-        <div className="md:col-span-2">
-          <label className="label">Special Requests <span className="text-gray-400 font-normal">(optional)</span></label>
-          <textarea {...reg('special_requests')} className="input resize-none" rows={3} placeholder="Any special requests..." />
-        </div>
+      </div>
+      <div>
+        <label className="label">Status</label>
+        <select {...reg('status')} className="input" disabled={paymentTaken}>
+          <option value="confirmed">Confirmed</option>
+          {!paymentTaken && <option value="pending">Pending</option>}
+        </select>
+        {paymentTaken && (
+          <p className="text-xs text-gray-400 mt-1">Set to Confirmed automatically — payment collected now.</p>
+        )}
+      </div>
+      <div>
+        <label className="label">Special Requests <span className="text-gray-400 font-normal">(optional)</span></label>
+        <textarea {...reg('special_requests')} className="input resize-none" rows={3} placeholder="Dietary needs, room preferences, early check-in…" />
       </div>
     </div>
   )
 
-  // ── Payment block ─────────────────────────────────────────────
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      {/* Booking is saved; hold the screen until the next page renders so the
-          form can't be resubmitted and the wait doesn't look like a hang. */}
+    <div className="max-w-4xl mx-auto space-y-6">
       {redirectMsg && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-white/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-white/90 backdrop-blur-sm">
           <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
           <p className="text-sm font-medium text-gray-700">{redirectMsg}</p>
           <p className="text-xs text-gray-500">Your booking has been saved.</p>
         </div>
       )}
 
+      {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href="/hotel-admin/bookings" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+        <Link href="/hotel-admin/bookings" className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>
           <h2 className="text-2xl font-bold text-gray-900">New Booking</h2>
-          <p className="text-gray-500 text-sm">Create a booking from any channel</p>
+          <p className="text-gray-500 text-sm mt-0.5">Create a booking from any channel</p>
         </div>
       </div>
 
-      {/* Source */}
-      <div className="card p-5 space-y-3">
-        <p className="text-sm font-semibold text-gray-700">Booking Source</p>
+      {/* Step 1 — Booking Source */}
+      <StepCard step={1} title="Booking Source">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {SOURCES.map(s => {
             const Icon = s.icon
@@ -712,21 +805,22 @@ export default function NewBookingPage() {
             return (
               <button key={s.value} type="button"
                 onClick={() => { setSource(s.value); setGuest(null); setGuestNotFound(false) }}
-                className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all text-sm font-medium
-                  ${active ? s.color + ' border-current' : 'border-gray-200 text-gray-500 hover:border-gray-300 bg-white'}`}>
-                <Icon className="h-5 w-5" />
+                className={`flex items-center gap-2.5 p-3 rounded-xl border-2 transition-all text-sm font-semibold ${
+                  active ? s.activeClass + ' border-current' : 'border-gray-200 text-gray-500 hover:border-gray-300 bg-white'
+                }`}>
+                <Icon className={`h-4 w-4 ${active ? '' : s.color}`} />
                 {s.label}
               </button>
             )
           })}
         </div>
-      </div>
+      </StepCard>
 
-      {/* ── Offline ── */}
+      {/* ── Offline flow ── */}
       {isOffline && (
-        <form onSubmit={offlineForm.handleSubmit(submitOffline)} className="space-y-5">
-          <div className="card p-5 space-y-4">
-            <p className="text-sm font-semibold text-gray-700">Guest Info</p>
+        <form onSubmit={offlineForm.handleSubmit(submitOffline)} className="space-y-4">
+          {/* Step 2 — Guest Info */}
+          <StepCard step={2} title="Guest Information">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <label className="label">Full Name <span className="text-red-500">*</span></label>
@@ -738,7 +832,7 @@ export default function NewBookingPage() {
                   }}
                   maxLength={50}
                   className="input"
-                  placeholder="John Smith"
+                  placeholder="e.g. John Smith"
                 />
                 {offlineForm.formState.errors.guest_name && (
                   <p className="text-red-500 text-xs mt-1">{offlineForm.formState.errors.guest_name.message}</p>
@@ -755,102 +849,133 @@ export default function NewBookingPage() {
                 )}
               </div>
             </div>
-          </div>
+          </StepCard>
 
-          {DatesBlock(offlineForm.register, offlineForm.formState.errors as Record<string, { message?: string }>, checkInOff)}
-          <RoomPicker
-            rooms={rooms}
-            selectedRoomIds={selectedRoomIds}
-            unavailableRoomIds={unavailableRoomIds}
-            datesChosen={datesChosen}
-            currency={currency}
-            nights={nights}
-            totalAmount={totalAmount}
-            onToggle={toggleRoom}
-            checkingAvailability={checkingAvailability}
-          />
-          {DetailsBlock(offlineForm.register, offlineForm.formState.errors as Record<string, { message?: string }>)}
-          <PaymentBlock
-            totalAmount={totalAmount}
-            currency={currency}
-            nights={nights}
-            source={source}
-            payMethod={payMethod}    setPayMethod={setPayMethod}
-            payNow={payNow}          setPayNow={setPayNow}
-            isAdvance={isAdvance}    setIsAdvance={setIsAdvance}
-            advanceAmount={advanceAmount} setAdvanceAmount={setAdvanceAmount}
-            payNotes={payNotes}      setPayNotes={setPayNotes}
-          />
+          {/* Step 3 — Dates */}
+          <StepCard step={3} title="Stay Dates">
+            {DatesContent(offlineForm.register, offlineForm.formState.errors as Record<string, { message?: string }>, checkInOff)}
+          </StepCard>
 
-          <div className="flex justify-end gap-3">
+          {/* Step 4 — Rooms */}
+          <StepCard step={4} title="Room Selection">
+            <RoomPicker
+              rooms={rooms}
+              selectedRoomIds={selectedRoomIds}
+              unavailableRoomIds={unavailableRoomIds}
+              datesChosen={datesChosen}
+              currency={currency}
+              nights={nights}
+              totalAmount={totalAmount}
+              onToggle={toggleRoom}
+              checkingAvailability={checkingAvailability}
+            />
+          </StepCard>
+
+          {/* Step 5 — Guest Details */}
+          <StepCard step={5} title="Guest Details">
+            {DetailsContent(offlineForm.register, offlineForm.formState.errors as Record<string, { message?: string }>)}
+          </StepCard>
+
+          {/* Step 6 — Payment */}
+          <StepCard step={6} title="Payment Collection">
+            <PaymentBlock
+              totalAmount={totalAmount} currency={currency} nights={nights} source={source}
+              payMethod={payMethod}       setPayMethod={setPayMethod}
+              payNow={payNow}             setPayNow={setPayNow}
+              isAdvance={isAdvance}       setIsAdvance={setIsAdvance}
+              advanceAmount={advanceAmount} setAdvanceAmount={setAdvanceAmount}
+              payNotes={payNotes}         setPayNotes={setPayNotes}
+            />
+          </StepCard>
+
+          <div className="flex items-center justify-between gap-3 pt-2">
             <Link href="/hotel-admin/bookings" className="btn-secondary">Cancel</Link>
-            <button type="submit" disabled={submitting || advanceInvalid || selectedRoomIds.length === 0}
-              className="btn-primary flex items-center gap-2">
-              {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              {submitting ? 'Creating…' : 'Create Booking'}
+            <button type="submit"
+              disabled={submitting || advanceInvalid || selectedRoomIds.length === 0}
+              className="btn-primary flex items-center gap-2 px-8">
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              {submitting ? 'Creating booking…' : 'Create Booking'}
             </button>
           </div>
         </form>
       )}
 
-      {/* ── Online ── */}
+      {/* ── Online flow ── */}
       {!isOffline && (
-        <form onSubmit={onlineForm.handleSubmit(submitOnline)} className="space-y-5">
-          <div className="card p-5 space-y-3">
-            <p className="text-sm font-semibold text-gray-700">Guest</p>
-            <div>
-              <label className="label">Guest Email</label>
-              <div className="flex gap-2">
-                <input {...onlineForm.register('guest_email')} type="email" className="input flex-1" placeholder="guest@example.com" />
-                <button type="button" onClick={() => lookupGuest(onlineForm.getValues('guest_email'))}
-                  disabled={searchingGuest} className="btn-secondary flex items-center gap-1.5 text-sm shrink-0">
-                  {searchingGuest ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                  Find
-                </button>
+        <form onSubmit={onlineForm.handleSubmit(submitOnline)} className="space-y-4">
+          {/* Step 2 — Guest lookup */}
+          <StepCard step={2} title="Guest Lookup">
+            <div className="space-y-3">
+              <div>
+                <label className="label">Guest Email <span className="text-red-500">*</span></label>
+                <div className="flex gap-2">
+                  <input {...onlineForm.register('guest_email')} type="email" className="input flex-1" placeholder="guest@example.com" />
+                  <button type="button" onClick={() => lookupGuest(onlineForm.getValues('guest_email'))}
+                    disabled={searchingGuest} className="btn-secondary flex items-center gap-1.5 text-sm shrink-0">
+                    {searchingGuest ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                    Find
+                  </button>
+                </div>
+                {onlineForm.formState.errors.guest_email && (
+                  <p className="text-red-500 text-xs mt-1">{onlineForm.formState.errors.guest_email.message}</p>
+                )}
               </div>
-              {onlineForm.formState.errors.guest_email && (
-                <p className="text-red-500 text-xs mt-1">{onlineForm.formState.errors.guest_email.message}</p>
+              {guest && (
+                <div className="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                  <div className="w-9 h-9 rounded-full bg-emerald-200 flex items-center justify-center text-emerald-800 font-bold text-sm flex-shrink-0">
+                    {guest.full_name?.[0]?.toUpperCase() ?? <User className="h-4 w-4" />}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">{guest.full_name}</p>
+                    <p className="text-xs text-gray-500">{guest.email}</p>
+                  </div>
+                  <CheckCircle className="h-4 w-4 text-emerald-600 ml-auto" />
+                </div>
+              )}
+              {guestNotFound && (
+                <div className="flex items-start gap-2.5 p-3 bg-red-50 border border-red-200 rounded-xl">
+                  <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-700">
+                    No account found for this email. Try a walk-in booking, or{' '}
+                    <Link href="/super-admin/users/add" className="underline font-medium">add them as a user</Link>.
+                  </p>
+                </div>
               )}
             </div>
-            {guest && (
-              <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-semibold text-sm">
-                  {guest.full_name?.[0]?.toUpperCase() ?? <User className="h-4 w-4" />}
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{guest.full_name}</p>
-                  <p className="text-xs text-gray-500">{guest.email}</p>
-                </div>
-              </div>
-            )}
-            {guestNotFound && (
-              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                No customer found. Try a walk-in booking instead, or{' '}
-                <Link href="/super-admin/users/add" className="underline font-medium">add them as a user</Link>.
-              </p>
-            )}
-          </div>
+          </StepCard>
 
-          {DatesBlock(onlineForm.register, onlineForm.formState.errors as Record<string, { message?: string }>, checkIn)}
-          <RoomPicker
-            rooms={rooms}
-            selectedRoomIds={selectedRoomIds}
-            unavailableRoomIds={unavailableRoomIds}
-            datesChosen={datesChosen}
-            currency={currency}
-            nights={nights}
-            totalAmount={totalAmount}
-            onToggle={toggleRoom}
-            checkingAvailability={checkingAvailability}
-          />
-          {DetailsBlock(onlineForm.register, onlineForm.formState.errors as Record<string, { message?: string }>)}
+          {/* Step 3 — Dates */}
+          <StepCard step={3} title="Stay Dates">
+            {DatesContent(onlineForm.register, onlineForm.formState.errors as Record<string, { message?: string }>, checkIn)}
+          </StepCard>
 
-          <div className="flex justify-end gap-3">
+          {/* Step 4 — Rooms */}
+          <StepCard step={4} title="Room Selection">
+            <RoomPicker
+              rooms={rooms}
+              selectedRoomIds={selectedRoomIds}
+              unavailableRoomIds={unavailableRoomIds}
+              datesChosen={datesChosen}
+              currency={currency}
+              nights={nights}
+              totalAmount={totalAmount}
+              onToggle={toggleRoom}
+              checkingAvailability={checkingAvailability}
+            />
+          </StepCard>
+
+          {/* Step 5 — Guest Details */}
+          <StepCard step={5} title="Guest Details">
+            {DetailsContent(onlineForm.register, onlineForm.formState.errors as Record<string, { message?: string }>)}
+          </StepCard>
+
+          <div className="flex items-center justify-between gap-3 pt-2">
             <Link href="/hotel-admin/bookings" className="btn-secondary">Cancel</Link>
-            <button type="submit" disabled={submitting || selectedRoomIds.length === 0}
-              className="btn-primary flex items-center gap-2">
-              {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              {submitting ? 'Creating…' : 'Create Booking'}
+            <button type="submit"
+              disabled={submitting || selectedRoomIds.length === 0}
+              className="btn-primary flex items-center gap-2 px-8">
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              {submitting ? 'Creating booking…' : 'Create Booking'}
             </button>
           </div>
         </form>

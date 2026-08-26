@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { LogIn, LogOut, BedDouble, Calendar, Loader2, AlertTriangle, X, AlertCircle, Clock } from 'lucide-react'
 import Link from 'next/link'
 import type { BookingEntry } from './page'
+import { InlinePaymentModal } from '@/components/admin/InlinePaymentModal'
 
 // Warm palette — matches guest directory & reports
 const WARM_COLORS = [
@@ -559,7 +560,16 @@ export default function CheckInClient({ arrivals, inHouse, upcoming, departuresT
     </div>
 
     {/* ── Pending-payment block modal ── */}
-    {paymentBlock && (
+    {paymentBlock && paymentBlock.action === 'check_out' && (
+      <InlinePaymentModal
+        block={{ primaryId: paymentBlock.bookingId, targetStatus: 'checked_out' }}
+        bookingStatus="checked_in"
+        onClose={() => setPaymentBlock(null)}
+        onSuccess={() => { setPaymentBlock(null); router.refresh() }}
+      />
+    )}
+
+    {paymentBlock && paymentBlock.action === 'check_in' && (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
           <div className="flex items-start gap-4">
@@ -575,7 +585,7 @@ export default function CheckInClient({ arrivals, inHouse, upcoming, departuresT
                   {paymentBlock.currency} {paymentBlock.pendingAmount.toLocaleString()}
                 </span>.
                 <br />
-                Please record the payment before checking {paymentBlock.action === 'check_in' ? 'in' : 'out'}.
+                Please record the payment before checking in.
               </p>
             </div>
             <button

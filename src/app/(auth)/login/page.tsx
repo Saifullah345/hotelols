@@ -108,11 +108,15 @@ function LoginPageInner() {
   const resendVerification = async () => {
     if (!unverifiedEmail) return
     setResending(true)
-    const supabase = createClient()
-    const { error } = await supabase.auth.resend({ type: 'signup', email: unverifiedEmail })
+    const res = await fetch('/api/auth/resend-verification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: unverifiedEmail }),
+    })
+    const json = await res.json().catch(() => ({}))
     setResending(false)
-    if (error) toast.error(error.message)
-    else toast.success('Verification email resent')
+    if (!res.ok) toast.error(json.error ?? 'Could not resend verification email')
+    else toast.success('Verification email resent — check your inbox')
   }
 
   const sendResetCode = async (email: string) => {

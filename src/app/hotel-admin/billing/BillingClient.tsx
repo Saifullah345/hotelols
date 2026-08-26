@@ -89,8 +89,11 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
   const [problems, setProblems] = useState<string[] | null>(null)
   // Asking before a downgrade or a billing-cycle switch, rather than acting on
   // a single click: both change what the hotel pays.
-  const [downgradeTarget, setDowngradeTarget] = useState<Plan | null>(null)
-  const [pendingCycle, setPendingCycle]       = useState<'monthly' | 'yearly' | null>(null)
+  const [downgradeTarget, setDowngradeTarget]   = useState<Plan | null>(null)
+  const [pendingCycle, setPendingCycle]         = useState<'monthly' | 'yearly' | null>(null)
+  const [pendingPlanChange, setPendingPlanChange] = useState<Plan | null>(null)
+  const [pendingCancel, setPendingCancel]       = useState(false)
+  const [pendingResume, setPendingResume]       = useState(false)
 
   const hotelId = hotel?.id
 
@@ -230,19 +233,12 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
    * During the trial this is free and, crucially, keeps the same end date — the
    * server swaps the price without touching the billing period.
    */
-  async function changePlan(plan: Plan) {
-    const confirmed = trialing
-      ? confirm(
-          `Switch to ${plan.name}?\n\n` +
-          `Your free trial keeps running to ${trialEndsOn ?? 'the same date'} — it does not start over, ` +
-          'and nothing is charged until it ends.',
-        )
-      : confirm(
-          `Upgrade to ${plan.name}?\n\n` +
-          'The difference for the rest of this billing period will be charged to your card now.',
-        )
-    if (!confirmed) return
+  function changePlan(plan: Plan) {
+    setPendingPlanChange(plan)
+  }
 
+  async function doChangePlan(plan: Plan) {
+    setPendingPlanChange(null)
     setBusyPlanId(plan.id)
     try {
       const res = await fetch('/api/paddle/change-plan', {
@@ -274,13 +270,13 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
     }
   }
 
-  async function handleCancel() {
+  function handleCancel() {
     if (!hotel?.paddle_subscription_id) return
-    const message = trialing
-      ? 'Cancel your free trial?\n\nYou keep access until the trial ends and your card will not be charged.'
-      : 'Cancel your subscription?\n\nYou can keep using the plan until the end of the billing period.'
-    if (!confirm(message)) return
+    setPendingCancel(true)
+  }
 
+  async function doCancel() {
+    setPendingCancel(false)
     setCanceling(true)
     try {
       const res = await fetch('/api/paddle/cancel', {
@@ -302,12 +298,12 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
     }
   }
 
-  async function handleResume() {
-    if (!confirm(
-      `Keep your ${currentPlan?.name ?? 'subscription'} plan?\n\n` +
-      `Your card will be charged automatically when the trial ends. You can cancel any time before then.`,
-    )) return
+  function handleResume() {
+    setPendingResume(true)
+  }
 
+  async function doResume() {
+    setPendingResume(false)
     setResuming(true)
     try {
       const res = await fetch('/api/paddle/resume', { method: 'POST' })
@@ -942,6 +938,145 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
               >
                 <Lock className="h-4 w-4" />
                 Keep Current Plan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Upgrade / trial-switch confirmation modal ── */}
+      {pendingPlanChange && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setPendingPlanChange(null)}
+        >
+          <div
+            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setPendingPlanChange(null)}
+              className="absolute top-4 right-4 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+            <div className="px-6 pt-6 pb-4">
+              <div className="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </div>
+              <h3 className="text-base font-bold text-gray-900">
+                {trialing ? `Switch to ${pendingPlanChange.name}?` : `Upgrade to ${pendingPlanChange.name}?`}
+              </h3>
+              <p className="text-sm text-gray-500 mt-2">
+                {trialing
+                  ? `Your free trial keeps running to ${trialEndsOn ?? 'the same date'} — it does not start over, and nothing is charged until it ends.`
+                  : 'The difference for the rest of this billing period will be charged to your card now.'}
+              </p>
+            </div>
+            <div className="px-6 pb-6 flex gap-3">
+              <button
+                onClick={() => doChangePlan(pendingPlanChange)}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold transition-colors"
+              >
+                {trialing ? 'Switch plan' : 'Confirm upgrade'}
+              </button>
+              <button
+                onClick={() => setPendingPlanChange(null)}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition-colors"
+              >
+                Keep current plan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Cancel subscription confirmation modal ── */}
+      {pendingCancel && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setPendingCancel(false)}
+        >
+          <div
+            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setPendingCancel(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+            <div className="px-6 pt-6 pb-4">
+              <div className="w-11 h-11 rounded-xl bg-rose-50 flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
+              </div>
+              <h3 className="text-base font-bold text-gray-900">
+                {trialing ? 'Cancel your free trial?' : 'Cancel your subscription?'}
+              </h3>
+              <p className="text-sm text-gray-500 mt-2">
+                {trialing
+                  ? 'You\'ll keep full access until your trial ends and your card will not be charged.'
+                  : 'You\'ll keep full access until the end of your current billing period. No refunds are issued for unused time.'}
+              </p>
+            </div>
+            <div className="px-6 pb-6 flex gap-3">
+              <button
+                onClick={doCancel}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold transition-colors"
+              >
+                Yes, cancel
+              </button>
+              <button
+                onClick={() => setPendingCancel(false)}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition-colors"
+              >
+                Keep subscription
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Resume / keep subscription confirmation modal ── */}
+      {pendingResume && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setPendingResume(false)}
+        >
+          <div
+            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setPendingResume(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+            <div className="px-6 pt-6 pb-4">
+              <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              </div>
+              <h3 className="text-base font-bold text-gray-900">
+                Keep your {currentPlan?.name ?? 'subscription'} plan?
+              </h3>
+              <p className="text-sm text-gray-500 mt-2">
+                Your card will be charged automatically when the trial ends. You can cancel any time before then with no charge.
+              </p>
+            </div>
+            <div className="px-6 pb-6 flex gap-3">
+              <button
+                onClick={doResume}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold transition-colors"
+              >
+                Yes, keep it
+              </button>
+              <button
+                onClick={() => setPendingResume(false)}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition-colors"
+              >
+                No thanks
               </button>
             </div>
           </div>

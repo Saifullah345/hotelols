@@ -35,12 +35,11 @@ export default async function EditRoomPage({
   if (!room) notFound()
   if (profile.role !== 'super_admin' && room.hotel_id !== profile.tenant_id) notFound()
 
-  // Load room types for this hotel
-  const { data: roomTypes } = await supabase
-    .from('room_types')
-    .select('id, name, max_adults, max_children')
-    .eq('hotel_id', room.hotel_id)
-    .order('name')
+  // Load room types and floors for this hotel
+  const [{ data: roomTypes }, { data: floors }] = await Promise.all([
+    supabase.from('room_types').select('id, name, max_adults, max_children').eq('hotel_id', room.hotel_id).order('name'),
+    supabase.from('hotel_floors').select('id, floor_number, name').eq('hotel_id', room.hotel_id).order('floor_number'),
+  ])
 
   // Hotel currency
   const { data: hotel } = await supabase
@@ -64,20 +63,21 @@ export default async function EditRoomPage({
     .gte('check_in', today)
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center gap-4">
-        <Link href="/hotel-admin/rooms" className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
+    <div className="max-w-5xl mx-auto">
+      <div className="flex items-center gap-3 mb-6">
+        <Link href="/hotel-admin/rooms" className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-500">
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Edit Room {room.room_number}</h2>
-          <p className="text-sm text-gray-500 mt-0.5">Update room details, pricing, or type</p>
+          <h2 className="text-xl font-bold text-gray-900">Edit Room {room.room_number}</h2>
+          <p className="text-sm text-gray-400 mt-0.5">Update room details, pricing, or status</p>
         </div>
       </div>
 
       <EditRoomForm
         room={room}
         roomTypes={roomTypes ?? []}
+        floors={floors ?? []}
         currency={currency}
         activeBookings={activeBookings ?? 0}
         upcomingBookings={upcomingBookings ?? 0}
