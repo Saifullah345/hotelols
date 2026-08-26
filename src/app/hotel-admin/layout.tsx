@@ -1,7 +1,7 @@
 import { cookies, headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { getAuthContext } from '@/lib/auth'
+import { getAuthContext, getSessionSubject } from '@/lib/auth'
 import { AdminShell } from '@/components/layout/AdminShell'
 import { noIndexMetadata } from '@/lib/seo'
 import { getPlanFeatures } from '@/lib/plan-features'
@@ -27,26 +27,39 @@ export default async function HotelAdminLayout({ children }: { children: React.R
   const activeRole     = store.get('bq_role')?.value
   const activeTenantId = store.get('bq_tenant')?.value
 
-  const { user, profile } = await getAuthContext()
+  // The role row used to wait for getAuthContext() to hand back a verified user
+  // id, which put a second serial Supabase round-trip in front of every admin
+  // navigation. The id the session cookie claims is available for free and is
+  // enough to *start* the query — it is only trusted afterwards, and only if
+  // getUser() confirms it names this user. Same guarantee getAuthContext() uses
+  // for the speculative profile read, and the fallback below is what the code
+  // did before, so the worst case is the old timing and never a wrong answer.
+  const claimedId = activeTenantId ? await getSessionSubject() : null
+
+  const roleQuery = (userId: string, tenantId: string) =>
+    supabase
+      .from('user_roles')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('role', 'hotel_admin')
+      .eq('tenant_id', tenantId)
+      .maybeSingle()
+
+  const [{ user, profile }, speculativeRole, hotel] = await Promise.all([
+    getAuthContext(),
+    claimedId && activeTenantId ? roleQuery(claimedId, activeTenantId) : Promise.resolve(null),
+    activeTenantId ? getCachedHotel(activeTenantId) : Promise.resolve(null),
+  ])
+
   if (!user) redirect('/login')
 
   if (activeRole !== 'hotel_admin' || !activeTenantId) redirect('/select-role')
 
-  // Role verification and the hotel record have no inter-dependency — run them
-  // concurrently. The profile row came from getAuthContext(), which the page
-  // rendering inside this layout shares, so it costs one query for both.
-  const [roleResult, hotel] = await Promise.all([
-    supabase
-      .from('user_roles')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('role', 'hotel_admin')
-      .eq('tenant_id', activeTenantId)
-      .maybeSingle(),
-    getCachedHotel(activeTenantId),
-  ])
+  const roleRow = speculativeRole && claimedId === user.id
+    ? speculativeRole.data
+    : (await roleQuery(user.id, activeTenantId)).data
 
-  if (!roleResult.data) redirect('/select-role')
+  if (!roleRow) redirect('/select-role')
 
   const planFeatures = getPlanFeatures(hotel?.plan ?? null)
 
