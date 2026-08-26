@@ -4,6 +4,7 @@ import { sendEmail } from '@/lib/email/resend'
 import { staffWelcomeTemplate, customerInviteTemplate } from '@/lib/email/templates'
 import { limitReached } from '@/lib/plan-features'
 import { NextResponse } from 'next/server'
+import { verifyUrlFrom } from '@/lib/auth-redirect'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -134,7 +135,7 @@ export async function POST(request: Request) {
         redirectTo: `${getSiteUrl()}/auth/callback`,
       },
     })
-    const inviteUrl = invite?.properties?.action_link
+    const inviteUrl = verifyUrlFrom(invite?.properties, 'invite')
     if (inviteError || !inviteUrl || !invite?.user) {
       return NextResponse.json({ error: inviteError?.message || 'Failed to generate invite link' }, { status: 400 })
     }
