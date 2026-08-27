@@ -10,6 +10,7 @@ import DeleteRoomButton from './DeleteRoomButton'
 import { RoomRow, ActionsCell } from './RoomRow'
 import { formatCurrency } from '@/lib/currency'
 import { isUnlimited, limitReached, usagePercent, usageLevel } from '@/lib/plan-features'
+import { selectRoomList, type RoomListRow } from '@/lib/rooms-list'
 
 const statusBadge: Record<string, string> = {
   available: 'badge-green', booked: 'badge-blue',
@@ -19,19 +20,9 @@ const statusBadge: Record<string, string> = {
 const STATUSES = ['available', 'booked', 'maintenance', 'cleaning']
 
 
-type Room = {
-  id: string
-  room_number: string
-  name: string | null
-  floor: number
-  sort_order: number
-  capacity: number
-  price_per_night: number
-  status: string
-  room_type_id: string
-  images: string[] | null
-  room_type: { id?: string; name?: string; capacity?: number } | null
-}
+// The list never needs the full `images` array — only the first photo and the
+// count — so it receives `thumbnail` + `image_count` instead. See lib/rooms-list.ts.
+type Room = RoomListRow
 
 type RoomType = { id: string; name: string }
 
@@ -68,9 +59,9 @@ function RoomGridCard({ room, rangeActive, occupancy, availFrom, availTo, curren
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden group hover:shadow-md transition-shadow flex flex-col">
       <div className="relative h-44 shrink-0">
-        {room.images?.[0] ? (
+        {room.thumbnail ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={room.images[0]} alt="" className="w-full h-full object-cover" />
+          <img src={room.thumbnail} alt="" className="w-full h-full object-cover" />
         ) : (
           <div className={`w-full h-full bg-gradient-to-br ${imgBg} flex items-center justify-center`}>
             <BedDouble className={`h-14 w-14 ${iconClr}`} />
@@ -79,9 +70,9 @@ function RoomGridCard({ room, rangeActive, occupancy, availFrom, availTo, curren
         <span className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide text-white shadow ${sc.badge}`}>
           {sc.label}
         </span>
-        {(room.images?.length ?? 0) > 1 && (
+        {room.image_count > 1 && (
           <span className="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full backdrop-blur-sm">
-            {room.images!.length} photos
+            {room.image_count} photos
           </span>
         )}
       </div>
@@ -273,19 +264,20 @@ export default function RoomsClient({
     const from = reset ? 0 : offsetRef.current
     const to   = from + pageSize - 1
 
-    let q2 = createClient()
-      .from('rooms')
-      .select('*, room_type:room_types(id, name, capacity), images')
-      .eq('hotel_id', hotelId)
-      .order('sort_order', { ascending: true })
-      .order('room_number')
-      .range(from, to)
+    const supabase = createClient()
+    const fetched = await selectRoomList(columns => {
+      let q2 = supabase
+        .from('rooms')
+        .select(columns)
+        .eq('hotel_id', hotelId)
+        .order('sort_order', { ascending: true })
+        .order('room_number')
+        .range(from, to)
 
-    if (status) q2 = q2.eq('status', status)
-    if (typeId) q2 = q2.eq('room_type_id', typeId)
-
-    const { data } = await q2
-    const fetched = (data ?? []) as Room[]
+      if (status) q2 = q2.eq('status', status)
+      if (typeId) q2 = q2.eq('room_type_id', typeId)
+      return q2
+    })
 
     if (reset) {
       setRooms(fetched)
@@ -714,10 +706,10 @@ export default function RoomsClient({
 
                     <td className="table-cell">
                       <div className="flex items-center gap-3">
-                        {room.images?.[0] ? (
+                        {room.thumbnail ? (
                           <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border border-gray-100">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={room.images[0]} alt="" className="w-full h-full object-cover" />
+                            <img src={room.thumbnail} alt="" className="w-full h-full object-cover" />
                           </div>
                         ) : (
                           <div className={`w-10 h-10 rounded-lg flex-shrink-0 flex items-center justify-center ${

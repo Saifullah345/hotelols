@@ -71,6 +71,26 @@ function unverifiedSubject(accessToken: string | undefined): string | null {
 }
 
 /**
+ * The user id the session cookie claims, with no network call and no signature
+ * check. Exported so a caller can put a user-scoped query on the wire in the
+ * same wave as `getAuthContext()` instead of waiting a round-trip for the
+ * verified id to come back.
+ *
+ * Every caller must do what `getAuthContext()` does below: use the result only
+ * after confirming it equals the id `getCurrentUser()` verified, and re-query
+ * with the verified id otherwise. Read the caveat on `unverifiedSubject()`.
+ */
+export const getSessionSubject = cache(async (): Promise<string | null> => {
+  const supabase = await createClient()
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    return unverifiedSubject(session?.access_token)
+  } catch {
+    return null
+  }
+})
+
+/**
  * User + profile row in one memoized pass. Selects every column because the
  * admin layout renders the full profile; pages that only want `tenant_id` read
  * it off the same cached row instead of issuing a second query.
@@ -89,13 +109,7 @@ function unverifiedSubject(accessToken: string | undefined): string | null {
 export const getAuthContext = cache(async (): Promise<AuthContext> => {
   const supabase = await createClient()
 
-  let claimedId: string | null = null
-  try {
-    const { data: { session } } = await supabase.auth.getSession()
-    claimedId = unverifiedSubject(session?.access_token)
-  } catch {
-    claimedId = null
-  }
+  const claimedId = await getSessionSubject()
 
   const [user, speculative] = await Promise.all([
     getCurrentUser(),

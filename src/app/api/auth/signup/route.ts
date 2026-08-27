@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { sendEmail } from '@/lib/email/resend'
 import { confirmEmailTemplate } from '@/lib/email/templates'
 import { getSiteUrl } from '@/lib/supabase/env'
+import { verifyUrlFrom } from '@/lib/auth-redirect'
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null)
@@ -31,9 +32,10 @@ export async function POST(request: Request) {
 
   try {
     // generateLink({ type: 'signup' }) CREATES the (unconfirmed) user AND returns
-    // the confirmation link in one step. We must NOT createUser() first — doing so
-    // makes this fail with "User already registered". The link is in
-    // properties.action_link (not "verification_url").
+    // the confirmation token in one step. We must NOT createUser() first — doing
+    // so makes this fail with "User already registered". `verifyUrlFrom()` turns
+    // the returned properties into a link at this app's /auth/confirm rather
+    // than GoTrue's own action_link; see lib/auth-redirect.ts for why.
     const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
       type: 'signup',
       email,
@@ -44,7 +46,7 @@ export async function POST(request: Request) {
       },
     })
 
-    const verifyUrl = linkData?.properties?.action_link
+    const verifyUrl = verifyUrlFrom(linkData?.properties, 'signup')
     if (linkError || !verifyUrl) {
       return NextResponse.json(
         { error: linkError?.message || 'Failed to generate verification link' },

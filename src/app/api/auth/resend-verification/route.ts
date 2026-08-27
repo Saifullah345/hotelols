@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { sendEmail } from '@/lib/email/resend'
 import { confirmEmailTemplate } from '@/lib/email/templates'
 import { getSiteUrl } from '@/lib/supabase/env'
+import { verifyUrlFrom } from '@/lib/auth-redirect'
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null)
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
     options: { redirectTo: `${getSiteUrl()}/auth/callback` },
   })
 
-  const verifyUrl = linkData?.properties?.action_link
+  const verifyUrl = verifyUrlFrom(linkData?.properties, 'magiclink')
   if (linkError || !verifyUrl) {
     return NextResponse.json(
       { error: linkError?.message || 'Failed to generate verification link' },

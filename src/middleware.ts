@@ -52,16 +52,31 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Deliberately `getUser()` and not `getClaims()`. getClaims() would verify the
-  // token locally against the project's JWKS and save this round-trip, but it
-  // reports an unverifiable token as AuthInvalidJwtError — which carries status
-  // 400, the same status a revoked refresh token uses. That made every JWKS
-  // hiccup fall into the signOut() branch below and destroy a perfectly good
-  // session, bouncing the user back to /login on every attempt. Don't reintroduce
-  // it without splitting these two cases apart first.
-  let user = null
+  // `getSession()`, not `getUser()`. getUser() is an HTTPS call to GoTrue's
+  // /auth/v1/user on every single request this matcher covers — including the
+  // ~14 RSC prefetches the sidebar fires on hover — and against a remote
+  // Supabase host that is a fixed ~165 ms added to every navigation before the
+  // page has even started rendering. getSession() reads the session out of the
+  // cookie and only goes to the network when the access token has actually
+  // expired and needs refreshing, which is the one case where the round-trip
+  // buys something.
+  //
+  // The trade is that getSession() does not verify the token's signature. That
+  // is fine *here* and nowhere else: everything this function does with the
+  // answer is coarse routing — bounce anonymous users off /hotel-admin, bounce
+  // signed-in users off /login. It authorises nothing, and it never reads a
+  // field off the session, only whether there is one. A forged cookie gets past
+  // this and is then rejected by the layout's getAuthContext(), which still
+  // calls getUser(), and by RLS on every query underneath it.
+  //
+  // Not `getClaims()` either: it reports an unverifiable token as
+  // AuthInvalidJwtError, status 400 — the same status a revoked refresh token
+  // uses — so every JWKS hiccup fell into the signOut() branch below and
+  // destroyed a working session. Don't reintroduce it without splitting those
+  // two cases apart first.
+  let signedIn = false
   try {
-    const { data, error } = await supabase.auth.getUser()
+    const { data, error } = await supabase.auth.getSession()
     if (error) {
       // Expired / revoked refresh token — clear cookies and treat as logged out.
       // Scoped to refresh-token failures only: any other error means "couldn't
@@ -73,14 +88,17 @@ export async function middleware(request: NextRequest) {
         await supabase.auth.signOut()
       }
     } else {
-      user = data.user
+      // Truthiness only — reading `data.session.user` would trip the
+      // "user object from getSession() could be insecure" proxy warning on
+      // every request, and nothing here needs the user's fields.
+      signedIn = Boolean(data.session)
     }
   } catch {
     // Network or unexpected error — treat as unauthenticated
   }
 
   // Unauthenticated: block protected routes and select-role
-  if (!user) {
+  if (!signedIn) {
     if (protectedRoutes.some(r => pathname.startsWith(r)) || pathname === '/select-role') {
       return NextResponse.redirect(new URL('/login', request.url))
     }

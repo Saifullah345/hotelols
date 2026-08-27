@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireTenant } from '@/lib/auth'
 import { getCachedHotel, getCachedRoomTypes } from '@/lib/cache'
+import { selectRoomList } from '@/lib/rooms-list'
 import RoomsClient from './RoomsClient'
 
 export const metadata = { title: 'Rooms' }
@@ -11,14 +12,18 @@ export default async function RoomsPage() {
 
   const PAGE_SIZE = 4
 
-  const [{ data: rooms }, { data: allStatuses }, hotelData, roomTypes] = await Promise.all([
-    supabase
-      .from('rooms')
-      .select('*, room_type:room_types(id, name, capacity), images')
-      .eq('hotel_id', tenantId)
-      .order('sort_order', { ascending: true })
-      .order('room_number')
-      .range(0, PAGE_SIZE - 1),
+  const [rooms, { data: allStatuses }, hotelData, roomTypes] = await Promise.all([
+    // Thumbnail + photo count only. Selecting `*` here pulled every room's full
+    // base64 image array — see lib/rooms-list.ts.
+    selectRoomList(columns =>
+      supabase
+        .from('rooms')
+        .select(columns)
+        .eq('hotel_id', tenantId)
+        .order('sort_order', { ascending: true })
+        .order('room_number')
+        .range(0, PAGE_SIZE - 1)
+    ),
     // Lightweight: just status field for header count chips
     supabase
       .from('rooms')
@@ -35,7 +40,7 @@ export default async function RoomsPage() {
 
   return (
     <RoomsClient
-      rooms={rooms ?? []}
+      rooms={rooms}
       roomTypes={roomTypes ?? []}
       currency={currency}
       hotelId={tenantId}

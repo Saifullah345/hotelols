@@ -18,6 +18,8 @@ type BookingRow = {
   status: string
   check_in: string
   special_requests: string | null
+  /** Embedded, so the guest's profile arrives with the booking. */
+  profile: ProfileRow | null
 }
 
 type HotelGuestRow = {
@@ -40,7 +42,14 @@ export default async function GuestsPage() {
   const [{ data: bookings }, { data: hotelGuests }] = await Promise.all([
     supabase
       .from('bookings')
-      .select('user_id, status, check_in, special_requests')
+      // The profile comes back embedded rather than as a follow-up
+      // `.in('id', userIds)`. That second query could only be issued once the
+      // bookings had landed, so it was a strictly serial round-trip — and this
+      // page has to wait for the layout's queries before it even starts.
+      .select(`
+        user_id, status, check_in, special_requests,
+        profile:profiles(id, full_name, email, phone, country, avatar_url)
+      `)
       .eq('hotel_id', tenantId),
     supabase
       .from('hotel_guests')
@@ -48,19 +57,19 @@ export default async function GuestsPage() {
       .eq('hotel_id', tenantId),
   ])
 
-  // Unique user_ids from bookings
-  const userIds = [...new Set(
-    ((bookings ?? []) as BookingRow[]).map(b => b.user_id).filter(Boolean)
-  )]
+  const bookingRows = (bookings ?? []) as unknown as BookingRow[]
 
-  // Fetch matching profiles
+  // Unique user_ids from bookings, plus the profile each one carried.
   const profileMap = new Map<string, ProfileRow>()
-  if (userIds.length) {
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, full_name, email, phone, country, avatar_url')
-      .in('id', userIds)
-    for (const p of (profiles ?? []) as ProfileRow[]) profileMap.set(p.id, p)
+  const seenUserIds = new Set<string>()
+  const userIds: string[] = []
+  for (const b of bookingRows) {
+    if (!b.user_id) continue
+    if (!seenUserIds.has(b.user_id)) {
+      seenUserIds.add(b.user_id)
+      userIds.push(b.user_id)
+    }
+    if (b.profile && !profileMap.has(b.user_id)) profileMap.set(b.user_id, b.profile)
   }
 
   // Aggregate stays + pull latest special_requests, status, and check-in date per user
@@ -69,7 +78,7 @@ export default async function GuestsPage() {
   const lastStatusMap  = new Map<string, 'checked_in' | 'checked_out'>()
   const lastCheckInMap = new Map<string, string>()
 
-  for (const b of (bookings ?? []) as BookingRow[]) {
+  for (const b of bookingRows) {
     if (!b.user_id) continue
     if (b.status !== 'cancelled') stayCount.set(b.user_id, (stayCount.get(b.user_id) ?? 0) + 1)
     if (b.special_requests?.trim()) lastNotes.set(b.user_id, b.special_requests.trim())
