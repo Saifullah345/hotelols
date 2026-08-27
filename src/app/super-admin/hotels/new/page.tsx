@@ -7,7 +7,10 @@ import { z } from 'zod'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
-import { Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react'
+import {
+  Loader2, ArrowLeft, Eye, EyeOff,
+  Building2, MapPin, Clock, User,
+} from 'lucide-react'
 import Link from 'next/link'
 import { CURRENCIES } from '@/lib/currency'
 import { nameSchema, validateHotelName, phoneSchema } from '@/lib/validation'
@@ -19,26 +22,46 @@ const schema = z.object({
     const err = validateHotelName(v)
     if (err) ctx.addIssue({ code: z.ZodIssueCode.custom, message: err })
   }),
-  email: z.string().min(1, 'Hotel email is required').email('Invalid email format'),
-  phone: phoneSchema,
-  address: z.string().optional(),
-  city: z.string().min(2),
-  country: z.string().min(2),
-  check_in_time: z.string(),
+  email:          z.string().min(1, 'Hotel email is required').email('Invalid email format'),
+  phone:          phoneSchema,
+  address:        z.string().min(3, 'Address is required'),
+  city:           z.string().min(2, 'City is required'),
+  country:        z.string().min(2, 'Country is required'),
+  check_in_time:  z.string(),
   check_out_time: z.string(),
-  currency: z.string().min(3, 'Select a currency'),
-  plan_id: z.string().uuid('Select a plan'),
-  owner_email: z.string().email('Valid owner email required'),
-  owner_name: nameSchema,
+  currency:       z.string().min(3, 'Select a currency'),
+  plan_id:        z.string().uuid('Select a plan'),
+  owner_email:    z.string().email('Valid owner email required'),
+  owner_name:     nameSchema,
   owner_password: z.string().min(8, 'Password must be at least 8 characters'),
 })
 type FormData = z.infer<typeof schema>
+
+function SectionHeader({ icon: Icon, title, subtitle }: { icon: React.ElementType; title: string; subtitle?: string }) {
+  return (
+    <div className="flex items-start gap-3 pb-3 border-b border-gray-100">
+      <div className="w-7 h-7 rounded-lg bg-primary-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+        <Icon className="h-3.5 w-3.5 text-primary-600" />
+      </div>
+      <div>
+        <p className="text-sm font-semibold text-gray-700">{title}</p>
+        {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
+      </div>
+    </div>
+  )
+}
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null
+  return <p className="text-red-500 text-xs mt-1">{message}</p>
+}
 
 export default function NewHotelPage() {
   const router = useRouter()
   const [plans, setPlans] = useState<{ id: string; name: string; price_monthly: number }[]>([])
   const [showPassword, setShowPassword] = useState(false)
   const [countryCode, setCountryCode] = useState('')
+
   const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { check_in_time: '14:00', check_out_time: '11:00', currency: 'PKR' },
@@ -55,7 +78,6 @@ export default function NewHotelPage() {
   const onSubmit = async (data: FormData) => {
     const supabase = createClient()
 
-    // Try to find existing owner by email
     let ownerId: string | null = null
     const { data: existingOwner } = await supabase
       .from('profiles').select('id').eq('email', data.owner_email).single()
@@ -63,7 +85,6 @@ export default function NewHotelPage() {
     if (existingOwner) {
       ownerId = existingOwner.id
     } else {
-      // Owner not found — create a new account for them
       const res = await fetch('/api/admin/add-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -86,9 +107,9 @@ export default function NewHotelPage() {
     const { error } = await supabase.from('hotels').insert({
       id: hotelId,
       name: data.name,
-      email: data.email || '',
-      phone: data.phone || '',
-      address: data.address || '',
+      email: data.email,
+      phone: data.phone,
+      address: data.address,
       city: data.city,
       country: data.country,
       check_in_time: data.check_in_time,
@@ -96,8 +117,6 @@ export default function NewHotelPage() {
       currency: data.currency,
       plan_id: data.plan_id,
       owner_id: ownerId,
-      // New hotels start hidden from the public site. The super admin reviews and
-      // clicks "Activate" (Hotels list → row menu) to publish them for booking.
       status: 'pending',
       images: [],
       amenities: [],
@@ -106,16 +125,14 @@ export default function NewHotelPage() {
 
     if (error) { toast.error(error.message); return }
 
-    // Seed default room types so the Add Room dropdown is never empty
     const { error: roomTypesError } = await supabase.from('room_types').insert([
-      { hotel_id: hotelId, name: 'Standard Room', description: 'Comfortable standard room', max_adults: 2, max_children: 0, amenities: ['WiFi', 'TV', 'AC', 'Safe'] },
-      { hotel_id: hotelId, name: 'Deluxe Room', description: 'Spacious deluxe room with city view', max_adults: 2, max_children: 0, amenities: ['WiFi', 'TV', 'AC', 'Safe', 'Minibar', 'Balcony'] },
-      { hotel_id: hotelId, name: 'Suite', description: 'Luxurious suite with separate living area', max_adults: 2, max_children: 2, amenities: ['WiFi', 'TV', 'AC', 'Safe', 'Minibar', 'Balcony', 'Jacuzzi', 'Kitchen'] },
-      { hotel_id: hotelId, name: 'Presidential Suite', description: 'Ultimate luxury experience', max_adults: 4, max_children: 2, amenities: ['WiFi', 'TV', 'AC', 'Safe', 'Minibar', 'Balcony', 'Jacuzzi', 'Kitchen', 'Butler service'] },
+      { hotel_id: hotelId, name: 'Standard Room',      description: 'Comfortable standard room',                      max_adults: 2, max_children: 0, amenities: ['WiFi', 'TV', 'AC', 'Safe'] },
+      { hotel_id: hotelId, name: 'Deluxe Room',        description: 'Spacious deluxe room with city view',            max_adults: 2, max_children: 0, amenities: ['WiFi', 'TV', 'AC', 'Safe', 'Minibar', 'Balcony'] },
+      { hotel_id: hotelId, name: 'Suite',              description: 'Luxurious suite with separate living area',       max_adults: 2, max_children: 2, amenities: ['WiFi', 'TV', 'AC', 'Safe', 'Minibar', 'Balcony', 'Jacuzzi', 'Kitchen'] },
+      { hotel_id: hotelId, name: 'Presidential Suite', description: 'Ultimate luxury experience',                      max_adults: 4, max_children: 2, amenities: ['WiFi', 'TV', 'AC', 'Safe', 'Minibar', 'Balcony', 'Jacuzzi', 'Kitchen', 'Butler service'] },
     ])
     if (roomTypesError) toast.error('Hotel created, but default room types failed: ' + roomTypesError.message)
 
-    // Assign owner role + tenant to the hotel
     await supabase.from('profiles').update({ role: 'hotel_admin', tenant_id: hotelId }).eq('id', ownerId)
 
     toast.success('Hotel created. It stays hidden until you activate it.')
@@ -123,118 +140,125 @@ export default function NewHotelPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center gap-4">
-        <Link href="/super-admin/hotels" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+    <div className="max-w-2xl mx-auto space-y-5">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <Link href="/super-admin/hotels" className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-500">
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Create New Hotel</h2>
-          <p className="text-gray-500 text-sm">Set up a new hotel on the platform</p>
+          <p className="text-gray-500 text-sm mt-0.5">Set up a new hotel on the platform</p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="card p-6 space-y-5">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="md:col-span-2">
-            <label className="label">Hotel Name</label>
-            <input {...register('name')} className="input" placeholder="Grand Palace Hotel" />
-            {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
-          </div>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
 
+        {/* ── Hotel Information ─────────────────────────────────── */}
+        <div className="card p-5 space-y-4">
+          <SectionHeader icon={Building2} title="Hotel Information" />
           <div>
-            <label className="label">Hotel Email</label>
-            <input {...register('email')} type="email" className="input" placeholder="info@hotel.com" />
-            {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
+            <label className="label">Hotel Name <span className="text-red-500">*</span></label>
+            <input {...register('name')} className="input" placeholder="Grand Palace Hotel" autoFocus />
+            <FieldError message={errors.name?.message} />
           </div>
-
-          <div>
-            <label className="label">Phone</label>
-            <PhoneInput
-              value={watch('phone') ?? ''}
-              onChange={v => setValue('phone', v, { shouldValidate: true })}
-            />
-            {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
-          </div>
-
-          <div className="md:col-span-2">
-            <label className="label">Address <span className="text-gray-400 font-normal">(optional)</span></label>
-            <input {...register('address')} className="input" placeholder="123 Main Street" />
-            {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address.message}</p>}
-          </div>
-
-          <div>
-            <label className="label">Country</label>
-            <CountrySelect
-              value={countryCode}
-              onChange={(isoCode, name) => {
-                setCountryCode(isoCode)
-                setValue('country', name, { shouldValidate: true })
-                setValue('city', '', { shouldValidate: false })
-              }}
-            />
-            {errors.country && <p className="text-red-500 text-xs mt-1">{errors.country.message}</p>}
-          </div>
-
-          <div>
-            <label className="label">City</label>
-            <CitySelect
-              countryCode={countryCode}
-              value={watch('city') ?? ''}
-              onChange={name => setValue('city', name, { shouldValidate: true })}
-            />
-            {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city.message}</p>}
-          </div>
-
-          <div>
-            <label className="label">Check-in Time</label>
-            <input {...register('check_in_time')} type="time" className="input" />
-          </div>
-
-          <div>
-            <label className="label">Check-out Time</label>
-            <input {...register('check_out_time')} type="time" className="input" />
-          </div>
-
-          <div>
-            <label className="label">Currency</label>
-            <select {...register('currency')} className="input">
-              {CURRENCIES.map(c => (
-                <option key={c.code} value={c.code}>{c.label}</option>
-              ))}
-            </select>
-            {errors.currency && <p className="text-red-500 text-xs mt-1">{errors.currency.message}</p>}
-          </div>
-
-          <div>
-            <label className="label">Subscription Plan</label>
-            <select {...register('plan_id')} className="input">
-              <option value="">Select plan</option>
-              {plans.map(p => (
-                <option key={p.id} value={p.id}>{p.name} — ${p.price_monthly}/mo</option>
-              ))}
-            </select>
-            {errors.plan_id && <p className="text-red-500 text-xs mt-1">{errors.plan_id.message}</p>}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="label">Hotel Email <span className="text-red-500">*</span></label>
+              <input {...register('email')} type="email" className="input" placeholder="info@hotel.com" />
+              <FieldError message={errors.email?.message} />
+            </div>
+            <div>
+              <label className="label">Phone <span className="text-red-500">*</span></label>
+              <PhoneInput
+                value={watch('phone') ?? ''}
+                onChange={v => setValue('phone', v, { shouldValidate: true })}
+              />
+              <FieldError message={errors.phone?.message} />
+            </div>
           </div>
         </div>
 
-        {/* Owner section */}
-        <div className="border-t border-gray-200 pt-5 space-y-4">
+        {/* ── Location ──────────────────────────────────────────── */}
+        <div className="card p-5 space-y-4">
+          <SectionHeader icon={MapPin} title="Location" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="label">Country <span className="text-red-500">*</span></label>
+              <CountrySelect
+                value={countryCode}
+                onChange={(isoCode, name) => {
+                  setCountryCode(isoCode)
+                  setValue('country', name, { shouldValidate: true })
+                  setValue('city', '', { shouldValidate: false })
+                }}
+              />
+              <FieldError message={errors.country?.message} />
+            </div>
+            <div>
+              <label className="label">City <span className="text-red-500">*</span></label>
+              <CitySelect
+                countryCode={countryCode}
+                value={watch('city') ?? ''}
+                onChange={name => setValue('city', name, { shouldValidate: true })}
+              />
+              <FieldError message={errors.city?.message} />
+            </div>
+          </div>
           <div>
-            <p className="text-sm font-semibold text-gray-700">Hotel Owner</p>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Enter the owner&apos;s email. If they don&apos;t have an account yet, fill in their name and a temporary password.
-            </p>
+            <label className="label">Address <span className="text-red-500">*</span></label>
+            <input {...register('address')} className="input" placeholder="Street address, building, area" />
+            <FieldError message={errors.address?.message} />
+          </div>
+        </div>
+
+        {/* ── Settings ──────────────────────────────────────────── */}
+        <div className="card p-5 space-y-4">
+          <SectionHeader icon={Clock} title="Settings" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="label">Check-in Time</label>
+              <input {...register('check_in_time')} type="time" className="input" />
+            </div>
+            <div>
+              <label className="label">Check-out Time</label>
+              <input {...register('check_out_time')} type="time" className="input" />
+            </div>
+            <div>
+              <label className="label">Currency <span className="text-red-500">*</span></label>
+              <select {...register('currency')} className="input">
+                {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
+              </select>
+              <FieldError message={errors.currency?.message} />
+            </div>
+            <div>
+              <label className="label">Subscription Plan <span className="text-red-500">*</span></label>
+              <select {...register('plan_id')} className="input">
+                <option value="">Select plan</option>
+                {plans.map(p => (
+                  <option key={p.id} value={p.id}>{p.name} — ${p.price_monthly}/mo</option>
+                ))}
+              </select>
+              <FieldError message={errors.plan_id?.message} />
+            </div>
+          </div>
+        </div>
+
+        {/* ── Hotel Owner ───────────────────────────────────────── */}
+        <div className="card p-5 space-y-4">
+          <SectionHeader
+            icon={User}
+            title="Hotel Owner"
+            subtitle="Enter the owner's email. If they don't have an account yet, fill in their name and a temporary password."
+          />
+          <div>
+            <label className="label">Owner Email <span className="text-red-500">*</span></label>
+            <input {...register('owner_email')} type="email" className="input" placeholder="owner@example.com" />
+            <FieldError message={errors.owner_email?.message} />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <label className="label">Owner Email</label>
-              <input {...register('owner_email')} type="email" className="input" placeholder="owner@example.com" />
-              {errors.owner_email && <p className="text-red-500 text-xs mt-1">{errors.owner_email.message}</p>}
-            </div>
-
             <div>
-              <label className="label">Owner Name</label>
+              <label className="label">Owner Name <span className="text-red-500">*</span></label>
               <input
                 {...ownerNameField}
                 onChange={e => {
@@ -244,11 +268,10 @@ export default function NewHotelPage() {
                 className="input"
                 placeholder="John Doe"
               />
-              {errors.owner_name && <p className="text-red-500 text-xs mt-1">{errors.owner_name.message}</p>}
+              <FieldError message={errors.owner_name?.message} />
             </div>
-
             <div>
-              <label className="label">Temporary Password</label>
+              <label className="label">Temporary Password <span className="text-red-500">*</span></label>
               <div className="relative">
                 <input
                   {...register('owner_password')}
@@ -264,18 +287,22 @@ export default function NewHotelPage() {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              {errors.owner_password && <p className="text-red-500 text-xs mt-1">{errors.owner_password.message}</p>}
-              <p className="text-xs text-gray-400 mt-1">Used only if the owner doesn&apos;t have an account yet.</p>
+              <FieldError message={errors.owner_password?.message} />
+              <p className="text-xs text-gray-400 mt-1">Only used if the owner doesn&apos;t have an account yet.</p>
             </div>
           </div>
         </div>
 
-        <p className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-800">
-          New hotels are created as <span className="font-semibold">pending</span> and stay hidden from the public
-          site until you activate them from the Hotels list.
-        </p>
+        {/* Pending notice */}
+        <div className="flex items-start gap-3 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+          <Building2 className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+          <p>
+            New hotels are created as <span className="font-semibold">pending</span> and stay hidden from the public site until you activate them from the Hotels list.
+          </p>
+        </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+        {/* Actions */}
+        <div className="flex justify-end gap-3">
           <Link href="/super-admin/hotels" className="btn-secondary">Cancel</Link>
           <button type="submit" disabled={isSubmitting} className="btn-primary flex items-center gap-2">
             {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}

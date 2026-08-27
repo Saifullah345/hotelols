@@ -51,12 +51,14 @@ export default function RoomsSection({
   emptyMessage,
 }: Props) {
   const router = useRouter()
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [checkIn,  setCheckIn]  = useState(defaultCheckIn)
-  const [checkOut, setCheckOut] = useState(defaultCheckOut)
-  const [adults,   setAdults]   = useState(Math.max(1, defaultAdults ?? 1))
-  const [children, setChildren] = useState(0)
-  const [loading,  setLoading]  = useState(false)
+  const [selected,      setSelected]      = useState<Set<string>>(new Set())
+  const [checkIn,       setCheckIn]       = useState(defaultCheckIn)
+  const [checkOut,      setCheckOut]      = useState(defaultCheckOut)
+  const [adults,        setAdults]        = useState(Math.max(1, defaultAdults ?? 1))
+  const [children,      setChildren]      = useState(0)
+  const [loading,       setLoading]       = useState(false)
+  const [unavailableIds, setUnavailableIds] = useState<Set<string>>(new Set())
+  const [availChecking, setAvailChecking] = useState(false)
 
   // Resolved after mount — "today" depends on the viewer's timezone, and
   // rendering it during SSR would make the markup disagree on hydration.
@@ -113,6 +115,35 @@ export default function RoomsSection({
   useEffect(() => {
     setChildren(v => Math.min(v, maxChildren))
   }, [maxChildren])
+
+  // Re-check which rooms are truly free whenever the stay dates change.
+  // The server already filters by URL params, but dates entered in the floating
+  // panel are client-side — we need a fresh availability call for those.
+  useEffect(() => {
+    if (!checkIn || !checkOut || checkOut <= checkIn) {
+      setUnavailableIds(new Set())
+      return
+    }
+    let cancelled = false
+    setAvailChecking(true)
+    fetch(`/api/rooms/availability?hotel_id=${hotelId}&check_in=${checkIn}&check_out=${checkOut}`)
+      .then(r => r.json())
+      .then((available: { id: string }[]) => {
+        if (cancelled) return
+        const availIds = new Set(available.map(r => r.id))
+        const blocked = new Set(rooms.filter(r => !availIds.has(r.id)).map(r => r.id))
+        setUnavailableIds(blocked)
+        // Deselect any room that just became unavailable
+        setSelected(prev => {
+          const next = new Set(prev)
+          for (const id of prev) if (blocked.has(id)) next.delete(id)
+          return next
+        })
+      })
+      .catch(() => { if (!cancelled) setUnavailableIds(new Set()) })
+      .finally(() => { if (!cancelled) setAvailChecking(false) })
+    return () => { cancelled = true }
+  }, [checkIn, checkOut, hotelId, rooms])
 
   const toggle = (id: string) => setSelected(prev => {
     const next = new Set(prev)
@@ -189,22 +220,31 @@ export default function RoomsSection({
 
   return (
     <>
+      {availChecking && (
+        <div className="flex items-center gap-2 text-sm text-indigo-600 mb-3 px-1">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Checking availability for selected dates…
+        </div>
+      )}
       <div className={`space-y-4 ${selected.size > 0 ? 'pb-52 sm:pb-44' : ''}`}>
         {rooms.map(room => {
-          const images     = (room.images as string[] | null) ?? []
-          const amenities  = (room.amenities as string[] | null) ?? []
-          const type       = room.room_type as { name?: string } | null
-          const thumb      = images[0]
-          const href       = `/hotels/${hotelId}/rooms/${room.id}`
-          const isSelected = selected.has(room.id)
+          const images      = (room.images as string[] | null) ?? []
+          const amenities   = (room.amenities as string[] | null) ?? []
+          const type        = room.room_type as { name?: string } | null
+          const thumb       = images[0]
+          const href        = `/hotels/${hotelId}/rooms/${room.id}`
+          const isSelected  = selected.has(room.id)
+          const isUnavailable = unavailableIds.has(room.id)
 
           return (
             <div
               key={room.id}
               className={`bg-white rounded-2xl border overflow-hidden transition-all ${
-                isSelected
-                  ? 'border-indigo-400 shadow-md ring-1 ring-indigo-200'
-                  : 'border-gray-100 shadow-sm hover:shadow-md'
+                isUnavailable
+                  ? 'border-gray-200 opacity-60 shadow-sm'
+                  : isSelected
+                    ? 'border-indigo-400 shadow-md ring-1 ring-indigo-200'
+                    : 'border-gray-100 shadow-sm hover:shadow-md'
               }`}
             >
               <div className="flex flex-col sm:flex-row">
@@ -280,21 +320,27 @@ export default function RoomsSection({
                     </div>
 
                     {isLoggedIn ? (
-                      <button
-                        type="button"
-                        onClick={() => toggle(room.id)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                          isSelected
-                            ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                            : 'bg-gray-100 text-gray-700 hover:bg-indigo-50 hover:text-indigo-700'
-                        }`}
-                      >
-                        {isSelected ? (
-                          <><Check className="h-4 w-4" /> Selected</>
-                        ) : (
-                          <><Plus className="h-4 w-4" /> Select</>
-                        )}
-                      </button>
+                      isUnavailable ? (
+                        <span className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-red-50 text-red-500 border border-red-100 cursor-not-allowed">
+                          <X className="h-4 w-4" /> Not available
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => toggle(room.id)}
+                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                            isSelected
+                              ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                              : 'bg-gray-100 text-gray-700 hover:bg-indigo-50 hover:text-indigo-700'
+                          }`}
+                        >
+                          {isSelected ? (
+                            <><Check className="h-4 w-4" /> Selected</>
+                          ) : (
+                            <><Plus className="h-4 w-4" /> Select</>
+                          )}
+                        </button>
+                      )
                     ) : (
                       <a
                         href={`/login?next=/hotels/${hotelId}`}

@@ -109,7 +109,7 @@ export async function getBookedRoomIds(
     .from('bookings')
     .select('room_id, room_ids')
     .in('hotel_id', hotelIds)
-    .in('status', ['confirmed', 'checked_in'])
+    .in('status', ['confirmed', 'checked_in', 'pending'])
     .lt('check_in', checkOut)
     .gt('check_out', checkIn)
 

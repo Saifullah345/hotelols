@@ -107,7 +107,7 @@ export default async function HotelsPage({
                   {new Date(hotel.created_at).toLocaleDateString()}
                 </td>
                 <td className="table-cell">
-                  <HotelActions hotelId={hotel.id} currentStatus={hotel.status} />
+                  <HotelActions hotelId={hotel.id} hotelName={hotel.name} currentStatus={hotel.status} />
                 </td>
               </tr>
             ))}
