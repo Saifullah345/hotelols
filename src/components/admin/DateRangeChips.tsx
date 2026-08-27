@@ -20,7 +20,7 @@ interface Props {
 }
 
 /**
- * Today-through-last-10-days quick filters plus a custom fromâ†’to range.
+ * Today-through-last-10-days quick filters plus a custom from→to range.
  * Shared by the bookings and payments lists so both behave identically.
  */
 export default function DateRangeChips({
@@ -62,7 +62,7 @@ export default function DateRangeChips({
             onChange={e => onCustomFrom(e.target.value)}
             className="text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-400"
           />
-          <span className="text-gray-400 text-sm">â†’</span>
+          <span className="text-gray-400 text-sm">→</span>
           <input
             type="date"
             value={customTo}

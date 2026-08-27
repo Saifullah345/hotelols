@@ -104,7 +104,7 @@ export default async function HotelAdminDashboard() {
               Welcome back!
             </h2>
             <p className="text-primary-200 text-sm mt-1">
-              {hotelName}{hotelCity ? ` Â· ${hotelCity}` : ''}
+              {hotelName}{hotelCity ? ` · ${hotelCity}` : ''}
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
@@ -180,7 +180,7 @@ export default async function HotelAdminDashboard() {
                     {(b.user as { full_name?: string } | null)?.full_name
                       || (b as { guest_name?: string }).guest_name
                       || (b.user as { email?: string } | null)?.email
-                      || 'â€”'}
+                      || '—'}
                   </td>
                   <td className="table-cell text-gray-500">Room {(b.room as { room_number?: string })?.room_number}</td>
                   <td className="table-cell text-gray-500">{new Date(b.check_in).toLocaleDateString()}</td>

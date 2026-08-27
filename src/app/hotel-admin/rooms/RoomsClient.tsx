@@ -11,6 +11,7 @@ import { RoomRow, ActionsCell } from './RoomRow'
 import { formatCurrency } from '@/lib/currency'
 import { isUnlimited, limitReached, usagePercent, usageLevel } from '@/lib/plan-features'
 import { selectRoomList, type RoomListRow } from '@/lib/rooms-list'
+import Pagination from '@/components/admin/Pagination'
 
 const statusBadge: Record<string, string> = {
   available: 'badge-green', booked: 'badge-blue',
@@ -169,7 +170,7 @@ export default function RoomsClient({
   const [typeId, setTypeId]     = useState('')
   const saveTimer               = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // â”€â”€ Availability check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Availability check ────────────────────────────────────────────
   // "Is this room free on that day?" – pick a range and every room is marked
   // against the bookings that actually overlap it.
   const [availFrom, setAvailFrom] = useState('')
@@ -248,21 +249,27 @@ export default function RoomsClient({
     [rooms, rangeActive, occupancy],
   )
 
-  // Server-side infinite scroll
+  // The rest of the rooms stream in behind the pager.  The server renders a
+  // small first page so the screen paints fast; everything after that is
+  // fetched in bigger chunks, because a pager needs an exact total and a
+  // search box that only matches what you happened to have scrolled past is
+  // worse than one round trip more.
+  const FILL_SIZE = 50
+
   const offsetRef    = useRef(initialRooms.length)
   const fetchingRef  = useRef(false)
-  const hasMoreRef   = useRef(initialRooms.length === pageSize)
-  const sentinelRef  = useRef<HTMLDivElement>(null)
-  const [fetchingMore, setFetchingMore] = useState(false)
-  const [hasMore, setHasMore]           = useState(initialRooms.length === pageSize)
+  const [hasMore, setHasMore] = useState(initialRooms.length === pageSize)
+  // Bumped after every fetch settles.  The fill loop below keys off this rather
+  // than off rooms.length, which can come back unchanged after a reset and
+  // would then stall the loop mid-list.
+  const [fills, setFills] = useState(0)
 
   const loadMore = useCallback(async (reset = false) => {
     if (fetchingRef.current && !reset) return
     fetchingRef.current = true
-    setFetchingMore(true)
 
     const from = reset ? 0 : offsetRef.current
-    const to   = from + pageSize - 1
+    const to   = from + FILL_SIZE - 1
 
     const supabase = createClient()
     const fetched = await selectRoomList(columns => {
@@ -287,12 +294,11 @@ export default function RoomsClient({
       offsetRef.current = from + fetched.length
     }
 
-    const more = fetched.length === pageSize
-    hasMoreRef.current = more
+    const more = fetched.length === FILL_SIZE
     setHasMore(more)
     fetchingRef.current = false
-    setFetchingMore(false)
-  }, [hotelId, status, typeId, pageSize])
+    setFills(n => n + 1)
+  }, [hotelId, status, typeId])
 
   // Reset + reload when server-side filters change
   const isFirstRender = useRef(true)
@@ -301,23 +307,23 @@ export default function RoomsClient({
     loadMore(true)
   }, [loadMore])
 
-  // Sentinel: load next page when scrolled into view
+  // Keep pulling the next chunk until the list is whole.  Each completed fetch
+  // grows `rooms`, which re-runs this and starts the following chunk.
   useEffect(() => {
-    const el = sentinelRef.current
-    if (!el) return
-    const observer = new IntersectionObserver(
-      entries => {
-        if (entries[0].isIntersecting && hasMoreRef.current && !fetchingRef.current) {
-          loadMore(false)
-        }
-      },
-      { rootMargin: '300px' },
-    )
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [loadMore])
+    if (hasMore && !fetchingRef.current) loadMore(false)
+  }, [hasMore, fills, loadMore])
 
-  const visible = filtered
+  // ── Pagination ──────────────────────────────────────────────────
+  const [page, setPage]       = useState(1)
+  const [perPage, setPerPage] = useState(10)
+
+  // Any filter change puts you back on the first page
+  useEffect(() => { setPage(1) }, [q, status, typeId, freeOnly, availFrom, availTo, perPage])
+
+  // Clamp instead of storing — the list can grow and shrink under us as chunks
+  // land and filters change.
+  const safePage = Math.min(page, Math.max(1, Math.ceil(filtered.length / perPage)))
+  const visible  = filtered.slice((safePage - 1) * perPage, (safePage - 1) * perPage + perPage)
 
   const available   = totalAvailable
   const booked      = totalBooked
@@ -325,7 +331,7 @@ export default function RoomsClient({
 
   const clearAll = () => { setQ(''); setStatus(''); setTypeId('') }
 
-  // â”€â”€ Drag handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Drag handlers ──────────────────────────────────────────────
   const handleDragStart = (id: string) => (e: React.DragEvent) => {
     e.dataTransfer.effectAllowed = 'move'
     setDragId(id)
@@ -654,10 +660,20 @@ export default function RoomsClient({
                   />
                 ))}
               </div>
-              <div ref={sentinelRef} className="h-1" />
+              <div className="card">
+                <Pagination
+                  page={page}
+                  onPage={setPage}
+                  perPage={perPage}
+                  onPerPage={setPerPage}
+                  total={filtered.length}
+                  noun="room"
+                />
+              </div>
               {hasMore && (
-                <div className="flex justify-center py-2">
-                  <Loader2 className="h-5 w-5 animate-spin text-primary-400" />
+                <div className="flex items-center justify-center gap-2 py-2 text-xs text-gray-400">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary-400" />
+                  Loading the rest of the rooms…
                 </div>
               )}
             </>
@@ -816,10 +832,18 @@ export default function RoomsClient({
               </tbody>
             </table>
           </div>
-          <div ref={sentinelRef} className="h-1" />
+          <Pagination
+            page={page}
+            onPage={setPage}
+            perPage={perPage}
+            onPerPage={setPerPage}
+            total={filtered.length}
+            noun="room"
+          />
           {hasMore && (
-            <div className="flex justify-center py-3 border-t border-gray-100">
-              <Loader2 className="h-5 w-5 animate-spin text-primary-400" />
+            <div className="flex items-center justify-center gap-2 py-3 border-t border-gray-100 text-xs text-gray-400">
+              <Loader2 className="h-4 w-4 animate-spin text-primary-400" />
+              Loading the rest of the rooms…
             </div>
           )}
         </div>

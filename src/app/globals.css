@@ -161,3 +161,17 @@
   animation: shimmer 1.4s ease-in-out infinite;
   border-radius: 6px;
 }
+/* ── Squared-off Analytics & Reports ──────────────────────────────────────
+   The Reports screen drops rounded corners entirely. Scoped to a wrapper class
+   rather than changing `.card`, which every other admin screen shares, and
+   rather than tagging each element, which would miss the shared `StatsCard`.
+
+   Circles are left alone: avatars, status dots, the section badge and the
+   progress bars are round by design, not rounded corners. The two-class
+   selector also outranks any single Tailwind `rounded-*` utility, so it wins
+   without `!important`. */
+.reports-flat .card,
+.reports-flat [class~="rounded"],
+.reports-flat [class*="rounded-"]:not([class*="rounded-full"]) {
+  border-radius: 0;
+}

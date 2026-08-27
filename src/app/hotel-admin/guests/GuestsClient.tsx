@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
@@ -8,6 +8,7 @@ import { Plus, Search, Star, Pencil, Trash2, X, Loader2, Users, Mail, Phone, Che
 import { isValidEmail, phoneSchema } from '@/lib/validation'
 import PhoneInput from '@/components/ui/PhoneInput'
 import { CountrySelect } from '@/components/ui/CountryCitySelect'
+import Pagination from '@/components/admin/Pagination'
 import { Country } from 'country-state-city'
 
 export interface GuestRecord {
@@ -164,6 +165,17 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
       )
     })
   }, [guests, search, vipOnly, filterCountry, filterStayType, filterDateRange])
+
+  // ── Pagination ───────────────────────────────────────────────────
+  const [page, setPage]       = useState(1)
+  const [perPage, setPerPage] = useState(10)
+
+  // Any filter change puts you back on the first page
+  useEffect(() => { setPage(1) }, [search, vipOnly, filterCountry, filterStayType, filterDateRange, perPage])
+
+  // Clamp instead of storing — the list can shrink under us (delete + refresh)
+  const safePage = Math.min(page, Math.max(1, Math.ceil(filtered.length / perPage)))
+  const paged    = filtered.slice((safePage - 1) * perPage, (safePage - 1) * perPage + perPage)
 
   const totalVIP = guests.filter(g => g.is_vip).length
 
@@ -469,7 +481,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
                   </td>
                 </tr>
               ) : (
-                filtered.map(guest => (
+                paged.map(guest => (
                   <tr key={guest.id} className="hover:bg-gray-50/50 transition-colors">
 
                     {/* GUEST */}
@@ -588,6 +600,15 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          page={page}
+          onPage={setPage}
+          perPage={perPage}
+          onPerPage={setPerPage}
+          total={filtered.length}
+          noun="guest"
+        />
       </div>
 
       {/* ── Add / Edit modal ── */}

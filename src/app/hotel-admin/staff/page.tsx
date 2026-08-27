@@ -113,7 +113,7 @@ export default async function StaffPage({
           <input
             name="q"
             defaultValue={q}
-            placeholder="Search by name or emailâ€¦"
+            placeholder="Search by name or email…"
             className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-400"
           />
         </div>

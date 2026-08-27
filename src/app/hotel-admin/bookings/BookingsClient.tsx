@@ -22,7 +22,7 @@ import DateRangeChips from '@/components/admin/DateRangeChips'
 import Pagination from '@/components/admin/Pagination'
 import PhoneInput from '@/components/ui/PhoneInput'
 
-// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Types ──────────────────────────────────────────────────────────
 export type RoomOption = {
   id: string
   room_number: string
@@ -56,7 +56,7 @@ export type Booking = {
 
 /**
  * One row per stay, not per room. Rooms booked together share a single booking
- * row now, but older reservations put each room on its own row â€” the same guest,
+ * row now, but older reservations put each room on its own row — the same guest,
  * hotel, dates and status is one booking as far as the desk is concerned.
  */
 type Stay = {
@@ -78,14 +78,14 @@ function toStays(list: Booking[]): Stay[] {
     // A row can itself hold several rooms; only its primary room is embedded,
     // so the names are what we can show and the count is what's really booked.
     roomCount: bookings.reduce((s, b) => s + Math.max(1, b.room_ids?.length ?? 1), 0),
-    roomNames: bookings.map(b => b.room?.name ?? `Room ${b.room?.room_number ?? 'â€”'}`),
+    roomNames: bookings.map(b => b.room?.name ?? `Room ${b.room?.room_number ?? '—'}`),
     total:     bookings.reduce((s, b) => s + Number(b.total_amount ?? 0), 0),
     adults:    bookings.reduce((s, b) => s + (b.adults ?? 0), 0),
     children:  bookings.reduce((s, b) => s + (b.children ?? 0), 0),
   }))
 }
 
-// â”€â”€ Config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Config ─────────────────────────────────────────────────────────
 const STATUS_TABS = ['all', 'pending', 'confirmed', 'checked_in', 'checked_out', 'no_show', 'overdue', 'cancelled']
 
 const statusBadge: Record<string, string> = {
@@ -114,7 +114,7 @@ const calcNights = (ci: string, co: string) =>
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 
-// â”€â”€ Edit Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Edit Modal ─────────────────────────────────────────────────────
 function EditBookingModal({ stay, currency, rooms, allBookings, onClose, onSaved }: {
   stay: Stay
   currency: string
@@ -184,7 +184,7 @@ function EditBookingModal({ stay, currency, rooms, allBookings, onClose, onSaved
     }
 
     // Guest counts are per row. Only redistribute them when the desk actually
-    // changed the total â€” otherwise each room keeps the party it was booked for.
+    // changed the total — otherwise each room keeps the party it was booked for.
     const adultsTouched   = adults   !== stay.adults
     const childrenTouched = children !== stay.children
     const surviving = stay.bookings.filter((_, i) => rowRooms[i].length > 0)
@@ -242,7 +242,7 @@ function EditBookingModal({ stay, currency, rooms, allBookings, onClose, onSaved
       saved++
     }
     setSaving(false)
-    toast.success(roomIds.length > 1 ? `Booking updated Â· ${roomIds.length} rooms` : 'Booking updated')
+    toast.success(roomIds.length > 1 ? `Booking updated · ${roomIds.length} rooms` : 'Booking updated')
     onSaved()
   }
 
@@ -258,9 +258,9 @@ function EditBookingModal({ stay, currency, rooms, allBookings, onClose, onSaved
             <p className="text-xs text-gray-500 mt-0.5">
               {guestLabel(booking)}
               <span className="ml-1.5 text-gray-400">
-                Â· {stay.roomCount > 1
+                · {stay.roomCount > 1
                     ? `${stay.roomCount} rooms`
-                    : (booking.room?.name ?? `Room ${booking.room?.room_number ?? 'â€”'}`)}
+                    : (booking.room?.name ?? `Room ${booking.room?.room_number ?? '—'}`)}
               </span>
             </p>
           </div>
@@ -314,7 +314,7 @@ function EditBookingModal({ stay, currency, rooms, allBookings, onClose, onSaved
             )}
           </div>
 
-          {/* Rooms â€” remove, swap or add */}
+          {/* Rooms — remove, swap or add */}
           <RoomPicker
             rooms={rooms}
             selected={roomIds}
@@ -371,7 +371,7 @@ function EditBookingModal({ stay, currency, rooms, allBookings, onClose, onSaved
               Special Requests <span className="normal-case text-gray-400 font-normal">(optional)</span>
             </p>
             <textarea value={notes} onChange={e => setNotes(e.target.value)}
-              rows={3} className="input resize-none" placeholder="Any special requests, preferences, or notesâ€¦" />
+              rows={3} className="input resize-none" placeholder="Any special requests, preferences, or notes…" />
           </div>
         </div>
 
@@ -383,7 +383,7 @@ function EditBookingModal({ stay, currency, rooms, allBookings, onClose, onSaved
           <button onClick={save} disabled={saving}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors disabled:opacity-60">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            {saving ? 'Savingâ€¦' : 'Save Changes'}
+            {saving ? 'Saving…' : 'Save Changes'}
           </button>
         </div>
       </div>
@@ -391,7 +391,7 @@ function EditBookingModal({ stay, currency, rooms, allBookings, onClose, onSaved
   )
 }
 
-// â”€â”€ Delete Confirm â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Delete Confirm ─────────────────────────────────────────────────
 function DeleteConfirmModal({ stay, onClose, onDeleted }: {
   stay: Stay; onClose: () => void; onDeleted: () => void
 }) {
@@ -400,7 +400,7 @@ function DeleteConfirmModal({ stay, onClose, onDeleted }: {
 
   const del = async () => {
     setDeleting(true)
-    // A stay spread over several rows is deleted as a whole â€” leaving one row
+    // A stay spread over several rows is deleted as a whole — leaving one row
     // behind would resurrect it as a phantom one-room booking.
     for (const b of stay.bookings) {
       const res = await fetch(`/api/bookings/${b.id}`, { method: 'DELETE' })
@@ -412,7 +412,7 @@ function DeleteConfirmModal({ stay, onClose, onDeleted }: {
       }
     }
     setDeleting(false)
-    toast.success(stay.bookings.length > 1 ? `Booking deleted Â· ${stay.roomCount} rooms` : 'Booking deleted')
+    toast.success(stay.bookings.length > 1 ? `Booking deleted · ${stay.roomCount} rooms` : 'Booking deleted')
     onDeleted()
   }
 
@@ -433,7 +433,7 @@ function DeleteConfirmModal({ stay, onClose, onDeleted }: {
           <span className="font-semibold text-gray-700">{guest}</span>
         </p>
         <p className="text-sm text-gray-500 text-center mb-6">
-          {fmtDate(booking.check_in)} â†’ {fmtDate(booking.check_out)}
+          {fmtDate(booking.check_in)} → {fmtDate(booking.check_out)}
           <br />
           {stay.roomCount > 1 && (
             <span className="text-xs font-medium text-gray-600">
@@ -451,7 +451,7 @@ function DeleteConfirmModal({ stay, onClose, onDeleted }: {
           <button onClick={del} disabled={deleting}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors disabled:opacity-60">
             {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-            {deleting ? 'Deletingâ€¦' : 'Delete'}
+            {deleting ? 'Deleting…' : 'Delete'}
           </button>
         </div>
       </div>
@@ -513,7 +513,7 @@ function exportToCSV(stays: Stay[], currency: string) {
   URL.revokeObjectURL(url)
 }
 
-// â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Main Component ─────────────────────────────────────────────────
 export default function BookingsClient({
   bookings: initial,
   currency,
@@ -567,23 +567,23 @@ export default function BookingsClient({
         }
         return true
       })
-      // Newest booking first, whatever the filter â€” the default view is "what
+      // Newest booking first, whatever the filter — the default view is "what
       // came in most recently".
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
   }, [bookings, statusTab, bookedWindow, q])
 
   // Rooms booked for the same guest, dates and status are one reservation on
-  // the list â€” grouped after filtering so a filter can't split a stay in half.
+  // the list — grouped after filtering so a filter can't split a stay in half.
   const stays = useMemo(() => toStays(filtered), [filtered])
 
-  // â”€â”€ Pagination â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Pagination ────────────────────────────────────────────────────
   const [page, setPage]       = useState(1)
   const [perPage, setPerPage] = useState(10)
 
   // Any filter change puts you back on the first page
   useEffect(() => { setPage(1) }, [q, statusTab, dateRange, customFrom, customTo, perPage])
 
-  // Clamp instead of storing â€” the list can shrink under us (delete + refresh)
+  // Clamp instead of storing — the list can shrink under us (delete + refresh)
   const safePage = Math.min(page, Math.max(1, Math.ceil(stays.length / perPage)))
   const paged    = stays.slice((safePage - 1) * perPage, (safePage - 1) * perPage + perPage)
 
@@ -643,7 +643,7 @@ export default function BookingsClient({
               <p className="text-primary-300 text-sm mt-0.5">{allStays.length} total reservations</p>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
-              {/* Booked today â€” clicking it jumps straight to that filter. */}
+              {/* Booked today — clicking it jumps straight to that filter. */}
               <button
                 type="button"
                 onClick={() => { setDateRange(dateRange === 'today' ? 'all' : 'today'); setStatusTab('all') }}
@@ -702,7 +702,7 @@ export default function BookingsClient({
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
               <input
                 value={q} onChange={e => setQ(e.target.value)}
-                placeholder="Search guest, phone, roomâ€¦"
+                placeholder="Search guest, phone, room…"
                 className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-400"
               />
             </div>
@@ -724,7 +724,7 @@ export default function BookingsClient({
             </div>
           </div>
 
-          {/* Booked-on filter â€” today through the last 10 days */}
+          {/* Booked-on filter — today through the last 10 days */}
           <div className="border-t border-gray-100 pt-3">
             <DateRangeChips
               label="Booked"
@@ -741,10 +741,10 @@ export default function BookingsClient({
 
           {/* What the table is currently showing */}
           <p className="text-xs text-gray-400">
-            {stays.length} of {allStays.length} booking{allStays.length === 1 ? '' : 's'} match Â· newest first
+            {stays.length} of {allStays.length} booking{allStays.length === 1 ? '' : 's'} match · newest first
             {dateRange === 'custom'
-              ? (customFrom || customTo) && ` Â· booked ${customFrom || 'any'} â†’ ${customTo || 'today'}`
-              : dateRange !== 'all' && ` Â· ${DATE_RANGES.find(r => r.key === dateRange)?.label.toLowerCase()}`}
+              ? (customFrom || customTo) && ` · booked ${customFrom || 'any'} → ${customTo || 'today'}`
+              : dateRange !== 'all' && ` · ${DATE_RANGES.find(r => r.key === dateRange)?.label.toLowerCase()}`}
           </p>
         </div>
 
@@ -824,7 +824,7 @@ export default function BookingsClient({
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5 text-xs text-gray-400">
                           <Moon className="h-3 w-3 flex-shrink-0" />
-                          <span>{n} night{n !== 1 ? 's' : ''} Â· out {fmtDate(b.check_out)}</span>
+                          <span>{n} night{n !== 1 ? 's' : ''} · out {fmtDate(b.check_out)}</span>
                         </div>
                       </td>
 

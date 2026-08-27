@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
@@ -10,6 +10,7 @@ import {
   Clock, AlertCircle, AlertTriangle,
 } from 'lucide-react'
 import type { HKTask, RoomOption, StaffOption } from './page'
+import Pagination from '@/components/admin/Pagination'
 
 // ── Input sanitization ────────────────────────────────────────────────────
 function sanitizeText(value: string) {
@@ -98,6 +99,16 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
   const [editForm, setEditForm]     = useState<TaskForm>(EMPTY)
   const [saving, setSaving]     = useState(false)
   const [busyId, setBusyId]     = useState<string | null>(null)
+
+  // ── Pagination ─────────────────────────────────────────────────
+  const [page, setPage]       = useState(1)
+  const [perPage, setPerPage] = useState(10)
+
+  useEffect(() => { setPage(1) }, [perPage])
+
+  // Clamp instead of storing — finishing a task can shrink the list under us.
+  const safePage = Math.min(page, Math.max(1, Math.ceil(tasks.length / perPage)))
+  const paged    = tasks.slice((safePage - 1) * perPage, (safePage - 1) * perPage + perPage)
 
   const openTasks    = tasks.filter(t => t.status !== 'clean').length
   const awaitClean   = tasks.filter(t => t.status === 'dirty').length
@@ -398,7 +409,7 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
                       <p className="text-xs text-gray-300 mt-1">Click &quot;New Task&quot; to add the first one</p>
                     </td>
                   </tr>
-                ) : tasks.map(task => {
+                ) : paged.map(task => {
                   const busy = busyId === task.id
                   return (
                     <tr key={task.id} className="hover:bg-gray-50/50 transition-colors">
@@ -472,81 +483,103 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
               </tbody>
             </table>
           </div>
+
+          <Pagination
+            page={page}
+            onPage={setPage}
+            perPage={perPage}
+            onPerPage={setPerPage}
+            total={tasks.length}
+            noun="task"
+          />
         </div>
       )}
 
       {/* ══ GRID VIEW ══════════════════════════════════════════════════════ */}
       {view === 'grid' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {tasks.length === 0 ? (
-            <div className="col-span-full bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-16 text-center">
-              <Sparkles className="h-10 w-10 text-gray-200 mx-auto mb-3" />
-              <p className="text-sm font-medium text-gray-400">No housekeeping tasks</p>
-            </div>
-          ) : tasks.map(task => {
-            const busy = busyId === task.id
-            return (
-              <div key={task.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="font-bold text-gray-900 text-sm">{task.room_number}</p>
-                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{task.task}</p>
-                  </div>
-                  <span className={`flex-shrink-0 inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${PRIORITY_CLS[task.priority]}`}>
-                    {task.priority}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between text-xs text-gray-400">
-                  <span>{task.assignee || 'Unassigned'}</span>
-                  <span className="tabular-nums">{fmtDate(task.due_date)}</span>
-                </div>
-
-                <div className="flex items-center justify-between pt-2 border-t border-gray-50">
-                  <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${STATUS_CLS[task.status]}`}>
-                    {STATUS_LABEL[task.status]}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    {task.status === 'dirty' && (
-                      <button
-                        onClick={() => changeStatus(task.id, 'in_progress')}
-                        disabled={busy}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-[11px] font-semibold transition-colors disabled:opacity-60"
-                      >
-                        {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3 fill-white" />}
-                        Start
-                      </button>
-                    )}
-                    {task.status === 'in_progress' && (
-                      <button
-                        onClick={() => changeStatus(task.id, 'clean')}
-                        disabled={busy}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-[11px] font-semibold transition-colors disabled:opacity-60"
-                      >
-                        {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
-                        Done
-                      </button>
-                    )}
-                    <button
-                      onClick={() => openEdit(task)}
-                      disabled={busy}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                      title="Edit task"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={() => deleteTask(task.id)}
-                      disabled={busy}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {tasks.length === 0 ? (
+              <div className="col-span-full bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-16 text-center">
+                <Sparkles className="h-10 w-10 text-gray-200 mx-auto mb-3" />
+                <p className="text-sm font-medium text-gray-400">No housekeeping tasks</p>
               </div>
-            )
-          })}
+            ) : paged.map(task => {
+              const busy = busyId === task.id
+              return (
+                <div key={task.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-bold text-gray-900 text-sm">{task.room_number}</p>
+                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{task.task}</p>
+                    </div>
+                    <span className={`flex-shrink-0 inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${PRIORITY_CLS[task.priority]}`}>
+                      {task.priority}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs text-gray-400">
+                    <span>{task.assignee || 'Unassigned'}</span>
+                    <span className="tabular-nums">{fmtDate(task.due_date)}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-50">
+                    <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${STATUS_CLS[task.status]}`}>
+                      {STATUS_LABEL[task.status]}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {task.status === 'dirty' && (
+                        <button
+                          onClick={() => changeStatus(task.id, 'in_progress')}
+                          disabled={busy}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-[11px] font-semibold transition-colors disabled:opacity-60"
+                        >
+                          {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3 fill-white" />}
+                          Start
+                        </button>
+                      )}
+                      {task.status === 'in_progress' && (
+                        <button
+                          onClick={() => changeStatus(task.id, 'clean')}
+                          disabled={busy}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-[11px] font-semibold transition-colors disabled:opacity-60"
+                        >
+                          {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+                          Done
+                        </button>
+                      )}
+                      <button
+                        onClick={() => openEdit(task)}
+                        disabled={busy}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                        title="Edit task"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => deleteTask(task.id)}
+                        disabled={busy}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <Pagination
+              page={page}
+              onPage={setPage}
+              perPage={perPage}
+              onPerPage={setPerPage}
+              total={tasks.length}
+              noun="task"
+            />
+          </div>
         </div>
       )}
 

@@ -15,20 +15,22 @@ interface Props {
   total: number
   /** Plural noun for the summary line, e.g. "booking" / "payment". */
   noun: string
+  /** Rows-per-page choices. Defaults to 10/25/50/100. */
+  perPageOptions?: number[]
 }
 
 /** Rows-per-page + numbered pager, shared by the admin list screens. */
-export default function Pagination({ page, onPage, perPage, onPerPage, total, noun }: Props) {
+export default function Pagination({ page, onPage, perPage, onPerPage, total, noun, perPageOptions = PER_PAGE_OPTIONS }: Props) {
   const totalPages = Math.max(1, Math.ceil(total / perPage))
   const safePage = Math.min(page, totalPages)
   const start = (safePage - 1) * perPage
 
   // First, last, and a window around the current page.
   const pageNumbers = useMemo(() => {
-    const out: (number | 'â€¦')[] = []
+    const out: (number | '…')[] = []
     for (let i = 1; i <= totalPages; i++) {
       if (i === 1 || i === totalPages || Math.abs(i - safePage) <= 1) out.push(i)
-      else if (out[out.length - 1] !== 'â€¦') out.push('â€¦')
+      else if (out[out.length - 1] !== '…') out.push('…')
     }
     return out
   }, [totalPages, safePage])
@@ -40,7 +42,7 @@ export default function Pagination({ page, onPage, perPage, onPerPage, total, no
       <p className="text-xs text-gray-500">
         Showing{' '}
         <span className="font-semibold text-gray-700">
-          {start + 1}â€“{Math.min(start + perPage, total)}
+          {start + 1}–{Math.min(start + perPage, total)}
         </span>{' '}
         of <span className="font-semibold text-gray-700">{total}</span> {noun}
         {total !== 1 ? 's' : ''}
@@ -53,7 +55,7 @@ export default function Pagination({ page, onPage, perPage, onPerPage, total, no
           aria-label={`${noun}s per page`}
           className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-400"
         >
-          {PER_PAGE_OPTIONS.map(n => (
+          {perPageOptions.map(n => (
             <option key={n} value={n}>{n} / page</option>
           ))}
         </select>
@@ -70,8 +72,8 @@ export default function Pagination({ page, onPage, perPage, onPerPage, total, no
             </button>
 
             {pageNumbers.map((p, i) =>
-              p === 'â€¦' ? (
-                <span key={`gap-${i}`} className="px-1 text-xs text-gray-400 select-none">â€¦</span>
+              p === '…' ? (
+                <span key={`gap-${i}`} className="px-1 text-xs text-gray-400 select-none">…</span>
               ) : (
                 <button
                   key={p}

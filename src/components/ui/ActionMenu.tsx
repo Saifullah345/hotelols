@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, ReactNode } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
 interface ActionMenuProps {
@@ -15,11 +15,33 @@ interface ActionMenuProps {
   children: (close: () => void) => ReactNode
 }
 
+/** Gap between the trigger and the menu. */
+const GAP = 4
+/** Keep the menu this far clear of the viewport edge. */
+const EDGE = 8
+/** Never squash the menu below this, scroll it instead. */
+const MIN_HEIGHT = 120
+
+/** useLayoutEffect warns when it runs during SSR, and the menu never opens there. */
+const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect
+
+interface Position {
+  top: number
+  left?: number
+  right?: number
+  maxHeight: number
+}
+
 /**
  * A dropdown menu whose panel is rendered through a portal with `position: fixed`,
  * so it is never clipped by an ancestor's `overflow-hidden` (e.g. a `.card`
  * wrapping a table) and always paints above other content. Closes on outside
  * click, Escape, scroll, and resize.
+ *
+ * The panel opens below its trigger, but flips above it when that would run off
+ * the bottom of the window — a row at the end of a long list would otherwise
+ * drop its menu past the fold, where scrolling to reach it dismisses it instead.
+ * When neither side fits, the panel is capped to the taller side and scrolls.
  */
 export function ActionMenu({
   button,
@@ -30,23 +52,41 @@ export function ActionMenu({
   children,
 }: ActionMenuProps) {
   const [open, setOpen] = useState(false)
-  const [coords, setCoords] = useState<{ top: number; left: number; right: number } | null>(null)
+  const [pos, setPos] = useState<Position | null>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
   const close = () => setOpen(false)
 
-  const reposition = () => {
-    const el = triggerRef.current
-    if (!el) return
-    const r = el.getBoundingClientRect()
-    setCoords({ top: r.bottom + 4, left: r.left, right: window.innerWidth - r.right })
-  }
+  // Measured once the panel is in the DOM, so its real height decides the side.
+  const place = useCallback(() => {
+    const trigger = triggerRef.current
+    if (!trigger) return
+    const t = trigger.getBoundingClientRect()
+    const height = menuRef.current?.offsetHeight ?? 0
 
-  useEffect(() => {
-    if (open) reposition()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+    const roomBelow = window.innerHeight - t.bottom - GAP - EDGE
+    const roomAbove = t.top - GAP - EDGE
+
+    // Below unless it doesn't fit and there is more room the other way.
+    const flip = height > roomBelow && roomAbove > roomBelow
+    const room = Math.max(MIN_HEIGHT, flip ? roomAbove : roomBelow)
+
+    setPos({
+      top: flip
+        ? Math.max(EDGE, t.top - GAP - Math.min(height, room))
+        : t.bottom + GAP,
+      ...(align === 'right'
+        ? { right: Math.max(EDGE, window.innerWidth - t.right) }
+        : { left: Math.max(EDGE, t.left) }),
+      maxHeight: room,
+    })
+  }, [align])
+
+  useIsoLayoutEffect(() => {
+    if (open) place()
+    else setPos(null)
+  }, [open, place])
 
   useEffect(() => {
     if (!open) return
@@ -61,17 +101,21 @@ export function ActionMenu({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') close()
     }
-    const onMove = () => close()
+    const onScroll = (e: Event) => {
+      // A capped menu scrolls internally; only scrolling the page behind it dismisses.
+      if (menuRef.current?.contains(e.target as Node)) return
+      close()
+    }
     document.addEventListener('mousedown', onDocClick)
     document.addEventListener('keydown', onKey)
-    window.addEventListener('resize', onMove)
+    window.addEventListener('resize', close)
     // capture phase so scrolls in any scroll container also dismiss the menu
-    window.addEventListener('scroll', onMove, true)
+    window.addEventListener('scroll', onScroll, true)
     return () => {
       document.removeEventListener('mousedown', onDocClick)
       document.removeEventListener('keydown', onKey)
-      window.removeEventListener('resize', onMove)
-      window.removeEventListener('scroll', onMove, true)
+      window.removeEventListener('resize', close)
+      window.removeEventListener('scroll', onScroll, true)
     }
   }, [open])
 
@@ -88,14 +132,18 @@ export function ActionMenu({
       >
         {button}
       </button>
-      {open && coords && typeof document !== 'undefined' && createPortal(
+      {open && typeof document !== 'undefined' && createPortal(
         <div
           ref={menuRef}
           role="menu"
           style={{
             position: 'fixed',
-            top: coords.top,
-            ...(align === 'right' ? { right: coords.right } : { left: coords.left }),
+            top: pos?.top ?? 0,
+            ...(align === 'right' ? { right: pos?.right ?? 0 } : { left: pos?.left ?? 0 }),
+            maxHeight: pos?.maxHeight,
+            overflowY: 'auto',
+            // Hidden for the one frame between mounting and being measured.
+            visibility: pos ? 'visible' : 'hidden',
           }}
           className={
             menuClassName ??

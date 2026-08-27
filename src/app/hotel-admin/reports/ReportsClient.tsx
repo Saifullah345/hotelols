@@ -11,9 +11,11 @@ import {
 import {
   TrendingUp, CalendarCheck, Star, RefreshCw, Download,
   Calendar, X, Loader2, MoonStar, Lock, ArrowRight, BarChart2,
+  Gauge, CalendarX, Clock,
 } from 'lucide-react'
 import { StatsCard } from '@/components/dashboard/StatsCard'
 import { formatCurrency } from '@/lib/currency'
+import Pagination from '@/components/admin/Pagination'
 import { currencyIcon } from '@/components/dashboard/CurrencyIcon'
 import { todayISO } from '@/lib/date'
 import {
@@ -59,6 +61,13 @@ export default function ReportsClient({
   const [customFrom, setCustomFrom] = useState('')
   const [customTo,   setCustomTo]   = useState('')
   const [exporting,  setExporting]  = useState<'pdf' | 'excel' | null>(null)
+
+  // Top Guests is a leaderboard, but the server sends ten and the card only had
+  // room for five — the rest were fetched and dropped. Page through them instead.
+  const [guestPage,    setGuestPage]    = useState(1)
+  const [guestPerPage, setGuestPerPage] = useState(5)
+  const guestSafePage = Math.min(guestPage, Math.max(1, Math.ceil(topGuests.length / guestPerPage)))
+  const guestStart    = (guestSafePage - 1) * guestPerPage
 
   const [today, setToday] = useState(serverToday)
   useEffect(() => { setToday(todayISO()) }, [])
@@ -192,7 +201,7 @@ export default function ReportsClient({
   const tooltipStyle = { borderRadius: '12px', border: 'none', boxShadow: '0 4px 16px rgba(0,0,0,0.10)', fontSize: '13px' }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 reports-flat">
 
       {/* ── Header ─────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -316,22 +325,41 @@ export default function ReportsClient({
             <p className="text-xs text-gray-400 mt-0.5">Highest-spending guests (all time)</p>
           </div>
           {topGuests.length > 0 ? (
-            <div className="space-y-1">
-              {topGuests.slice(0, 5).map((guest, i) => (
-                <div key={i} className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
-                  <span className="w-5 text-xs font-semibold text-gray-400 text-center flex-shrink-0 tabular-nums">{i + 1}</span>
-                  <div className="h-9 w-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 select-none"
-                    style={{ backgroundColor: AVATAR_BG[i % AVATAR_BG.length] }}>
-                    {initials(guest.name)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{guest.name}</p>
-                    {guest.country && <p className="text-xs text-gray-400 truncate">{guest.country}</p>}
-                  </div>
-                  <span className="text-sm font-bold text-gray-900 flex-shrink-0 tabular-nums">{formatCurrency(guest.spend, currency)}</span>
-                </div>
-              ))}
-            </div>
+            <>
+              <div className="space-y-1">
+                {topGuests
+                  .slice(guestStart, guestStart + guestPerPage)
+                  .map((guest, i) => {
+                    // Rank is the guest's place in the whole list, not on this page.
+                    const rank = guestStart + i
+                    return (
+                      <div key={rank} className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                        <span className="w-5 text-xs font-semibold text-gray-400 text-center flex-shrink-0 tabular-nums">{rank + 1}</span>
+                        <div className="h-9 w-9 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 select-none"
+                          style={{ backgroundColor: AVATAR_BG[rank % AVATAR_BG.length] }}>
+                          {initials(guest.name)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 truncate">{guest.name}</p>
+                          {guest.country && <p className="text-xs text-gray-400 truncate">{guest.country}</p>}
+                        </div>
+                        <span className="text-sm font-bold text-gray-900 flex-shrink-0 tabular-nums">{formatCurrency(guest.spend, currency)}</span>
+                      </div>
+                    )
+                  })}
+              </div>
+              <div className="-mx-6 mt-3">
+                <Pagination
+                  page={guestPage}
+                  onPage={setGuestPage}
+                  perPage={guestPerPage}
+                  onPerPage={setGuestPerPage}
+                  total={topGuests.length}
+                  noun="guest"
+                  perPageOptions={[5, 10]}
+                />
+              </div>
+            </>
           ) : (
             <div className="h-[180px] flex items-center justify-center text-sm text-gray-400">No guest data yet</div>
           )}
@@ -372,17 +400,25 @@ export default function ReportsClient({
             {/* Advanced KPI cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[
-                { label: 'RevPAR', value: formatCurrency(revPAR, currency), sub: 'Revenue per available room/day', color: 'text-indigo-600', bg: 'bg-indigo-50' },
-                { label: 'Avg Stay', value: `${avgLengthOfStay.toFixed(1)} nights`, sub: 'Average length of stay', color: 'text-emerald-600', bg: 'bg-emerald-50' },
-                { label: 'Cancel Rate', value: `${cancellationRate}%`, sub: `${summary.cancelled} of ${summary.bookings} bookings`, color: 'text-red-600', bg: 'bg-red-50' },
-                { label: 'Avg Lead Time', value: `${avgLeadTime} days`, sub: 'Days before check-in booked', color: 'text-amber-600', bg: 'bg-amber-50' },
-              ].map(item => (
-                <div key={item.label} className={`card p-5 border-l-4 ${item.bg} border-l-current`} style={{ borderLeftColor: item.color.replace('text-', '') }}>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{item.label}</p>
-                  <p className={`text-2xl font-extrabold mt-1 tabular-nums ${item.color}`}>{item.value}</p>
-                  <p className="text-xs text-gray-400 mt-1">{item.sub}</p>
-                </div>
-              ))}
+                { label: 'RevPAR', value: formatCurrency(revPAR, currency), sub: 'Revenue per available room/day', color: 'text-indigo-600', bg: 'bg-indigo-50', icon: Gauge },
+                { label: 'Avg Stay', value: `${avgLengthOfStay.toFixed(1)} nights`, sub: 'Average length of stay', color: 'text-emerald-600', bg: 'bg-emerald-50', icon: MoonStar },
+                { label: 'Cancel Rate', value: `${cancellationRate}%`, sub: `${summary.cancelled} of ${summary.bookings} bookings`, color: 'text-red-600', bg: 'bg-red-50', icon: CalendarX },
+                { label: 'Avg Lead Time', value: `${avgLeadTime} days`, sub: 'Days before check-in booked', color: 'text-amber-600', bg: 'bg-amber-50', icon: Clock },
+              ].map(item => {
+                const Icon = item.icon
+                return (
+                  <div key={item.label} className={`card p-5 ${item.bg}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{item.label}</p>
+                      <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white/70 ${item.color}`}>
+                        <Icon className="h-4 w-4" />
+                      </span>
+                    </div>
+                    <p className={`text-2xl font-extrabold mt-1 tabular-nums ${item.color}`}>{item.value}</p>
+                    <p className="text-xs text-gray-400 mt-1">{item.sub}</p>
+                  </div>
+                )
+              })}
             </div>
 
             {/* Lead Time + Day of Week */}
