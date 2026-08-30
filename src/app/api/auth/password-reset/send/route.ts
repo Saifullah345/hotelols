@@ -20,19 +20,50 @@ export async function POST(request: Request) {
   }
 
   const admin = await createAdminClient()
-  const { data: profile } = await admin.from('profiles').select('id').ilike('email', email).maybeSingle()
+  // `maybeSingle()` is deliberately avoided: it turns "two profiles share this
+  // address" into an error and a null row, which would read as "no account".
+  const { data: profiles, error: lookupError } = await admin
+    .from('profiles')
+    .select('id')
+    .ilike('email', email)
+    .limit(1)
 
-  // Always generate a code and challenge, whether or not an account exists —
-  // only email it out when one does. The response shape is identical either
-  // way so this endpoint can't be used to enumerate registered emails.
+  // A failed lookup is NOT the same as "no account" — reporting a dead admin
+  // client, an RLS surprise or a network blip as "no account found for that
+  // email" sends the user off to re-register an address they already own.
+  // Distinguish the two.
+  if (lookupError) {
+    console.error('[password-reset/send] profile lookup failed:', lookupError)
+    return NextResponse.json(
+      { error: 'Could not verify that email right now. Please try again shortly.' },
+      { status: 503 },
+    )
+  }
+
+  // A code is only ever issued for an address that has an account, and an
+  // unknown address is told so outright.
+  //
+  // NOTE: this is a deliberate product decision that replaces the previous
+  // uniform "if an account exists…" response. The tradeoff is that this
+  // endpoint now confirms whether any given email is registered, so it can be
+  // used to enumerate accounts — the reason the uniform response existed. Rate
+  // limiting per IP/email is the mitigation worth adding next.
+  if (!profiles || profiles.length === 0) {
+    return NextResponse.json(
+      { error: 'No account found for that email address.' },
+      { status: 404 },
+    )
+  }
+
   const code = generateOtpCode()
-  if (profile) {
-    try {
-      const { subject, html } = passwordResetEmailTemplate(code)
-      await sendEmail({ to: email, subject, html })
-    } catch {
-      // Swallow — still respond as if it succeeded, for the same reason.
-    }
+  try {
+    const { subject, html } = passwordResetEmailTemplate(code)
+    await sendEmail({ to: email, subject, html })
+  } catch {
+    return NextResponse.json(
+      { error: 'Could not send the reset code. Please try again in a moment.' },
+      { status: 502 },
+    )
   }
 
   // The mobile app can't rely on the httpOnly cookie surviving across two
