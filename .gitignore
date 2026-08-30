@@ -54,3 +54,6 @@ coverage/
 
 .supabase/
 .env*
+
+ecosystem.config.js
+deploy.sh
