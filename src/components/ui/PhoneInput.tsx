@@ -71,9 +71,12 @@ interface Props {
   value: string
   onChange: (value: string) => void
   className?: string
+  /** When set, resets the dial code to this value and clears the local number.
+   *  Pass the full dial string (e.g. "+92") when the parent's country dropdown changes. */
+  syncDial?: string
 }
 
-export default function PhoneInput({ value, onChange, className = '' }: Props) {
+export default function PhoneInput({ value, onChange, className = '', syncDial }: Props) {
   const parsed        = parsePhone(value)
   const [dial, setDial]    = useState(parsed.dial)
   const [local, setLocal]  = useState(parsed.local)
@@ -88,6 +91,16 @@ export default function PhoneInput({ value, onChange, className = '' }: Props) {
   // Live digit count validation
   const tooLong  = maxDigits > 0 && localDigits > maxDigits
   const tooShort = maxDigits > 0 && local.trim() !== '' && localDigits < maxDigits
+
+  // When the parent's Country dropdown changes, sync the dial code and clear local.
+  useEffect(() => {
+    if (!syncDial) return
+    const match = COUNTRIES.find(c => c.dial === syncDial)
+    if (!match || match.dial === dial) return
+    setDial(syncDial)
+    setLocal('')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [syncDial])
 
   // Don't fire onChange on first mount — the parent already has the initial value.
   const mountedRef = useRef(false)
@@ -113,12 +126,27 @@ export default function PhoneInput({ value, onChange, className = '' }: Props) {
   )
 
   function handleLocalChange(raw: string) {
-    // Strip disallowed chars
+    // Strip any character that isn't a digit or safe formatting symbol
     const cleaned = raw.replace(/[^0-9\s\-().]/g, '')
-    // Enforce max digits — allow spaces/formatting beyond digit count but not extra digits
+
     if (maxDigits > 0) {
       const digits = cleaned.replace(/\D/g, '')
-      if (digits.length > maxDigits) return  // silently block
+      if (digits.length > maxDigits) {
+        // For single-key overflows (typing): silently block — feels natural.
+        // For paste or autofill overflows: truncate to maxDigits digits while
+        // preserving any spacing/formatting characters up to that point.
+        if (digits.length - maxDigits === 1 && raw.length - local.length === 1) {
+          return  // single character over limit — block
+        }
+        let count = 0
+        const truncated = cleaned.split('').filter(ch => {
+          if (/\D/.test(ch)) return true   // keep formatting chars
+          if (count < maxDigits) { count++; return true }
+          return false
+        }).join('')
+        setLocal(truncated)
+        return
+      }
     }
     setLocal(cleaned)
   }

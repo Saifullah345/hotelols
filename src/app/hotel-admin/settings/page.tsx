@@ -109,6 +109,8 @@ export default function HotelSettingsPage() {
       currency:       data.currency,
       website:        data.website    || null,
       tax_rate:       data.tax_rate   ? Number(data.tax_rate) : 0,
+      late_checkout_cutoff_time:  data.late_checkout_cutoff_time  || '14:00:00',
+      late_checkout_half_day_pct: data.late_checkout_half_day_pct ? Number(data.late_checkout_half_day_pct) : 50,
       latitude,
       longitude,
       cover_image:    coverImage,
@@ -349,6 +351,26 @@ export default function HotelSettingsPage() {
               <div>
                 <label className={lbl}>Tax Rate (%)</label>
                 <input {...hotelForm.register('tax_rate')} type="number" min={0} max={100} step={0.01} className={fi} placeholder="10" />
+              </div>
+            </div>
+
+            {/* Late-checkout policy */}
+            <div className="border-t border-gray-100 pt-4 space-y-3">
+              <div>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-[0.08em]">Late Checkout Policy</p>
+                <p className="text-xs text-gray-400 mt-0.5">Applies when a guest stays past their scheduled checkout date.</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={lbl}>Half-Day Cutoff Time</label>
+                  <input {...hotelForm.register('late_checkout_cutoff_time')} type="time" className={fi} />
+                  <p className="text-[10px] text-gray-400 mt-1">Before this time → half-day charge. After → full night.</p>
+                </div>
+                <div>
+                  <label className={lbl}>Half-Day Charge (%)</label>
+                  <input {...hotelForm.register('late_checkout_half_day_pct')} type="number" min={0} max={100} step={1} className={fi} placeholder="50" />
+                  <p className="text-[10px] text-gray-400 mt-1">Percentage of nightly rate for a half-day stay.</p>
+                </div>
               </div>
             </div>
           </div>

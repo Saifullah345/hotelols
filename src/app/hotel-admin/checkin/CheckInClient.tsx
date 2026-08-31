@@ -8,6 +8,7 @@ import { LogIn, LogOut, BedDouble, Calendar, Loader2, AlertTriangle, X, AlertCir
 import Link from 'next/link'
 import type { BookingEntry } from './page'
 import { InlinePaymentModal } from '@/components/admin/InlinePaymentModal'
+import { LateCheckoutModal, type LateCheckoutInfo } from '@/components/admin/LateCheckoutModal'
 
 // Warm palette — matches guest directory & reports
 const WARM_COLORS = [
@@ -248,6 +249,8 @@ export default function CheckInClient({ arrivals, inHouse, upcoming, departuresT
   const router = useRouter()
   const [loadingId, setLoadingId]         = useState<string | null>(null)
   const [paymentBlock, setPaymentBlock]   = useState<PaymentBlock | null>(null)
+  const [lateCheckout, setLateCheckout]   = useState<LateCheckoutInfo | null>(null)
+  const [lateConfirming, setLateConfirming] = useState(false)
   const [inHouseFilter, setInHouseFilter] = useState<InHouseFilter>('all')
   const [arrivalFilter, setArrivalFilter] = useState<ArrivalFilter>('today')
 
@@ -324,23 +327,69 @@ export default function CheckInClient({ arrivals, inHouse, upcoming, departuresT
       }
     }
 
-    // ── Checkout: block if any payment is still pending ──────────────────
+    // ── Checkout: late-checkout detection + balance guard ────────────────
     if (action === 'check_out') {
-      const { data: pending } = await supabase
-        .from('payments')
-        .select('amount, currency')
-        .eq('booking_id', bookingId)
-        .eq('status', 'pending')
+      const [{ data: bookingRow }, { data: completedPayments }] = await Promise.all([
+        supabase
+          .from('bookings')
+          .select('total_amount, check_in, check_out, hotel:hotels(currency, late_checkout_cutoff_time, late_checkout_half_day_pct)')
+          .eq('id', bookingId)
+          .single(),
+        supabase.from('payments').select('amount').eq('booking_id', bookingId).eq('status', 'completed'),
+      ])
 
-      if (pending && pending.length > 0) {
-        const total    = pending.reduce((s, p) => s + (p.amount ?? 0), 0)
-        const currency = pending[0]?.currency ?? ''
-        const guest    = inHouse.find(b => b.id === bookingId)
+      const totalAmount  = Number(bookingRow?.total_amount ?? 0)
+      const totalPaid    = (completedPayments ?? []).reduce((s, p) => s + Number(p.amount ?? 0), 0)
+      const checkOutDate = bookingRow?.check_out as string | undefined
+      const checkInDate  = bookingRow?.check_in  as string | undefined
+      const hotel        = bookingRow?.hotel as { currency?: string; late_checkout_cutoff_time?: string; late_checkout_half_day_pct?: number } | null
+      const currency     = hotel?.currency ?? 'USD'
+      const cutoffTime   = hotel?.late_checkout_cutoff_time ?? '14:00:00'
+      const halfDayPct   = hotel?.late_checkout_half_day_pct ?? 50
+
+      if (checkOutDate && checkInDate) {
+        const todayStr  = new Date().toISOString().slice(0, 10)
+        const nowHHMM   = new Date().toTimeString().slice(0, 8)
+        const msPerDay  = 86_400_000
+        const extraDays = Math.round((new Date(todayStr).getTime() - new Date(checkOutDate).getTime()) / msPerDay)
+
+        if (extraDays > 0) {
+          const originalNights = Math.round(
+            (new Date(checkOutDate).getTime() - new Date(checkInDate).getTime()) / msPerDay,
+          )
+          const nightRate    = originalNights > 0 ? totalAmount / originalNights : totalAmount
+          const isHalfDay    = nowHHMM < cutoffTime
+          const chargeType   = isHalfDay ? 'half_day' as const : 'full_night' as const
+          const lastDayCharge = isHalfDay ? nightRate * (halfDayPct / 100) : nightRate
+          const lateCharge   = Math.round(((extraDays - 1) * nightRate + lastDayCharge) * 100) / 100
+
+          setLateCheckout({
+            bookingId,
+            scheduledCheckout: checkOutDate,
+            extraDays,
+            chargeType,
+            nightRate:      Math.round(nightRate * 100) / 100,
+            lateCharge,
+            originalAmount: totalAmount,
+            paidAmount:     totalPaid,
+            currency,
+            halfDayPct,
+            cutoffTime:     cutoffTime.slice(0, 5),
+          })
+          setLoadingId(null)
+          return
+        }
+      }
+
+      // Normal balance guard
+      const outstanding = Math.round((totalAmount - totalPaid) * 100) / 100
+      if (outstanding > 0) {
+        const guest = inHouse.find(b => b.id === bookingId)
         setPaymentBlock({
           bookingId,
           guestName:     guest?.userName ?? 'this guest',
-          pendingAmount: total,
-          currency,
+          pendingAmount: outstanding,
+          currency:      'USD',
           action:        'check_out',
         })
         setLoadingId(null)
@@ -558,6 +607,54 @@ export default function CheckInClient({ arrivals, inHouse, upcoming, departuresT
 
       </div>
     </div>
+
+    {/* ── Late checkout modal ── */}
+    {lateCheckout && (
+      <LateCheckoutModal
+        info={lateCheckout}
+        confirming={lateConfirming}
+        onClose={() => setLateCheckout(null)}
+        onConfirm={async () => {
+          setLateConfirming(true)
+          try {
+            const supabase = createClient()
+            const newTotal = lateCheckout.originalAmount + lateCheckout.lateCharge
+            const { error } = await supabase
+              .from('bookings')
+              .update({ total_amount: newTotal })
+              .eq('id', lateCheckout.bookingId)
+            if (error) { toast.error(error.message); return }
+
+            const newBalance = Math.round((newTotal - lateCheckout.paidAmount) * 100) / 100
+            setLateCheckout(null)
+
+            if (newBalance > 0) {
+              setPaymentBlock({
+                bookingId:     lateCheckout.bookingId,
+                guestName:     inHouse.find(b => b.id === lateCheckout.bookingId)?.userName ?? 'Guest',
+                pendingAmount: newBalance,
+                currency:      lateCheckout.currency,
+                action:        'check_out',
+              })
+            } else {
+              const { data: bk } = await supabase
+                .from('bookings').select('room_id, room_ids').eq('id', lateCheckout.bookingId).single()
+              const roomIds = Array.from(new Set([
+                ...(bk?.room_ids?.length ? bk.room_ids : [bk?.room_id]),
+              ].filter(Boolean)))
+              if (roomIds.length) {
+                await supabase.from('rooms').update({ status: 'cleaning' }).in('id', roomIds)
+              }
+              await supabase.from('bookings').update({ status: 'checked_out' }).eq('id', lateCheckout.bookingId)
+              toast.success('Guest checked out — late charge applied')
+              router.refresh()
+            }
+          } finally {
+            setLateConfirming(false)
+          }
+        }}
+      />
+    )}
 
     {/* ── Pending-payment block modal ── */}
     {paymentBlock && paymentBlock.action === 'check_out' && (

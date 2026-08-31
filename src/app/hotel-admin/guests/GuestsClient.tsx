@@ -127,6 +127,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
   const [saving, setSaving]     = useState(false)
   const [formErrors, setFormErrors] = useState<FormErrors>({})
   const [countryCode, setCountryCode] = useState('')
+  const [phoneSyncDial, setPhoneSyncDial] = useState('')
 
   const uniqueCountries = useMemo(() =>
     [...new Set(guests.map(g => g.country).filter(Boolean))].sort()
@@ -180,12 +181,13 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
   const totalVIP = guests.filter(g => g.is_vip).length
 
   function openAdd() {
-    setForm(EMPTY_FORM); setEditing(null); setCountryCode(''); setModal('add')
+    setForm(EMPTY_FORM); setEditing(null); setCountryCode(''); setPhoneSyncDial(''); setModal('add')
   }
   function openEdit(g: GuestRecord) {
     setEditing(g)
     const match = Country.getAllCountries().find(c => c.name === g.country)
     setCountryCode(match?.isoCode ?? '')
+    setPhoneSyncDial('')
     setForm({ name: g.name, email: g.email, phone: g.phone, country: g.country, passport_id: g.passport_id, notes: g.notes, is_vip: g.is_vip })
     setModal('edit')
   }
@@ -663,6 +665,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
                       <PhoneInput
                         value={form.phone}
                         onChange={v => { setField('phone', v); setFormErrors(p => ({ ...p, phone: undefined })) }}
+                        syncDial={phoneSyncDial}
                       />
                     </div>
                   )}
@@ -678,6 +681,9 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
                           setCountryCode(isoCode)
                           setField('country', name)
                           setFormErrors(p => ({ ...p, country: undefined }))
+                          // Sync PhoneInput to this country's calling code
+                          const countryData = Country.getCountryByCode(isoCode)
+                          if (countryData?.phonecode) setPhoneSyncDial(`+${countryData.phonecode}`)
                         }}
                       />
                     </div>
