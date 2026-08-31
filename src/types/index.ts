@@ -57,6 +57,8 @@ export interface Hotel {
   status: HotelStatus
   check_in_time: string
   check_out_time: string
+  late_checkout_cutoff_time?: string
+  late_checkout_half_day_pct?: number
   amenities: string[]
   latitude?: number
   longitude?: number
