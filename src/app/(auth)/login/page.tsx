@@ -126,7 +126,7 @@ function LoginPageInner() {
       const json = await res.json().catch(() => ({}))
       if (!res.ok) { toast.error(json.error ?? 'Could not send reset code'); return }
       setForgotEmail(email); setForgotStep('confirm'); setResetCode(''); setNewPassword(''); setConfirmPassword('')
-      toast.success('If an account exists for that email, a reset code is on its way')
+      toast.success('Reset code sent — check your inbox')
     } finally { setSendingReset(false) }
   }
 
