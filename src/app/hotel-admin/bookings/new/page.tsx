@@ -13,6 +13,7 @@ import {
   Banknote, CreditCard, Building2, FileText, HelpCircle,
   CheckCircle, Users, Check, CalendarDays, AlertTriangle,
   SlidersHorizontal, X, ChevronUp, ArrowUpDown, Star,
+  Clock, Moon,
 } from 'lucide-react'
 import Link from 'next/link'
 import PhoneInput from '@/components/ui/PhoneInput'
@@ -31,7 +32,7 @@ const onlineSchema = z.object({
   children:         z.coerce.number().min(0),
   special_requests: z.string().optional(),
   status:           z.enum(['pending', 'confirmed']),
-}).refine(d => new Date(d.check_out) > new Date(d.check_in), dateRefineMsg)
+}).refine(d => new Date(d.check_out) >= new Date(d.check_in), dateRefineMsg)
 
 const offlineSchema = z.object({
   guest_name:       nameSchema,
@@ -42,7 +43,7 @@ const offlineSchema = z.object({
   children:         z.coerce.number().min(0),
   special_requests: z.string().optional(),
   status:           z.enum(['pending', 'confirmed']),
-}).refine(d => new Date(d.check_out) > new Date(d.check_in), dateRefineMsg)
+}).refine(d => new Date(d.check_out) >= new Date(d.check_in), dateRefineMsg)
 
 type OnlineForm  = z.infer<typeof onlineSchema>
 type OfflineForm = z.infer<typeof offlineSchema>
@@ -53,6 +54,7 @@ type Room = {
   name?: string
   floor: number
   price_per_night: number
+  rate_per_hour?: number
   max_adults: number
   max_children: number
   capacity: number
@@ -200,7 +202,7 @@ function PaymentBlock({
 
 // ─── Room Picker ──────────────────────────────────────────────────────────────
 function RoomPicker({
-  rooms, selectedRoomIds, unavailableRoomIds, datesChosen, currency, nights, totalAmount, onToggle, checkingAvailability,
+  rooms, selectedRoomIds, unavailableRoomIds, datesChosen, currency, nights, totalAmount, onToggle, checkingAvailability, bookingType, hours,
 }: {
   rooms: Room[]
   selectedRoomIds: string[]
@@ -211,6 +213,8 @@ function RoomPicker({
   totalAmount: number
   onToggle: (id: string) => void
   checkingAvailability: boolean
+  bookingType: string
+  hours: number
 }) {
   const [q,             setQ]             = useState('')
   const [typeFilter,    setTypeFilter]    = useState('all')
@@ -432,19 +436,31 @@ function RoomPicker({
                     <span className="flex items-center gap-0.5">
                       <Users className="h-2.5 w-2.5" />{r.max_adults}A · {r.max_children}C
                     </span>
-                    {nights > 0 && (
+                    {(nights > 0 || (bookingType === 'hourly' && hours > 0)) && (
                       <span className="text-gray-300">·</span>
                     )}
-                    {nights > 0 && (
+                    {nights > 0 && bookingType !== 'hourly' && (
                       <span className="text-emerald-600 font-medium">{formatCurrency(r.price_per_night * nights, currency)} total</span>
+                    )}
+                    {bookingType === 'hourly' && hours > 0 && r.rate_per_hour != null && (
+                      <span className="text-emerald-600 font-medium">{formatCurrency(r.rate_per_hour * hours, currency)} total</span>
                     )}
                   </div>
                 </div>
 
                 {/* Price */}
                 <div className="text-right shrink-0">
-                  <p className="text-sm font-bold text-gray-900">{formatCurrency(r.price_per_night, currency)}</p>
-                  <p className="text-[10px] text-gray-400">/night</p>
+                  {bookingType === 'hourly' && r.rate_per_hour != null ? (
+                    <>
+                      <p className="text-sm font-bold text-gray-900">{formatCurrency(r.rate_per_hour, currency)}</p>
+                      <p className="text-[10px] text-gray-400">/hour</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-bold text-gray-900">{formatCurrency(r.price_per_night, currency)}</p>
+                      <p className="text-[10px] text-gray-400">/night</p>
+                    </>
+                  )}
                 </div>
               </button>
             )
@@ -453,22 +469,29 @@ function RoomPicker({
       )}
 
       {/* Selected summary */}
-      {selectedRoomIds.length > 0 && nights > 0 && (
+      {selectedRoomIds.length > 0 && (nights > 0 || (bookingType === 'hourly' && hours > 0)) && (
         <div className="border border-gray-100 rounded-xl overflow-hidden">
           <div className="bg-gray-50 px-3 py-2 border-b border-gray-100">
-            <p className="text-xs font-semibold text-gray-500">Selected rooms · {nights} night{nights !== 1 ? 's' : ''}</p>
+            <p className="text-xs font-semibold text-gray-500">
+              Selected rooms · {bookingType === 'hourly'
+                ? `${hours % 1 === 0 ? hours : hours.toFixed(1)} hour${hours !== 1 ? 's' : ''}`
+                : `${nights} night${nights !== 1 ? 's' : ''}`}
+            </p>
           </div>
           <div className="divide-y divide-gray-50">
             {selectedRoomIds.map(id => {
               const room = rooms.find(r => r.id === id)
               if (!room) return null
+              const roomTotal = bookingType === 'hourly' && room.rate_per_hour != null
+                ? room.rate_per_hour * hours
+                : room.price_per_night * nights
               return (
                 <div key={id} className="flex items-center justify-between px-3 py-2 text-sm">
                   <div className="flex items-center gap-2">
                     <BedDouble className="h-3.5 w-3.5 text-gray-400" />
                     <span className="text-gray-700">{room.name ?? `Room ${room.room_number}`}</span>
                   </div>
-                  <span className="text-gray-600 font-medium">{formatCurrency(room.price_per_night * nights, currency)}</span>
+                  <span className="text-gray-600 font-medium">{formatCurrency(roomTotal, currency)}</span>
                 </div>
               )
             })}
@@ -515,6 +538,16 @@ export default function NewBookingPage() {
   const [tenantId, setTenantId]               = useState<string | null>(null)
   const [unavailableRoomIds, setUnavailableRoomIds] = useState<Set<string>>(new Set())
   const [checkingAvailability, setCheckingAvailability] = useState(false)
+  const [bookingType, setBookingType] = useState<'nightly' | 'hourly'>('nightly')
+  const [checkInTime, setCheckInTime] = useState('')
+  const [checkOutTime, setCheckOutTime] = useState('')
+
+  const hours = (() => {
+    if (!checkInTime || !checkOutTime || checkOutTime <= checkInTime) return 0
+    const [h1, m1] = checkInTime.split(':').map(Number)
+    const [h2, m2] = checkOutTime.split(':').map(Number)
+    return Math.max(0, ((h2 * 60 + m2) - (h1 * 60 + m1)) / 60)
+  })()
 
   const [payMethod, setPayMethod]       = useState('cash')
   const [payNow, setPayNow]             = useState(true)
@@ -543,7 +576,9 @@ export default function NewBookingPage() {
 
   const activeCheckIn  = isOffline ? checkInOff  : checkIn
   const activeCheckOut = isOffline ? checkOutOff : checkOut
-  const datesChosen = Boolean(activeCheckIn && activeCheckOut && new Date(activeCheckOut) > new Date(activeCheckIn))
+  const datesChosen = bookingType === 'hourly'
+    ? Boolean(activeCheckIn && hours > 0)
+    : Boolean(activeCheckIn && activeCheckOut && new Date(activeCheckOut) > new Date(activeCheckIn))
 
   // Load rooms + currency
   useEffect(() => {
@@ -557,7 +592,7 @@ export default function NewBookingPage() {
       const [{ data: roomData }, { data: hotel }] = await Promise.all([
         supabase
           .from('rooms')
-          .select('id, room_number, name, floor, price_per_night, max_adults, max_children, capacity, room_type:room_types(name)')
+          .select('id, room_number, name, floor, price_per_night, rate_per_hour, max_adults, max_children, capacity, room_type:room_types(name)')
           .eq('hotel_id', profile.tenant_id)
           .order('sort_order', { ascending: true })
           .order('room_number'),
@@ -577,21 +612,37 @@ export default function NewBookingPage() {
   )
 
   useEffect(() => {
-    if (!activeCheckIn || !activeCheckOut || selectedRoomIds.length === 0) {
-      setNights(0); setTotalAmount(0); return
+    if (bookingType === 'hourly') {
+      if (!activeCheckIn || selectedRoomIds.length === 0 || hours <= 0) {
+        setNights(0); setTotalAmount(0); return
+      }
+      const total = selectedRoomIds.reduce((sum, id) => {
+        const room = rooms.find(r => r.id === id)
+        return sum + hours * (room?.rate_per_hour ?? 0)
+      }, 0)
+      setNights(0)
+      setTotalAmount(total)
+    } else {
+      if (!activeCheckIn || !activeCheckOut || selectedRoomIds.length === 0) {
+        setNights(0); setTotalAmount(0); return
+      }
+      const n = Math.ceil((new Date(activeCheckOut).getTime() - new Date(activeCheckIn).getTime()) / 86400000)
+      if (n <= 0) { setNights(0); setTotalAmount(0); return }
+      const total = selectedRoomIds.reduce((sum, id) => {
+        const room = rooms.find(r => r.id === id)
+        return sum + n * (room?.price_per_night ?? 0)
+      }, 0)
+      setNights(n)
+      setTotalAmount(total)
     }
-    const n = Math.ceil((new Date(activeCheckOut).getTime() - new Date(activeCheckIn).getTime()) / 86400000)
-    if (n <= 0) { setNights(0); setTotalAmount(0); return }
-    const total = selectedRoomIds.reduce((sum, id) => {
-      const room = rooms.find(r => r.id === id)
-      return sum + n * (room?.price_per_night ?? 0)
-    }, 0)
-    setNights(n)
-    setTotalAmount(total)
-  }, [activeCheckIn, activeCheckOut, selectedRoomIds, rooms])
+  }, [bookingType, activeCheckIn, activeCheckOut, selectedRoomIds, rooms, hours])
 
   useEffect(() => {
     const check = async () => {
+      // For hourly bookings, availability is validated server-side (time-range overlap check)
+      if (bookingType === 'hourly') {
+        setUnavailableRoomIds(new Set()); setCheckingAvailability(false); return
+      }
       if (!tenantId || !activeCheckIn || !activeCheckOut || new Date(activeCheckOut) <= new Date(activeCheckIn)) {
         setUnavailableRoomIds(new Set()); setCheckingAvailability(false); return
       }
@@ -613,7 +664,7 @@ export default function NewBookingPage() {
       setCheckingAvailability(false)
     }
     check()
-  }, [tenantId, activeCheckIn, activeCheckOut])
+  }, [bookingType, tenantId, activeCheckIn, activeCheckOut])
 
   const toggleRoom = (roomId: string) => {
     if (unavailableRoomIds.has(roomId)) return
@@ -635,11 +686,22 @@ export default function NewBookingPage() {
     guest_name?: string; guest_phone?: string; guest_user_id?: string
     check_in: string; check_out: string; adults: number; children: number
     special_requests?: string; status: string
+    booking_type?: string; check_in_time?: string; check_out_time?: string
   }) => {
     if (selectedRoomIds.length === 0) { toast.error('Select at least one room'); return false }
     if (selectedRoomIds.length > 10) {
       toast.error('A single booking cannot include more than 10 rooms.')
       return false
+    }
+    if (payload.booking_type === 'hourly') {
+      if (!payload.check_in_time || !payload.check_out_time) {
+        toast.error('Select check-in and check-out times for hourly booking')
+        return false
+      }
+      if (payload.check_out_time <= payload.check_in_time) {
+        toast.error('Check-out time must be after check-in time')
+        return false
+      }
     }
     const partySize     = (payload.adults ?? 1) + (payload.children ?? 0)
     const totalCapacity = selectedRoomIds.reduce((sum, id) => sum + (rooms.find(r => r.id === id)?.capacity ?? 0), 0)
@@ -660,6 +722,11 @@ export default function NewBookingPage() {
           payment_collected: payNow,
           payment_notes:     payNotes || undefined,
           advance_amount:    payNow && isAdvance ? advanceValue : undefined,
+        } : {}),
+        ...(payload.booking_type === 'hourly' ? {
+          booking_type:   payload.booking_type,
+          check_in_time:  payload.check_in_time,
+          check_out_time: payload.check_out_time,
         } : {}),
       }),
     })
@@ -691,9 +758,13 @@ export default function NewBookingPage() {
     }
     await createBookings({
       guest_name: data.guest_name, guest_phone: data.guest_phone,
-      check_in: data.check_in, check_out: data.check_out,
+      check_in: data.check_in,
+      check_out: bookingType === 'hourly' ? data.check_in : data.check_out,
       adults: data.adults, children: data.children,
       special_requests: data.special_requests, status: data.status,
+      booking_type: bookingType,
+      check_in_time:  bookingType === 'hourly' ? checkInTime  : undefined,
+      check_out_time: bookingType === 'hourly' ? checkOutTime : undefined,
     })
   }
 
@@ -701,9 +772,13 @@ export default function NewBookingPage() {
     if (!guest) { toast.error('Please find a valid guest first'); return }
     await createBookings({
       guest_user_id: guest.id,
-      check_in: data.check_in, check_out: data.check_out,
+      check_in: data.check_in,
+      check_out: bookingType === 'hourly' ? data.check_in : data.check_out,
       adults: data.adults, children: data.children,
       special_requests: data.special_requests, status: data.status,
+      booking_type: bookingType,
+      check_in_time:  bookingType === 'hourly' ? checkInTime  : undefined,
+      check_out_time: bookingType === 'hourly' ? checkOutTime : undefined,
     })
   }
 
@@ -716,25 +791,84 @@ export default function NewBookingPage() {
   const today = new Date().toISOString().split('T')[0]
 
   const DatesContent = (reg: any, errs: Record<string, { message?: string }>, ci: string) => (
-    <div className="grid grid-cols-2 gap-4">
+    <div className="space-y-4">
+      {/* Booking Type Toggle */}
       <div>
-        <label className="label">Check-in <span className="text-red-500">*</span></label>
-        <input {...reg('check_in')} type="date" min={today} className="input" />
-        {errs.check_in && <p className="text-red-500 text-xs mt-1">{errs.check_in.message}</p>}
-      </div>
-      <div>
-        <label className="label">Check-out <span className="text-red-500">*</span></label>
-        <input {...reg('check_out')} type="date" min={ci || today} className="input" />
-        {errs.check_out && <p className="text-red-500 text-xs mt-1">{errs.check_out.message}</p>}
-      </div>
-      {nights > 0 && (
-        <div className="col-span-2 flex items-center gap-2 text-sm text-gray-600 bg-gray-50 rounded-xl px-3 py-2">
-          <CalendarDays className="h-4 w-4 text-primary-500" />
-          <span><strong className="text-gray-900">{nights} night{nights !== 1 ? 's' : ''}</strong></span>
-          {totalAmount > 0 && (
-            <span className="text-gray-400">· Est. total <strong className="text-gray-900">{formatCurrency(totalAmount, currency)}</strong></span>
-          )}
+        <label className="label">Booking Type</label>
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => setBookingType('nightly')}
+            className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${
+              bookingType === 'nightly' ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-500 bg-white hover:border-gray-300'
+            }`}>
+            <Moon className="h-4 w-4" /> Nightly
+          </button>
+          <button type="button" onClick={() => setBookingType('hourly')}
+            className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${
+              bookingType === 'hourly' ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-500 bg-white hover:border-gray-300'
+            }`}>
+            <Clock className="h-4 w-4" /> Hourly
+          </button>
         </div>
+      </div>
+
+      {bookingType === 'hourly' ? (
+        <>
+          <div>
+            <label className="label">Date <span className="text-red-500">*</span></label>
+            <input {...reg('check_in')} type="date" min={today} className="input" />
+            {errs.check_in && <p className="text-red-500 text-xs mt-1">{errs.check_in.message}</p>}
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Check-in Time <span className="text-red-500">*</span></label>
+              <input type="time" value={checkInTime} onChange={e => setCheckInTime(e.target.value)} className="input" />
+            </div>
+            <div>
+              <label className="label">Check-out Time <span className="text-red-500">*</span></label>
+              <input type="time" value={checkOutTime} onChange={e => setCheckOutTime(e.target.value)} className="input" />
+              {checkInTime && checkOutTime && checkOutTime <= checkInTime && (
+                <p className="text-red-500 text-xs mt-1">Must be after check-in time</p>
+              )}
+            </div>
+          </div>
+          {hours > 0 && (
+            <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 rounded-xl px-3 py-2">
+              <Clock className="h-4 w-4 text-primary-500" />
+              <span>
+                <strong className="text-gray-900">
+                  {hours % 1 === 0 ? hours : hours.toFixed(1)} hour{hours !== 1 ? 's' : ''}
+                </strong>
+              </span>
+              {totalAmount > 0 && (
+                <span className="text-gray-400">· Est. total <strong className="text-gray-900">{formatCurrency(totalAmount, currency)}</strong></span>
+              )}
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Check-in <span className="text-red-500">*</span></label>
+              <input {...reg('check_in')} type="date" min={today} className="input" />
+              {errs.check_in && <p className="text-red-500 text-xs mt-1">{errs.check_in.message}</p>}
+            </div>
+            <div>
+              <label className="label">Check-out <span className="text-red-500">*</span></label>
+              <input {...reg('check_out')} type="date" min={ci || today} className="input" />
+              {errs.check_out && <p className="text-red-500 text-xs mt-1">{errs.check_out.message}</p>}
+            </div>
+          </div>
+          {nights > 0 && (
+            <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 rounded-xl px-3 py-2">
+              <CalendarDays className="h-4 w-4 text-primary-500" />
+              <span><strong className="text-gray-900">{nights} night{nights !== 1 ? 's' : ''}</strong></span>
+              {totalAmount > 0 && (
+                <span className="text-gray-400">· Est. total <strong className="text-gray-900">{formatCurrency(totalAmount, currency)}</strong></span>
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   )
@@ -868,6 +1002,8 @@ export default function NewBookingPage() {
               totalAmount={totalAmount}
               onToggle={toggleRoom}
               checkingAvailability={checkingAvailability}
+              bookingType={bookingType}
+              hours={hours}
             />
           </StepCard>
 
@@ -961,6 +1097,8 @@ export default function NewBookingPage() {
               totalAmount={totalAmount}
               onToggle={toggleRoom}
               checkingAvailability={checkingAvailability}
+              bookingType={bookingType}
+              hours={hours}
             />
           </StepCard>
 

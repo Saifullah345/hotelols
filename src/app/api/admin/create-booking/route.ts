@@ -39,6 +39,9 @@ export async function POST(request: Request) {
     payment_collected,
     payment_notes,
     advance_amount,
+    booking_type = 'nightly',
+    check_in_time,
+    check_out_time,
   } = body
 
   // Normalise to an array of room IDs
@@ -72,14 +75,27 @@ export async function POST(request: Request) {
 
   const checkInDate  = new Date(check_in)
   const checkOutDate = new Date(check_out)
-  if (checkOutDate <= checkInDate) {
-    return NextResponse.json({ error: 'Check-out must be after check-in' }, { status: 400 })
+
+  if (booking_type === 'hourly') {
+    if (checkOutDate < checkInDate) {
+      return NextResponse.json({ error: 'Check-out date cannot be before check-in date' }, { status: 400 })
+    }
+    if (!check_in_time || !check_out_time) {
+      return NextResponse.json({ error: 'Check-in time and check-out time are required for hourly bookings' }, { status: 400 })
+    }
+    if (checkOutDate.getTime() === checkInDate.getTime() && check_out_time <= check_in_time) {
+      return NextResponse.json({ error: 'Check-out time must be after check-in time' }, { status: 400 })
+    }
+  } else {
+    if (checkOutDate <= checkInDate) {
+      return NextResponse.json({ error: 'Check-out must be after check-in' }, { status: 400 })
+    }
   }
 
   // Fetch all selected rooms in one query
   const { data: rooms } = await supabase
     .from('rooms')
-    .select('id, price_per_night, hotel_id, max_adults, max_children, capacity')
+    .select('id, price_per_night, rate_per_hour, hotel_id, max_adults, max_children, capacity')
     .in('id', roomIds)
 
   if (!rooms || rooms.length !== roomIds.length) {
@@ -125,9 +141,22 @@ export async function POST(request: Request) {
     .single()
   const currency = (hotel as { currency?: string } | null)?.currency ?? 'USD'
 
-  const nights       = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / 86_400_000)
-  const total_amount = nights * rooms.reduce((sum: number, r: { price_per_night: number }) => sum + (r.price_per_night ?? 0), 0)
-  const guests       = (adults ?? 1) + (children ?? 0)
+  let total_amount: number
+  if (booking_type === 'hourly') {
+    const [h1, m1] = check_in_time.split(':').map(Number)
+    const [h2, m2] = check_out_time.split(':').map(Number)
+    const dayDiff = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / 86_400_000)
+    const hours   = Math.max(0, ((h2 * 60 + m2) - (h1 * 60 + m1)) / 60 + dayDiff * 24)
+    total_amount  = hours * rooms.reduce(
+      (sum: number, r: { rate_per_hour?: number }) => sum + (r.rate_per_hour ?? 0), 0,
+    )
+  } else {
+    const nights  = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / 86_400_000)
+    total_amount  = nights * rooms.reduce(
+      (sum: number, r: { price_per_night: number }) => sum + (r.price_per_night ?? 0), 0,
+    )
+  }
+  const guests = (adults ?? 1) + (children ?? 0)
 
   const finalPaymentMethod = payment_method ?? (source === 'online' ? 'online' : 'cash')
   const isPaid       = payment_collected !== false
@@ -159,8 +188,11 @@ export async function POST(request: Request) {
     user_id:          guest_user_id ?? null,
     guest_name:       guest_user_id ? null : (guest_name ?? null),
     guest_phone:      guest_user_id ? null : (guest_phone ?? null),
+    booking_type,
     check_in,
     check_out,
+    check_in_time:    check_in_time  ?? null,
+    check_out_time:   check_out_time ?? null,
     guests,
     adults:           adults ?? 1,
     children:         children ?? 0,

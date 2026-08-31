@@ -92,6 +92,7 @@ export interface Room {
   name?: string
   floor: number
   price_per_night: number
+  rate_per_hour?: number
   status: RoomStatus
   max_adults: number
   max_children: number
@@ -110,8 +111,11 @@ export interface Booking {
   room_id: string          // primary room
   room_ids: string[]       // every room on the booking, primary included
   user_id: string | null
+  booking_type?: 'nightly' | 'hourly'
   check_in: string
   check_out: string
+  check_in_time?: string
+  check_out_time?: string
   guests: number
   adults: number
   children: number
