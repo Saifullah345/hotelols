@@ -8,7 +8,7 @@ import {
   Plus, Search, DoorOpen, Phone, MessageCircle, Globe,
   Pencil, Trash2, Loader2, X, AlertTriangle, Calendar,
   Users, Moon, Eye, Clock, BadgeCheck, BedDouble, ChevronLeft, ChevronRight,
-  FileDown,
+  FileDown, AlertCircle,
 } from 'lucide-react'
 import BookingActions from './BookingActions'
 import { formatCurrency } from '@/lib/currency'
@@ -610,7 +610,8 @@ export default function BookingsClient({
     confirmed:  allStays.filter(s => s.primary.status === 'confirmed').length,
     checked_in: allStays.filter(s => s.primary.status === 'checked_in').length,
     today:      allStays.filter(s => bookedOnOrAfter(s.primary, startOfToday)).length,
-  }), [allStays, startOfToday])
+    overdue:    allStays.filter(s => s.primary.status === 'checked_in' && s.primary.check_out < today).length,
+  }), [allStays, startOfToday, today])
 
   const refresh = () => router.refresh()
 
@@ -679,6 +680,20 @@ export default function BookingsClient({
                   <p className="text-primary-300 text-xs leading-none mt-0.5">Checked In</p>
                 </div>
               </div>
+              {counts.overdue > 0 && (
+                <button
+                  type="button"
+                  onClick={() => { setStatusTab('checked_in'); setDateRange('all') }}
+                  title="Show overdue checkouts"
+                  className="flex items-center gap-2 bg-red-500/30 hover:bg-red-500/40 backdrop-blur px-3.5 py-2 rounded-xl text-sm transition-colors"
+                >
+                  <AlertCircle className="h-4 w-4 text-red-300 animate-pulse" />
+                  <div className="text-left">
+                    <p className="font-bold leading-none text-red-100">{counts.overdue}</p>
+                    <p className="text-xs leading-none mt-0.5 text-red-300">Overdue</p>
+                  </div>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => exportToCSV(stays, currency)}
@@ -748,6 +763,30 @@ export default function BookingsClient({
           </p>
         </div>
 
+        {/* Overdue alert banner */}
+        {counts.overdue > 0 && (
+          <div className="flex items-start gap-3 px-4 py-3.5 bg-red-50 border border-red-200 rounded-xl">
+            <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0 animate-pulse" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-red-800">
+                {counts.overdue} overdue checkout{counts.overdue !== 1 ? 's' : ''} — action required
+              </p>
+              <p className="text-xs text-red-600 mt-0.5">
+                {counts.overdue !== 1 ? 'These guests have' : 'This guest has'} stayed past{' '}
+                {counts.overdue !== 1 ? 'their' : 'the'} scheduled checkout date.
+                Late-checkout charges apply — complete the checkout to apply the correct amount.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setStatusTab('checked_in'); setDateRange('all') }}
+              className="flex-shrink-0 text-xs font-semibold text-red-700 hover:text-red-900 bg-red-100 hover:bg-red-200 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+            >
+              Show overdue
+            </button>
+          </div>
+        )}
+
         {/* Table */}
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
@@ -778,13 +817,17 @@ export default function BookingsClient({
                   // Rows show their own room; rooms sharing a row aren't embedded.
                   const namedRooms  = stay.roomNames.join(', ')
                   const unnamedCount = stay.roomCount - stay.roomNames.length
-                  const bookedToday = bookedOnOrAfter(b, startOfToday)
+                  const bookedToday  = bookedOnOrAfter(b, startOfToday)
+                  const isOverdue    = b.status === 'checked_in' && b.check_out < today
+                  const daysOverdue  = isOverdue
+                    ? Math.round((new Date(`${today}T00:00:00`).getTime() - new Date(`${b.check_out}T00:00:00`).getTime()) / 86_400_000)
+                    : 0
 
                   return (
                     <tr
                       key={stay.key}
                       onClick={() => router.push(`/hotel-admin/bookings/${b.id}`)}
-                      className="hover:bg-blue-50/30 cursor-pointer transition-colors"
+                      className={`cursor-pointer transition-colors ${isOverdue ? 'bg-red-50/50 hover:bg-red-50/80' : 'hover:bg-blue-50/30'}`}
                     >
 
                       {/* Guest */}
@@ -822,9 +865,10 @@ export default function BookingsClient({
                           <Calendar className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
                           <span>{fmtDate(b.check_in)}</span>
                         </div>
-                        <div className="flex items-center gap-1.5 mt-0.5 text-xs text-gray-400">
+                        <div className={`flex items-center gap-1.5 mt-0.5 text-xs ${isOverdue ? 'text-red-500 font-semibold' : 'text-gray-400'}`}>
                           <Moon className="h-3 w-3 flex-shrink-0" />
                           <span>{n} night{n !== 1 ? 's' : ''} · out {fmtDate(b.check_out)}</span>
+                          {isOverdue && <AlertCircle className="h-3 w-3 flex-shrink-0" />}
                         </div>
                       </td>
 
@@ -864,6 +908,14 @@ export default function BookingsClient({
                         <span className={`${statusBadge[b.status] ?? 'badge-gray'} capitalize`}>
                           {STATUS_TAB_LABEL[b.status] ?? b.status.replace('_', ' ')}
                         </span>
+                        {isOverdue && (
+                          <div className="flex items-center gap-1 mt-1.5">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-100 text-red-700 border border-red-200">
+                              <AlertCircle className="h-2.5 w-2.5" />
+                              {daysOverdue}d overdue
+                            </span>
+                          </div>
+                        )}
                       </td>
 
                       {/* Actions */}
