@@ -11,6 +11,8 @@ import {
 import { ActionMenu } from '@/components/ui/ActionMenu'
 import Link from 'next/link'
 import { formatCurrency } from '@/lib/currency'
+import { checkInBlockReason } from '@/lib/booking'
+import { todayISO } from '@/lib/date'
 import { InlinePaymentModal, PAY_METHODS, type InlinePaymentBlock } from '@/components/admin/InlinePaymentModal'
 
 const transitions: Record<string, string[]> = {
@@ -565,12 +567,14 @@ export default function BookingActions({
   bookingIds,
   currentStatus,
   checkIn,
+  checkOut,
   onStatusChange,
 }: {
   bookingId?: string
   bookingIds?: string[]
   currentStatus: string
   checkIn?: string
+  checkOut?: string
   onStatusChange?: (newStatus: string) => void
 }) {
   const router = useRouter()
@@ -628,12 +632,17 @@ export default function BookingActions({
 
     const supabase = createClient()
 
-    // Block check-in if the date has already passed — UNLESS this is a late-arrival
-    // override from a no-show (the whole point of Override Check-In is that they're arriving late).
-    if (status === 'checked_in' && checkIn && currentStatus !== 'no_show') {
-      const today = new Date().toISOString().slice(0, 10)
-      if (checkIn < today) {
-        toast.error(`Check-in date (${checkIn}) has already passed. Please mark this booking as "No Show" instead.`)
+    // A check-in date that has passed only blocks a normal check-in — a
+    // late-arrival override from a no-show is expected to be late. Neither one
+    // may reopen a stay whose departure date is behind us; see
+    // checkInBlockReason for why, and for the wording shown here.
+    if (status === 'checked_in') {
+      const blocked = checkInBlockReason(
+        { check_in: checkIn, check_out: checkOut, status: currentStatus },
+        todayISO(),
+      )
+      if (blocked) {
+        toast.error(blocked)
         close()
         return
       }

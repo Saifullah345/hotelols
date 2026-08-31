@@ -26,6 +26,42 @@ export function guestEditHoursLeft(createdAt: string, now: number = Date.now()):
   return Math.max(0, Math.ceil((guestEditDeadline(createdAt) - now) / 3_600_000))
 }
 
+// ─── Check-in rules ──────────────────────────────────────────────────
+
+export type CheckInCandidate = { check_in?: string | null; check_out?: string | null; status: string }
+
+/**
+ * Why this booking cannot be checked in today, or null when it can be.
+ *
+ * Override Check-In exists for the guest who turns up after the desk has
+ * already written them off as a no-show, so it deliberately ignores a check-in
+ * date that has passed. What it is not is a way back into a stay that is over:
+ * once the departure date has gone by there is no night left to occupy, and
+ * checking the guest in would put an expired reservation back on the floor plan
+ * with a room attached to it. Housing that guest means extending the booking's
+ * dates first (or writing a new one) — the authorised path, and one that
+ * recalculates what they owe.
+ *
+ * `today` is a yyyy-mm-dd local calendar date — see lib/date.
+ */
+export function checkInBlockReason(booking: CheckInCandidate, today: string): string | null {
+  const checkIn  = (booking.check_in  ?? '').slice(0, 10)
+  const checkOut = (booking.check_out ?? '').slice(0, 10)
+
+  // Arriving *on* the departure date is still a late arrival — a guest who
+  // walks in after midnight on the last night gets what is left of it. Only a
+  // departure date that is already behind us closes the booking for good.
+  if (checkOut && checkOut < today) {
+    return `This stay ended on ${checkOut} — an expired booking can't be checked in. Extend the check-out date first, or create a new booking.`
+  }
+
+  if (checkIn && checkIn < today && booking.status !== 'no_show') {
+    return `Check-in date (${checkIn}) has already passed. Please mark this booking as "No Show" instead.`
+  }
+
+  return null
+}
+
 // ─── Stay grouping ───────────────────────────────────────────────────
 // Rooms booked together share one booking row. Reservations made before that
 // was true — and rooms added to the same trip on a later visit — are separate

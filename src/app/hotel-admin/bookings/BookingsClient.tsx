@@ -894,6 +894,7 @@ export default function BookingsClient({
                             bookingIds={stay.bookings.map(bk => bk.id)}
                             currentStatus={b.status}
                             checkIn={b.check_in}
+                            checkOut={b.check_out}
                             onStatusChange={newStatus =>
                               setBookings(bs => {
                                 const ids = new Set(stay.bookings.map(bk => bk.id))
