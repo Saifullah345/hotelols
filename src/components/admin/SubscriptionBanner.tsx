@@ -42,7 +42,7 @@ export default function SubscriptionBanner({
         icon: 'text-amber-500',
         title: 'text-amber-800',
         body: 'text-amber-700',
-        button: 'bg-amber-600 hover:bg-amber-700',
+        button: 'bg-primary-600 hover:bg-primary-700',
         Icon: Clock,
         heading: 'Subscription ending soon',
       }

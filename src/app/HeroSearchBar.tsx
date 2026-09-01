@@ -26,6 +26,9 @@ export default function HeroSearchBar({
   const [adults,    setAdults]    = useState(defaultAdults)
   const [children,  setChildren]  = useState(defaultChildren)
   const [guestOpen, setGuestOpen] = useState(false)
+  // Drives the date placeholders: an empty, unfocused field shows its word.
+  const [checkInFocus,  setCheckInFocus]  = useState(false)
+  const [checkOutFocus, setCheckOutFocus] = useState(false)
 
   // Resolved after mount: "today" depends on the viewer's timezone, and
   // rendering it during SSR would make the server markup disagree on hydration.
@@ -73,51 +76,63 @@ export default function HeroSearchBar({
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl p-2 flex flex-col lg:flex-row gap-2">
+    <div className="bg-white rounded-2xl shadow-lg p-1.5 flex flex-col lg:flex-row gap-1.5">
+
+      {/* One line per field — the stacked caption above each value is what made
+          the bar twice an input's height. Captions that are still needed now sit
+          inline; the rest is carried by the placeholder. */}
 
       {/* Destination */}
-      <label className="flex items-center gap-3 flex-1 bg-gray-50 hover:bg-gray-100 rounded-xl px-4 py-3 cursor-text transition-colors min-w-0">
-        <MapPin className="h-5 w-5 text-indigo-500 flex-shrink-0" />
-        <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Destination</p>
-          <input
-            value={city}
-            onChange={e => setCity(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSearch()}
-            placeholder="City or hotel name"
-            className="w-full text-sm font-semibold text-gray-900 placeholder-gray-400 bg-transparent outline-none"
-          />
-        </div>
+      <label className="flex items-center gap-2 flex-1 bg-gray-50 hover:bg-gray-100 rounded-xl px-3 py-2.5 cursor-text transition-colors min-w-0">
+        <MapPin className="h-4 w-4 text-indigo-500 flex-shrink-0" />
+        <input
+          value={city}
+          onChange={e => setCity(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleSearch()}
+          placeholder="City or hotel name"
+          aria-label="Destination"
+          className="w-full min-w-0 text-[13px] font-semibold text-gray-900 placeholder-gray-400 bg-transparent outline-none"
+        />
       </label>
 
       {/* Check-in */}
-      <label className="flex items-center gap-3 bg-gray-50 hover:bg-gray-100 rounded-xl px-4 py-3 cursor-pointer transition-colors flex-shrink-0">
-        <Calendar className="h-5 w-5 text-indigo-500 flex-shrink-0" />
-        <div>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Check-in</p>
-          <input
-            type="date"
-            min={today || undefined}
-            value={checkIn}
-            onChange={e => onCheckInChange(e.target.value)}
-            className="text-sm font-semibold text-gray-900 bg-transparent outline-none cursor-pointer w-32"
-          />
-        </div>
+      {/* A date input has no placeholder of its own — it always paints dd/mm/yyyy.
+          So the native text is made transparent while the field is empty and
+          untouched, and the word sits on top of it instead. Focus hands the real
+          editor back so you can see what you are typing. */}
+      <label className="relative flex items-center gap-2 bg-gray-50 hover:bg-gray-100 rounded-xl px-3 py-2.5 cursor-pointer transition-colors flex-shrink-0">
+        <Calendar className="h-4 w-4 text-indigo-500 flex-shrink-0" />
+        {!checkIn && !checkInFocus && (
+          <span className="pointer-events-none absolute left-9 text-[13px] font-semibold text-gray-400">Check-in</span>
+        )}
+        <input
+          type="date"
+          min={today || undefined}
+          value={checkIn}
+          onChange={e => onCheckInChange(e.target.value)}
+          onFocus={() => setCheckInFocus(true)}
+          onBlur={() => setCheckInFocus(false)}
+          aria-label="Check-in date"
+          className={`text-[13px] font-semibold bg-transparent outline-none cursor-pointer w-[104px] ${checkIn || checkInFocus ? 'text-gray-900' : 'text-transparent'}`}
+        />
       </label>
 
       {/* Check-out */}
-      <label className="flex items-center gap-3 bg-gray-50 hover:bg-gray-100 rounded-xl px-4 py-3 cursor-pointer transition-colors flex-shrink-0">
-        <Calendar className="h-5 w-5 text-indigo-500 flex-shrink-0" />
-        <div>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Check-out</p>
-          <input
-            type="date"
-            min={checkIn ? nextDay(checkIn) : (today || undefined)}
-            value={checkOut}
-            onChange={e => onCheckOutChange(e.target.value)}
-            className="text-sm font-semibold text-gray-900 bg-transparent outline-none cursor-pointer w-32"
-          />
-        </div>
+      <label className="relative flex items-center gap-2 bg-gray-50 hover:bg-gray-100 rounded-xl px-3 py-2.5 cursor-pointer transition-colors flex-shrink-0">
+        <Calendar className="h-4 w-4 text-indigo-500 flex-shrink-0" />
+        {!checkOut && !checkOutFocus && (
+          <span className="pointer-events-none absolute left-9 text-[13px] font-semibold text-gray-400">Check-out</span>
+        )}
+        <input
+          type="date"
+          min={checkIn ? nextDay(checkIn) : (today || undefined)}
+          value={checkOut}
+          onChange={e => onCheckOutChange(e.target.value)}
+          onFocus={() => setCheckOutFocus(true)}
+          onBlur={() => setCheckOutFocus(false)}
+          aria-label="Check-out date"
+          className={`text-[13px] font-semibold bg-transparent outline-none cursor-pointer w-[104px] ${checkOut || checkOutFocus ? 'text-gray-900' : 'text-transparent'}`}
+        />
       </label>
 
       {/* Guests */}
@@ -125,15 +140,12 @@ export default function HeroSearchBar({
         <button
           type="button"
           onClick={() => setGuestOpen(v => !v)}
-          className="flex items-center gap-3 bg-gray-50 hover:bg-gray-100 rounded-xl px-4 py-3 w-full transition-colors"
+          className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 rounded-xl px-3 py-2.5 w-full transition-colors"
         >
-          <Users className="h-5 w-5 text-indigo-500 flex-shrink-0" />
-          <div className="text-left">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Guests</p>
-            <p className={`text-sm font-semibold whitespace-nowrap ${hasGuests ? 'text-gray-900' : 'text-gray-400'}`}>
-              {hasGuests ? `${guestSum} guest${guestSum !== 1 ? 's' : ''}` : 'Add guests'}
-            </p>
-          </div>
+          <Users className="h-4 w-4 text-indigo-500 flex-shrink-0" />
+          <span className={`text-[13px] font-semibold whitespace-nowrap ${hasGuests ? 'text-gray-900' : 'text-gray-400'}`}>
+            {hasGuests ? `${guestSum} guest${guestSum !== 1 ? 's' : ''}` : 'Add guests'}
+          </span>
         </button>
 
         {guestOpen && (
@@ -176,10 +188,10 @@ export default function HeroSearchBar({
       <button
         type="button"
         onClick={handleSearch}
-        className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold text-sm px-7 py-3 rounded-xl transition-colors flex-shrink-0"
+        className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold text-[13px] px-5 py-2.5 rounded-xl transition-colors flex-shrink-0"
       >
-        <Search className="h-4 w-4" />
-        Search
+        <Search className="h-3.5 w-3.5" />
+        Search Stays
       </button>
     </div>
   )

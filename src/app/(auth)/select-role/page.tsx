@@ -10,7 +10,8 @@ type UserRole = {
   id: string
   role: string
   tenant_id: string | null
-  hotels: { name: string }[] | null
+  // PostgREST returns a many-to-one embed as an object, not an array.
+  hotels: { name: string } | null
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -120,8 +121,8 @@ export default function SelectRolePage() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-gray-900 text-sm">{ROLE_LABELS[r.role] ?? r.role}</p>
-                {r.hotels?.[0]?.name
-                  ? <p className="text-xs text-gray-500 truncate">{r.hotels[0].name}</p>
+                {r.hotels?.name
+                  ? <p className="text-xs text-gray-500 truncate">{r.hotels.name}</p>
                   : <p className="text-xs text-gray-500">{ROLE_DESC[r.role]}</p>
                 }
               </div>

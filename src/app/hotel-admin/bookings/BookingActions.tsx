@@ -550,7 +550,7 @@ function AddChargesModal({
               Cancel
             </button>
             <button onClick={submit} disabled={!isValid || submitting}
-              className="flex-[2] flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold transition-colors disabled:opacity-60">
+              className="flex-[2] flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors disabled:opacity-60">
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Receipt className="h-4 w-4" />}
               {submitting ? 'Adding…' : 'Add Charge'}
             </button>

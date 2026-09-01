@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600" role="img" aria-label="No photo available">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#eef2ff"/>
+      <stop offset="100%" stop-color="#c7d2fe"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#sky)"/>
+
+  <!-- skyline -->
+  <path d="M0 430 L150 330 L280 430 Z" fill="#a5b4fc" opacity=".55"/>
+  <path d="M240 430 L420 298 L600 430 Z" fill="#a5b4fc" opacity=".40"/>
+  <path d="M520 430 L680 340 L800 430 Z" fill="#a5b4fc" opacity=".55"/>
+  <rect y="430" width="800" height="170" fill="#818cf8" opacity=".22"/>
+
+  <!-- wings -->
+  <rect x="228" y="292" width="84" height="138" rx="6" fill="#818cf8" opacity=".6"/>
+  <rect x="488" y="292" width="84" height="138" rx="6" fill="#818cf8" opacity=".6"/>
+
+  <!-- main block -->
+  <rect x="300" y="196" width="200" height="234" rx="8" fill="#6366f1"/>
+  <path d="M308 196h184a8 8 0 0 1 8 8v18H300v-18a8 8 0 0 1 8-8z" fill="#4f46e5"/>
+
+  <!-- windows -->
+  <g fill="#eef2ff" opacity=".92">
+    <rect x="324" y="244" width="36" height="34" rx="5"/>
+    <rect x="382" y="244" width="36" height="34" rx="5"/>
+    <rect x="440" y="244" width="36" height="34" rx="5"/>
+    <rect x="324" y="296" width="36" height="34" rx="5"/>
+    <rect x="382" y="296" width="36" height="34" rx="5"/>
+    <rect x="440" y="296" width="36" height="34" rx="5"/>
+    <rect x="324" y="348" width="36" height="34" rx="5"/>
+    <rect x="440" y="348" width="36" height="34" rx="5"/>
+    <rect x="378" y="372" width="44" height="58" rx="6"/>
+  </g>
+
+  <!-- wing windows -->
+  <g fill="#eef2ff" opacity=".7">
+    <rect x="248" y="322" width="44" height="26" rx="4"/>
+    <rect x="248" y="366" width="44" height="26" rx="4"/>
+    <rect x="508" y="322" width="44" height="26" rx="4"/>
+    <rect x="508" y="366" width="44" height="26" rx="4"/>
+  </g>
+</svg>

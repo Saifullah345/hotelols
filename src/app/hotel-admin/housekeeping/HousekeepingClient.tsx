@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import {
   Plus, LayoutList, LayoutGrid, Trash2, Play,
-  CheckCircle2, Loader2, X, Sparkles, Pencil,
+  CheckCircle2, Loader2, X, SprayCan, Pencil,
   Clock, AlertCircle, AlertTriangle,
 } from 'lucide-react'
 import type { HKTask, RoomOption, StaffOption } from './page'
@@ -404,7 +404,7 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
                 {tasks.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-5 py-16 text-center">
-                      <Sparkles className="h-10 w-10 text-gray-200 mx-auto mb-3" />
+                      <SprayCan className="h-10 w-10 text-gray-200 mx-auto mb-3" />
                       <p className="text-sm font-medium text-gray-400">No housekeeping tasks</p>
                       <p className="text-xs text-gray-300 mt-1">Click &quot;New Task&quot; to add the first one</p>
                     </td>
@@ -501,7 +501,7 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {tasks.length === 0 ? (
               <div className="col-span-full bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-16 text-center">
-                <Sparkles className="h-10 w-10 text-gray-200 mx-auto mb-3" />
+                <SprayCan className="h-10 w-10 text-gray-200 mx-auto mb-3" />
                 <p className="text-sm font-medium text-gray-400">No housekeeping tasks</p>
               </div>
             ) : paged.map(task => {

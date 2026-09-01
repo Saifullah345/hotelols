@@ -45,7 +45,7 @@ export default function TrialBanner({
   // deadline rather than decoration.
   const urgent = daysLeft <= 3
   const tone = urgent
-    ? { wrap: 'border-amber-200 bg-amber-50', chip: 'bg-amber-600', title: 'text-amber-900', body: 'text-amber-700', link: 'bg-amber-600 hover:bg-amber-700' }
+    ? { wrap: 'border-amber-200 bg-amber-50', chip: 'bg-amber-600', title: 'text-amber-900', body: 'text-amber-700', link: 'bg-indigo-600 hover:bg-indigo-700' }
     : { wrap: 'border-indigo-200 bg-indigo-50', chip: 'bg-indigo-600', title: 'text-indigo-900', body: 'text-indigo-700', link: 'bg-indigo-600 hover:bg-indigo-700' }
 
   return (

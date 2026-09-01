@@ -8,6 +8,8 @@ import { getAuthContext } from '@/lib/auth'
 import PublicNavbar from '@/components/layout/PublicNavbar'
 import PublicFooter from '@/components/layout/PublicFooter'
 import HeroSearchBar from './HeroSearchBar'
+import HotelCarousel from './HotelCarousel'
+import GuestReviews from '@/components/landing/GuestReviews'
 import SaveHotelButton from '@/components/SaveHotelButton'
 import JsonLd from '@/components/seo/JsonLd'
 import { absoluteUrl } from '@/lib/seo'
@@ -15,6 +17,11 @@ import { formatCurrency } from '@/lib/currency'
 import { tokenize, buildOrFilter, relevance, hasValidRange, nightsBetween, getBookedRoomIds } from '@/lib/search'
 import { getSubscription } from '@/lib/subscription'
 import { MapPin, Star, Wifi, Car, Coffee, Building2, ChevronRight } from 'lucide-react'
+
+// Hero backdrop. Swap this for your own shot by dropping the file in public/
+// and pointing at it ('/hero.jpg') — nothing else in the section depends on it.
+// images.unsplash.com is already allowed in next.config.ts remotePatterns.
+const HERO_IMAGE = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=2000&q=70'
 
 type Hotel = {
   id: string
@@ -68,7 +75,7 @@ export default async function LandingPage({
     .order('rating', { ascending: false, nullsFirst: false })
     // Room-level filters run below, so fetch a wider pool when searching and
     // trim to the display count afterwards.
-    .limit(filtersApplied ? 60 : 9)
+    .limit(filtersApplied ? 60 : 24)
 
   if (tokens.length) q = q.or(buildOrFilter(tokens))
 
@@ -140,12 +147,33 @@ export default async function LandingPage({
         (a.cover_image ? 0 : 1) - (b.cover_image ? 0 : 1) ||
         (b.rating ?? 0) - (a.rating ?? 0)
     )
-    .slice(0, filtersApplied ? 24 : 9)
+    .slice(0, 24)
 
   const savedSet = new Set<string>((savedResult.data ?? []).map(s => s.hotel_id))
 
   const hasFilter = filtersApplied
   const nightCount = datesApplied ? nightsBetween(check_in!, check_out!) : 0
+
+  // Identical on every card: carry whatever the guest actually chose into the
+  // hotel page so the dates and party size survive the click.
+  const cardParams = new URLSearchParams()
+  if (check_in) cardParams.set('check_in', check_in)
+  if (check_out) cardParams.set('check_out', check_out)
+  if (adults) cardParams.set('adults', adults)
+  if (children) cardParams.set('children', children)
+  const cardQuery = cardParams.toString() ? `?${cardParams.toString()}` : ''
+
+  const toCard = (h: Hotel) => ({
+    id: h.id,
+    name: h.name,
+    city: h.city,
+    country: h.country,
+    cover_image: h.cover_image,
+    rating: h.rating,
+    review_count: h.review_count,
+    href: `/hotels/${h.id}${cardQuery}`,
+    saved: savedSet.has(h.id),
+  })
 
   // Lets search engines see the featured stays as a ranked list of Hotel entities.
   const itemListSchema = {
@@ -189,45 +217,50 @@ export default async function LandingPage({
       {/* ── Hero ─────────────────────────────────────────────────────── */}
       {/* No overflow-hidden here — it would clip the guests dropdown. z-10 keeps
           that dropdown above the hotel grid section that follows. */}
-      <section className="relative z-10 bg-gradient-to-br from-indigo-950 via-indigo-900 to-indigo-800">
-        {/* Decorative blobs — clipped by their own wrapper instead of the section */}
+      <section className="relative z-10 bg-indigo-950">
+        {/* Photo backdrop. Its own wrapper does the clipping so the section itself
+            can still let the guests dropdown overflow, and the indigo wash on top
+            keeps the headline readable whatever the photo is doing underneath. */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full bg-indigo-600/20 blur-3xl" />
-          <div className="absolute -bottom-20 -left-20 w-[400px] h-[400px] rounded-full bg-violet-600/20 blur-3xl" />
+          <Image
+            src={HERO_IMAGE}
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-indigo-950/60 via-indigo-950/35 to-indigo-950/65" />
         </div>
 
-        <div className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 pt-16 pb-24">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 bg-white/10 text-indigo-200 text-xs font-semibold px-3 py-1.5 rounded-full mb-5">
-            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-            Trusted by guests across Pakistan
-          </div>
-
+        <div className="relative mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 pt-32 pb-36 text-center">
           {/* Headline */}
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-4">
             Every trip deserves<br />
             <span className="text-amber-400">a great stay.</span>
           </h1>
-          <p className="text-indigo-200 text-lg mb-10 max-w-lg">
+          <p className="mx-auto max-w-xl text-indigo-200 text-sm sm:text-base mb-7">
             Browse verified hotels, pick your dates, and book in minutes — no sign-up needed to explore.
           </p>
 
           {/* Search form */}
           {/* key: remounts the bar whenever the URL params change, so "Clear ×"
               actually empties the fields instead of leaving stale client state. */}
-          <HeroSearchBar
-            key={`${city ?? ''}|${check_in ?? ''}|${check_out ?? ''}|${adults ?? ''}|${children ?? ''}`}
-            defaultCity={city}
-            defaultCheckIn={check_in}
-            defaultCheckOut={check_out}
-            defaultAdults={adults ? Number(adults) : 0}
-            defaultChildren={children ? Number(children) : 0}
-          />
+          <div className="text-left">
+            <HeroSearchBar
+              key={`${city ?? ''}|${check_in ?? ''}|${check_out ?? ''}|${adults ?? ''}|${children ?? ''}`}
+              defaultCity={city}
+              defaultCheckIn={check_in}
+              defaultCheckOut={check_out}
+              defaultAdults={adults ? Number(adults) : 0}
+              defaultChildren={children ? Number(children) : 0}
+            />
+          </div>
         </div>
       </section>
 
       {/* ── Hotel grid ───────────────────────────────────────────────── */}
-      <section id="results" className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-12 scroll-mt-4">
+      <section id="results" className="mx-auto max-w-[1400px] px-4 sm:px-6 py-12 scroll-mt-4">
         <div className="flex items-end justify-between mb-7">
           <div>
             <h2 className="text-2xl font-extrabold text-gray-900">
@@ -265,12 +298,13 @@ export default async function LandingPage({
             </p>
             <Link href="/" className="mt-5 inline-block text-sm font-semibold text-indigo-600 hover:underline">Browse all hotels</Link>
           </div>
+        ) : !hasFilter ? (
+          <HotelCarousel isLoggedIn={isLoggedIn} hotels={hotelList.slice(0, 4).map(toCard)} />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {hotelList.map(hotel => {
               const nights = nightCount || null
-              const amenities = (hotel.amenities ?? []).slice(0, 3)
-              const initial = hotel.name.trim().charAt(0).toUpperCase()
+              const amenities = (hotel.amenities ?? []).slice(0, 2)
               // Carry only the params the guest actually chose.
               const hp = new URLSearchParams()
               if (check_in) hp.set('check_in', check_in)
@@ -280,22 +314,18 @@ export default async function LandingPage({
               const href = `/hotels/${hotel.id}${hp.toString() ? `?${hp.toString()}` : ''}`
               return (
                 // Wrapper div — heart button is a sibling of Link so clicks never bubble into Link
-                <div key={hotel.id} className="group relative flex flex-col rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                <div key={hotel.id} className="group relative flex flex-col rounded-2xl overflow-hidden bg-white border border-gray-100 shadow-sm hover:shadow-xl hover:border-indigo-100 transition-all duration-300 hover:-translate-y-1">
                   <Link href={href} className="flex flex-col flex-1">
                     <div className="relative aspect-[4/3] bg-indigo-100 overflow-hidden flex-shrink-0">
-                      {hotel.cover_image ? (
-                        <Image
-                          src={hotel.cover_image}
-                          alt={hotel.name}
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-500"
-                          unoptimized
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600">
-                          <span className="text-7xl font-black text-white/30 select-none">{initial}</span>
-                        </div>
-                      )}
+                      {/* No cover yet: a house illustration reads as "photo pending",
+                          where the old initial-on-a-gradient read as a broken card. */}
+                      <Image
+                        src={hotel.cover_image || '/hotel-placeholder.svg'}
+                        alt={hotel.name}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-500"
+                        unoptimized
+                      />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
 
                       {/* Rating — top left */}
@@ -335,7 +365,7 @@ export default async function LandingPage({
                               <p className="text-[11px] text-gray-400 leading-none mb-0.5">
                                 {nights ? `${nights} night${nights > 1 ? 's' : ''} from` : 'from'}
                               </p>
-                              <p className="text-xl font-extrabold text-gray-900 leading-none">
+                              <p className="text-lg font-extrabold text-gray-900 leading-none">
                                 {formatCurrency(nights ? hotel.min_price * nights : hotel.min_price, hotel.currency ?? 'PKR')}
                                 {!nights && <span className="text-sm font-normal text-gray-400"> /night</span>}
                               </p>
@@ -366,17 +396,32 @@ export default async function LandingPage({
           </div>
         )}
 
-        {!hasFilter && hotelList.length > 0 && (
+      </section>
+
+      {/* ── Unique stays ─────────────────────────────────────────────── */}
+      {/* Every listed property, not just the four the section above features. */}
+      {!hasFilter && hotelList.length > 0 && (
+        <section className="mx-auto max-w-[1400px] px-4 sm:px-6 pb-12">
+          <div className="mb-7">
+            <h2 className="text-2xl font-extrabold text-gray-900">Unique stays</h2>
+            <p className="text-sm text-gray-400 mt-1">Every property on BookQayam</p>
+          </div>
+
+          <HotelCarousel variant="compact" autoplay isLoggedIn={isLoggedIn} hotels={hotelList.map(toCard)} />
+
           <div className="mt-8 text-center">
             <Link
               href="/?city="
-              className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-indigo-600 border border-indigo-200 rounded-xl hover:bg-indigo-50 transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-full hover:bg-indigo-100 transition-colors"
             >
-              Browse all stays <ChevronRight className="h-4 w-4" />
+              View all stays <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
-        )}
-      </section>
+        </section>
+      )}
+
+      {/* ── Guest reviews ────────────────────────────────────────────── */}
+      {!hasFilter && <GuestReviews />}
 
       {/* ── For hotel owners banner ──────────────────────────────────── */}
       <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pb-16">

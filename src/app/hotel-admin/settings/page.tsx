@@ -13,7 +13,7 @@ import { CURRENCIES, formatCurrency } from '@/lib/currency'
 import PhoneInput from '@/components/ui/PhoneInput'
 import { CountrySelect, CitySelect } from '@/components/ui/CountryCitySelect'
 
-const fi = 'w-full px-3.5 py-2.5 text-sm text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-transparent placeholder:text-gray-300 transition-shadow'
+const fi = 'w-full px-3.5 py-2.5 text-sm text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-transparent placeholder:text-gray-300 transition-shadow'
 const lbl = 'block text-[10px] font-bold text-gray-400 uppercase tracking-[0.08em] mb-1.5'
 
 export default function HotelSettingsPage() {
@@ -287,8 +287,8 @@ export default function HotelSettingsPage() {
         <form onSubmit={hotelForm.handleSubmit(saveHotel)} noValidate className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
 
           <div className="flex items-center gap-3 pb-1">
-            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
-              <Building2 className="h-5 w-5 text-amber-600" />
+            <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center shrink-0">
+              <Building2 className="h-5 w-5 text-primary-600" />
             </div>
             <div>
               <h3 className="font-bold text-gray-900 text-base">Hotel Profile</h3>
@@ -413,7 +413,7 @@ export default function HotelSettingsPage() {
               href="https://www.google.com/maps"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs font-medium text-amber-600 underline"
+              className="text-xs font-medium text-primary-600 underline"
             >
               Find coordinates on Google Maps →
             </a>
@@ -449,7 +449,7 @@ export default function HotelSettingsPage() {
             <button
               type="submit"
               disabled={hotelForm.formState.isSubmitting}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white font-semibold text-sm transition-colors shadow-sm"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white font-semibold text-sm transition-colors shadow-sm"
             >
               {hotelForm.formState.isSubmitting
                 ? <Loader2 className="h-4 w-4 animate-spin" />
@@ -465,8 +465,8 @@ export default function HotelSettingsPage() {
           {/* My Account */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <div className="flex items-center gap-2.5 mb-1">
-              <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
-                <UserCircle className="h-5 w-5 text-amber-600" />
+              <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
+                <UserCircle className="h-5 w-5 text-primary-600" />
               </div>
               <div>
                 <h3 className="font-bold text-gray-900">My Account</h3>
@@ -515,7 +515,7 @@ export default function HotelSettingsPage() {
               type="button"
               onClick={saveAccount}
               disabled={savingAccount}
-              className="mt-4 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white font-semibold text-sm transition-colors shadow-sm"
+              className="mt-4 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white font-semibold text-sm transition-colors shadow-sm"
             >
               {savingAccount ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               Save Account
