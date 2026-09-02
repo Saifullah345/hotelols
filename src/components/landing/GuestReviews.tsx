@@ -2,7 +2,25 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import { Star, Quote, BadgeCheck } from 'lucide-react'
+import { Star, Quote } from 'lucide-react'
+
+function InitialsAvatar({ name, size }: { name: string; size: number }) {
+  const initials = name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+  const colors = [
+    'bg-indigo-500', 'bg-violet-500', 'bg-sky-500',
+    'bg-emerald-500', 'bg-amber-500', 'bg-rose-500',
+  ]
+  const color = colors[name.charCodeAt(0) % colors.length]
+  return (
+    <span
+      className={`${color} flex items-center justify-center rounded-full text-white font-bold flex-shrink-0`}
+      style={{ width: size, height: size, fontSize: size * 0.38 }}
+      aria-hidden="true"
+    >
+      {initials}
+    </span>
+  )
+}
 
 /**
  * PLACEHOLDER CONTENT — these are not real guests and not real reviews.
@@ -62,22 +80,40 @@ const REVIEWS = [
   },
 ]
 
-// Backdrop for the featured panel. It is mounted once and never moves — only
-// the quote laid over it swaps as the carousel advances. Swap this for your own
-// shot by dropping the file in public/ and pointing at it ('/reviews.jpg').
-// images.unsplash.com is already allowed in next.config.ts remotePatterns.
-//
-// Cropped portrait (800×1000) because the panel is taller than it is wide: a
-// landscape source object-covers down to a thin band of sky and loses the
-// peaks. q=80 over the default 70 keeps the snow from banding under the scrim.
-//
-// A daylit shot, deliberately: dusk and night frames go dark under the veil and
-// stop looking like a place anyone stayed. If you swap it, keep it high-key and
-// keep people out of it — a figure behind the quote reads as the guest.
-const FEATURE_IMAGE = 'https://images.unsplash.com/photo-1454496522488-7a8e488e8606?auto=format&fit=crop&crop=entropy&w=800&h=1000&q=80'
-
 // How long each review holds the featured panel before the carousel steps on.
 const HOLD_MS = 4000
+
+function FeaturedAvatar({ name, src }: { name: string; src: string }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) return <InitialsAvatar name={name} size={44} />
+  return (
+    <Image
+      src={src}
+      alt=""
+      width={44}
+      height={44}
+      className="h-11 w-11 flex-shrink-0 rounded-full ring-2 ring-white"
+      unoptimized
+      onError={() => setFailed(true)}
+    />
+  )
+}
+
+function CardAvatar({ name, src }: { name: string; src: string }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) return <InitialsAvatar name={name} size={40} />
+  return (
+    <Image
+      src={src}
+      alt=""
+      width={40}
+      height={40}
+      className="h-10 w-10 flex-shrink-0 rounded-full"
+      unoptimized
+      onError={() => setFailed(true)}
+    />
+  )
+}
 
 function Stars({ rating, size = 'h-4 w-4' }: { rating: number; size?: string }) {
   return (
@@ -166,45 +202,27 @@ export default function GuestReviews() {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
-        {/* Featured panel. The photo is fixed in place; only the quote over it
-            changes, following whichever review the carousel has stepped to. */}
-        <figure className="relative isolate flex min-h-[360px] flex-col justify-between overflow-hidden rounded-2xl border border-gray-100 p-6 shadow-sm">
-          <div className="absolute inset-0 -z-10">
-            <Image
-              src={FEATURE_IMAGE}
-              alt=""
-              fill
-              sizes="(min-width: 1024px) 380px, 100vw"
-              className="object-cover object-center"
-            />
-            <div className="review-photo-scrim absolute inset-0" />
-          </div>
+        {/* Featured panel — pure CSS gradient, no external image dependency */}
+        <figure
+          className="relative flex min-h-[360px] flex-col justify-between overflow-hidden rounded-2xl p-6 shadow-lg"
+          style={{ background: 'linear-gradient(135deg, #3730a3 0%, #4f46e5 40%, #6d28d9 100%)' }}
+        >
+          {/* Decorative circles */}
+          <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full opacity-10" style={{ background: 'white' }} />
+          <div className="pointer-events-none absolute -bottom-8 -left-8 h-36 w-36 rounded-full opacity-10" style={{ background: 'white' }} />
 
-          <div key={featured.name} className="animate-review-swap max-w-[74%]">
+          <div key={featured.name} className="animate-review-swap relative z-10">
             <Stars rating={featured.rating} size="h-5 w-5" />
-            <blockquote className="mt-4 text-[15px] font-medium leading-relaxed text-gray-900">
+            <blockquote className="mt-4 text-[15px] font-medium leading-relaxed text-white">
               &ldquo;{featured.body}&rdquo;
             </blockquote>
           </div>
 
-          <figcaption key={`${featured.name}-meta`} className="animate-review-swap mt-6 flex max-w-[74%] items-center gap-3">
-            <Image
-              src={featured.avatar}
-              alt=""
-              width={44}
-              height={44}
-              className="h-11 w-11 flex-shrink-0 rounded-full ring-2 ring-white"
-              unoptimized
-            />
+          <figcaption key={`${featured.name}-meta`} className="animate-review-swap relative z-10 mt-6 flex items-center gap-3 border-t border-white/20 pt-4">
+            <FeaturedAvatar name={featured.name} src={featured.avatar} />
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-gray-900">{featured.name}</p>
-              <p className="truncate text-xs text-gray-700">{featured.city}, Pakistan</p>
-              {/* {featured.verified && (
-                <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-primary-800">
-                  <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                  Verified Stay
-                </p>
-              )} */}
+              <p className="truncate text-sm font-bold text-white">{featured.name}</p>
+              <p className="truncate text-xs text-indigo-200">{featured.city}, Pakistan</p>
             </div>
           </figcaption>
         </figure>
@@ -246,14 +264,7 @@ export default function GuestReviews() {
                   </blockquote>
 
                   <figcaption className="mt-5 flex items-center gap-3 border-t border-gray-50 pt-4">
-                    <Image
-                      src={review.avatar}
-                      alt=""
-                      width={40}
-                      height={40}
-                      className="h-10 w-10 flex-shrink-0 rounded-full"
-                      unoptimized
-                    />
+                    <CardAvatar name={review.name} src={review.avatar} />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold text-gray-900">{review.name}</p>
                       <p className="truncate text-xs text-gray-400">{review.city}, Pakistan</p>

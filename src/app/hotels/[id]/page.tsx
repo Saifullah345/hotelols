@@ -278,17 +278,22 @@ export default async function PublicHotelDetailPage({
           <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-2xl border border-gray-200 bg-white px-5 py-3 shadow-sm">
             <div className="min-w-0">
               <h1 className="truncate text-xl font-bold leading-tight text-gray-900 sm:text-2xl">{hotel.name}</h1>
-              <p className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-500">
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([hotel.address, hotel.city, hotel.country].filter(Boolean).join(', '))}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-500 hover:text-primary-600 transition-colors"
+              >
                 <MapPin className="h-3.5 w-3.5 shrink-0 text-primary-600" />
                 <span className="truncate">{[hotel.address, hotel.city, hotel.country].filter(Boolean).join(', ')}</span>
-                {Number(hotel.rating) > 0 && (
-                  <span className="ml-1 flex shrink-0 items-center gap-1 font-semibold text-gray-700">
-                    <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                    {Number(hotel.rating).toFixed(1)}
-                    {hotel.review_count ? <span className="font-normal text-gray-400">({hotel.review_count})</span> : null}
-                  </span>
-                )}
-              </p>
+              </a>
+              {Number(hotel.rating) > 0 && (
+                <span className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-gray-700">
+                  <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                  {Number(hotel.rating).toFixed(1)}
+                  {hotel.review_count ? <span className="ml-0.5 font-normal text-gray-400">({hotel.review_count})</span> : null}
+                </span>
+              )}
             </div>
 
             {/* Hidden on the narrowest screens so the sticky bar stays shallow */}

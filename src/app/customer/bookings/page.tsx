@@ -569,10 +569,15 @@ function BookingCard({
             className="font-semibold text-gray-900 hover:text-indigo-600 transition-colors leading-snug">
             {hotel?.name ?? '—'}
           </Link>
-          <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([hotel?.city, hotel?.country].filter(Boolean).join(', '))}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-gray-400 flex items-center gap-1 mt-0.5 hover:text-primary-600 transition-colors"
+          >
             <MapPin className="h-3 w-3 shrink-0" />
             {hotel?.city}, {hotel?.country}
-          </p>
+          </a>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${badge}`}>
