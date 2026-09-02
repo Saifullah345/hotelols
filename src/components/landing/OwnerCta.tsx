@@ -22,14 +22,19 @@ const FALLBACK_PHOTOS = [
  * Where each photo sits in the collage. Percentages of the box rather than pixel
  * offsets, so the whole arrangement scales with the card instead of needing a
  * position per breakpoint. Ordered back to front — the big one is last.
+ *
+ * Between them the tiles span the box top to bottom (1% to 98%): slack here
+ * shows up as dead space under the collage, because the box's aspect ratio sets
+ * the height whether the photos reach the bottom or not. The 7/4 ratio is what
+ * keeps the tiles landscape at these heights.
  */
 const TILES = [
-  { left: '0%',  top: '14%', width: '28%', height: '26%', rotate: '-7deg', z: 10 },
-  { left: '30%', top: '2%',  width: '24%', height: '24%', rotate: '5deg',  z: 10 },
-  { left: '66%', top: '8%',  width: '32%', height: '30%', rotate: '-4deg', z: 10 },
-  { left: '2%',  top: '50%', width: '24%', height: '30%', rotate: '6deg',  z: 10 },
-  { left: '70%', top: '46%', width: '28%', height: '34%', rotate: '-6deg', z: 10 },
-  { left: '26%', top: '32%', width: '42%', height: '44%', rotate: '2deg',  z: 20 },
+  { left: '0%',  top: '16%', width: '28%', height: '32%', rotate: '-7deg', z: 10 },
+  { left: '30%', top: '1%',  width: '24%', height: '30%', rotate: '5deg',  z: 10 },
+  { left: '66%', top: '8%',  width: '32%', height: '37%', rotate: '-4deg', z: 10 },
+  { left: '2%',  top: '61%', width: '27%', height: '37%', rotate: '6deg',  z: 10 },
+  { left: '68%', top: '56%', width: '30%', height: '42%', rotate: '-6deg', z: 10 },
+  { left: '26%', top: '38%', width: '42%', height: '55%', rotate: '2deg',  z: 20 },
 ]
 
 export default function OwnerCta({ covers = [] }: { covers?: string[] }) {
@@ -56,7 +61,7 @@ export default function OwnerCta({ covers = [] }: { covers?: string[] }) {
             start receiving direct bookings with a simple, hassle-free setup.
           </p>
 
-          <div className="mt-8 lg:mt-auto lg:pt-10">
+          <div className="mt-8">
             <Link
               href="/hotel-management"
               className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-7 py-3.5 font-bold text-white transition-colors hover:bg-indigo-700"
@@ -68,7 +73,7 @@ export default function OwnerCta({ covers = [] }: { covers?: string[] }) {
 
         {/* Collage. Decorative — the section already says what it is, so the
             tiles carry no alt text and no captions. */}
-        <div className="relative aspect-[4/3] w-full" aria-hidden="true">
+        <div className="relative aspect-[7/4] w-full" aria-hidden="true">
           {TILES.map((tile, i) => {
             const src = photos[i]
             if (!src) return null
