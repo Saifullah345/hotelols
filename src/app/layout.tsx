@@ -64,7 +64,7 @@ export const viewport: Viewport = {
   initialScale: 1,
 }
 
-// Sitewide structured data: who we are, and how site search works.
+// Sitewide structured data: who we areand how site search works.
 const organizationSchema = {
   '@context': 'https://schema.org',
   '@type': 'Organization',

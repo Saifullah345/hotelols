@@ -5,9 +5,21 @@ import { useState, useEffect, useRef } from 'react'
 import { Menu, X, CalendarDays, User, LogOut, ChevronDown, Building2 } from 'lucide-react'
 import Logo from '@/components/layout/Logo'
 import { createClient, getBrowserUser } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 
 type UserInfo = { name: string; email: string; avatarUrl: string | null }
+
+const NAV_LINKS = [
+  { label: 'Stays', href: '/' },
+  { label: 'For Hotel Owners', href: '/hotel-management' },
+  { label: 'Contact', href: '/contact' },
+]
+
+/** '/' only matches itself; every other link also owns its sub-pages, so
+ *  /hotels/abc keeps Stays lit and /contact/thanks would keep Contact lit. */
+function isActive(pathname: string, href: string) {
+  return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(href + '/')
+}
 
 /** Initials for the fallback avatar. Never returns an empty string — an unnamed
  *  profile would otherwise render a blank coloured circle. */
@@ -54,6 +66,7 @@ export default function PublicNavbar() {
   const [loading, setLoading]   = useState(true)
   const menuRef = useRef<HTMLDivElement>(null)
   const router  = useRouter()
+  const pathname = usePathname()
 
   useEffect(() => {
     const supabase = createClient()
@@ -111,9 +124,23 @@ export default function PublicNavbar() {
 
         {/* Center links — desktop */}
         <nav className="hidden md:flex items-center gap-1">
-          <Link href="/" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors">Stays</Link>
-          <Link href="/hotel-management" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors">For Hotel Owners</Link>
-          <Link href="/contact" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors">Contact</Link>
+          {NAV_LINKS.map(link => {
+            const active = isActive(pathname, link.href)
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                aria-current={active ? 'page' : undefined}
+                className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+                  active
+                    ? 'font-semibold text-indigo-600 bg-indigo-50'
+                    : 'font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                }`}
+              >
+                {link.label}
+              </Link>
+            )
+          })}
         </nav>
 
         {/* Right actions — desktop */}
@@ -205,9 +232,24 @@ export default function PublicNavbar() {
       {/* Mobile drawer */}
       {open && (
         <div className="md:hidden border-t border-gray-100 bg-white px-4 py-3 space-y-1">
-          <Link href="/" onClick={() => setOpen(false)} className="block px-3 py-2.5 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50">Stays</Link>
-          <Link href="/hotel-management" onClick={() => setOpen(false)} className="block px-3 py-2.5 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50">For Hotel Owners</Link>
-          <Link href="/contact" onClick={() => setOpen(false)} className="block px-3 py-2.5 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50">Contact</Link>
+          {NAV_LINKS.map(link => {
+            const active = isActive(pathname, link.href)
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setOpen(false)}
+                aria-current={active ? 'page' : undefined}
+                className={`block px-3 py-2.5 text-sm rounded-lg ${
+                  active
+                    ? 'font-semibold text-indigo-600 bg-indigo-50'
+                    : 'font-medium text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                {link.label}
+              </Link>
+            )
+          })}
 
           <div className="pt-2 border-t border-gray-100">
             {!loading && user ? (

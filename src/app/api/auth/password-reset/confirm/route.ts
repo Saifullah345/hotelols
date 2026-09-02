@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   const explicitChallenge = typeof body?.challenge === 'string' ? body.challenge : undefined
 
   if (!email || !code || !newPassword) {
-    return NextResponse.json({ error: 'Email, code, and new password are required' }, { status: 400 })
+    return NextResponse.json({ error: 'Email, codeand new password are required' }, { status: 400 })
   }
   if (newPassword.length < 6) {
     return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 })

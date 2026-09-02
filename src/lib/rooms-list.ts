@@ -9,7 +9,7 @@
  * infinite-scroll page: four rooms measured at 1.7 MB raw / 493 KB gzipped,
  * ~2.2 s over the link to the Supabase host.
  *
- * The list renders two things from that column: the first photo, and how many
+ * The list renders two things from that column: the first photoand how many
  * photos there are. So it now asks for exactly those. Same four rooms:
  * 124 KB raw, ~1.2 s — and what's left is the one thumbnail we actually draw.
  *

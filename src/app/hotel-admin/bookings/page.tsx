@@ -19,7 +19,7 @@ export default async function BookingsPage() {
   const [{ data: bookings }, { data: hotelInfo }, { data: rooms }] = await Promise.all([
     supabase
       .from('bookings')
-      // Named columns instead of `*`: the list only renders these, and the
+      // Named columns instead of `*`: the list only renders theseand the
       // dropped ones (hotel_id, updated_at, cancellation_reason) were being
       // serialised for every booking the hotel has ever taken.
       .select(`

@@ -1,6 +1,6 @@
 // ── Plan limits (max_rooms / max_staff) ─────────────────────────────────────
 //
-// -1 is the stored value for "no limit". Any other negative is bad data, and is
+// -1 is the stored value for "no limit". Any other negative is bad dataand is
 // read the same way on purpose: a plan saved with -20 would otherwise make
 // `used >= max` true from the very first room and bar the hotel from adding
 // any at all, under the message "your plan allows up to -20 rooms". Entering

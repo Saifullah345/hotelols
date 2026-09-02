@@ -12,7 +12,7 @@ import { applySubscription, announcePlanChange } from '@/lib/paddle-sync'
  *
  * Webhooks are the normal path, but they can't reach a machine that isn't
  * publicly addressable — on localhost none ever arrive, so a paid plan would
- * never be assigned. The browser calls this the moment checkout completes, and
+ * never be assigned. The browser calls this the moment checkout completesand
  * the billing page offers it as "Sync from Paddle" when something was missed.
  *
  * Everything is verified server-side against the Paddle API: the client only
@@ -142,7 +142,7 @@ async function respond(
     return NextResponse.json({ error: result.reason ?? 'Could not apply the subscription' }, { status: 400 })
   }
 
-  // Bell notification, and an email when the plan actually moved up a tier.
+  // Bell notificationand an email when the plan actually moved up a tier.
   await announcePlanChange(admin, result)
 
   return NextResponse.json({

@@ -8,7 +8,7 @@ import { applySubscription, announcePlanChange } from '@/lib/paddle-sync'
 /**
  * Moves a hotel that already has a subscription onto a different plan.
  *
- * The existing Paddle subscription is edited rather than a new one bought, and
+ * The existing Paddle subscription is edited rather than a new one boughtand
  * that is the whole point: during a trial the swap is made with
  * `do_not_bill`, so Paddle leaves the billing period alone. The trial keeps
  * running to the day it was always going to end — pick a different plan on day

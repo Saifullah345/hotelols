@@ -13,7 +13,7 @@ import { tokenize, buildOrFilter, relevance, hasValidRange, nightsBetween, getBo
 export const metadata = pageMetadata({
   title: 'Search Hotels — Find Verified Stays by City & Date',
   description:
-    'Search verified hotels by city, check-in and check-out dates, and guest count. Compare live prices, ratings and amenities, then book in a few clicks.',
+    'Search verified hotels by city, check-in and check-out datesand guest count. Compare live prices, ratings and amenities, then book in a few clicks.',
   path: '/search',
   noIndex: true,
 })

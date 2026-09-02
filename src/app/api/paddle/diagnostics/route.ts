@@ -11,7 +11,7 @@ const PER_DAY: Record<string, number> = { day: 1, week: 7, month: 30, year: 365 
  * diagnosed from the app instead of guessed at from a dashboard screenshot.
  *
  * Answers, concretely: is the server configured, does each plan have prices,
- * do those prices exist, what do they cost, and does the free trial on each
+ * do those prices exist, what do they costand does the free trial on each
  * price match the trial the plan advertises — a mismatch is what makes a first
  * charge come out as 0.00 when it shouldn't, or bill immediately when the
  * pricing page promised 14 free days.
@@ -100,7 +100,7 @@ export async function GET() {
       }
 
       // A trial is only a problem when it isn't the one the plan promises: an
-      // unexpected one is why a first payment comes through as 0.00, and a
+      // unexpected one is why a first payment comes through as 0.00and a
       // missing one is why a "14 days free" plan charges at checkout.
       if (trialDaysInPaddle !== trialDaysWanted) {
         problems.push(

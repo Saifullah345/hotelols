@@ -243,7 +243,7 @@ export async function getPaddleSubscription(subscriptionId: string) {
 /**
  * Cancels at the end of the period the hotel has already paid for.
  *
- * A subscription still in its trial has nothing paid for, and Paddle refuses
+ * A subscription still in its trial has nothing paid forand Paddle refuses
  * `next_billing_period` on some of them; the fallback cancels immediately so a
  * hotel that wants out during a trial is never told "could not cancel" and left
  * facing a charge. The result says which of the two happened, because the two
@@ -292,7 +292,7 @@ export async function resumePaddleSubscription(
  *
  * `do_not_bill` is what keeps a mid-trial plan change from restarting the
  * trial or charging anything: the item is swapped, the billing period (which
- * during a trial *is* the trial) is left exactly as it was, and the first
+ * during a trial *is* the trial) is left exactly as it wasand the first
  * charge still lands on the original trial end date.
  */
 export async function updatePaddleSubscription(

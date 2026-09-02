@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   const password = typeof body?.password === 'string' ? body.password : ''
 
   if (!full_name || !email || !password) {
-    return NextResponse.json({ error: 'full_name, email, and password are required' }, { status: 400 })
+    return NextResponse.json({ error: 'full_name, emailand password are required' }, { status: 400 })
   }
 
   const admin = await createAdminClient()

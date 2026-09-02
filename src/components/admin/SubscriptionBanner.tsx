@@ -3,7 +3,7 @@ import { AlertTriangle, Clock, CreditCard, Rocket } from 'lucide-react'
 import { subscriptionMessage, type SubscriptionInfo } from '@/lib/subscription'
 
 /**
- * Warns the hotel before its plan lapses, and says plainly what has stopped
+ * Warns the hotel before its plan lapsesand says plainly what has stopped
  * working once it has. Silent while the subscription is healthy.
  */
 export default function SubscriptionBanner({

@@ -10,6 +10,7 @@ import PublicFooter from '@/components/layout/PublicFooter'
 import HeroSearchBar from './HeroSearchBar'
 import HotelCarousel from './HotelCarousel'
 import GuestReviews from '@/components/landing/GuestReviews'
+import OwnerCta from '@/components/landing/OwnerCta'
 import SaveHotelButton from '@/components/SaveHotelButton'
 import JsonLd from '@/components/seo/JsonLd'
 import { absoluteUrl } from '@/lib/seo'
@@ -63,7 +64,7 @@ export default async function LandingPage({
   // to find a hotel in "Wah", which a whole-phrase ILIKE never would.
   const tokens = tokenize(city ?? '')
 
-  // Party size, and the date range once it's complete enough to check against.
+  // Party sizeand the date range once it's complete enough to check against.
   const guests = Math.max(0, (Number(adults) || 0) + (Number(children) || 0))
   const datesApplied = hasValidRange(check_in, check_out)
   const filtersApplied = tokens.length > 0 || datesApplied || guests > 0
@@ -91,9 +92,9 @@ export default async function LandingPage({
   const matchedIds = (hotels ?? []).map(h => h.id)
 
   // Rooms that could host this stay, the rooms already taken for the requested
-  // nights, and the viewer's saved list all key off the same hotel ids, so they
+  // nightsand the viewer's saved list all key off the same hotel ids, so they
   // go out together rather than in a three-step chain. Saved hotels are fetched
-  // for the whole matched set — a superset of what ends up on screen, and
+  // for the whole matched set — a superset of what ends up on screenand
   // cheaper than waiting for the filter to finish first.
   const [roomsResult, bookedRoomIds, savedResult] = await Promise.all([
     matchedIds.length
@@ -219,7 +220,7 @@ export default async function LandingPage({
           that dropdown above the hotel grid section that follows. */}
       <section className="relative z-10 bg-indigo-950">
         {/* Photo backdrop. Its own wrapper does the clipping so the section itself
-            can still let the guests dropdown overflow, and the indigo wash on top
+            can still let the guests dropdown overflowand the indigo wash on top
             keeps the headline readable whatever the photo is doing underneath. */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <Image
@@ -240,7 +241,7 @@ export default async function LandingPage({
             <span className="text-amber-400">a great stay.</span>
           </h1>
           <p className="mx-auto max-w-xl text-indigo-200 text-sm sm:text-base mb-7">
-            Browse verified hotels, pick your dates, and book in minutes — no sign-up needed to explore.
+            Browse verified hotels, pick your datesand book in minutes — no sign-up needed to explore.
           </p>
 
           {/* Search form */}
@@ -424,21 +425,14 @@ export default async function LandingPage({
       {!hasFilter && <GuestReviews />}
 
       {/* ── For hotel owners banner ──────────────────────────────────── */}
-      <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pb-16">
-        <div className="rounded-3xl bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-100 p-8 sm:p-12 flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div>
-            <p className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-2">For hotel owners</p>
-            <h3 className="text-2xl font-extrabold text-gray-900">Got a property to list?</h3>
-            <p className="text-gray-500 mt-2 max-w-sm">Set up your hotel on BookQayam and start receiving bookings from day one. Free, fast and simple.</p>
-          </div>
-          <Link
-            href="/hotel-management"
-            className="flex-shrink-0 inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-7 py-3.5 rounded-xl transition-colors"
-          >
-            Get started <ChevronRight className="h-4 w-4" />
-          </Link>
-        </div>
-      </section>
+      {/* The collage runs on real listing covers, so it fills in on its own as
+          hotels join; OwnerCta tops it up with stock only where they run out. */}
+      <OwnerCta
+        covers={hotelList
+          .map(h => h.cover_image)
+          .filter((src): src is string => Boolean(src))
+          .slice(0, 6)}
+      />
 
       <PublicFooter />
     </div>

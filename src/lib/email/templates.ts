@@ -43,7 +43,7 @@ function logoBlock() {
 
 /**
  * Wraps content in the shared, mobile-friendly BookQayam email shell:
- * branded header, white card, and footer. All styles inline so it renders
+ * branded header, white cardand footer. All styles inline so it renders
  * consistently across email clients.
  */
 export function renderBrandedEmail({ preview, heading, intro, bodyHtml = '', footnote }: BrandedEmailOptions): string {
@@ -176,7 +176,7 @@ export function staffWelcomeTemplate(opts: {
       heading: `Welcome aboard, ${name}!`,
       intro: 'An account has been created for you on BookQayam. Use the credentials below to sign in and get started.',
       bodyHtml,
-      footnote: 'For your security, please change your password right after your first sign-in, and never share these credentials with anyone.',
+      footnote: 'For your security, please change your password right after your first sign-inand never share these credentials with anyone.',
     }),
   }
 }

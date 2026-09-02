@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   const email: string = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
 
   if (!full_name || !email || !role) {
-    return NextResponse.json({ error: 'full_name, email, and role are required' }, { status: 400 })
+    return NextResponse.json({ error: 'full_name, emailand role are required' }, { status: 400 })
   }
 
   if (role === 'super_admin') {

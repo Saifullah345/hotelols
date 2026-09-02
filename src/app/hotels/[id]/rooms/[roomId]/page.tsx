@@ -68,7 +68,7 @@ export async function generateMetadata({
 
   return {
     title,
-    description: `Book ${rName} at ${hotel?.name ?? 'this hotel'}. View all photos, amenities, and available add-on services.`,
+    description: `Book ${rName} at ${hotel?.name ?? 'this hotel'}. View all photos, amenitiesand available add-on services.`,
   }
 }
 

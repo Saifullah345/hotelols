@@ -60,7 +60,7 @@ function DeleteModal({
 
         <div className="p-5 space-y-4">
           <p className="text-sm text-gray-600 leading-relaxed">
-            Deleting <strong className="text-gray-900">{hotelName}</strong> will permanently remove all rooms, bookings, payments, and staff records associated with this hotel.
+            Deleting <strong className="text-gray-900">{hotelName}</strong> will permanently remove all rooms, bookings, paymentsand staff records associated with this hotel.
           </p>
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">

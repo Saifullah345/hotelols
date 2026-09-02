@@ -50,7 +50,7 @@ export default function SubscriptionLocked({
               {hotelName ? `${hotelName} is` : 'Your hotel is'} registered and ready.
               {' '}Pick a plan to start managing rooms, bookings, staff and payments
               {trialDays && trialDays > 0
-                ? ` — the first ${trialDays} days are free, and nothing is charged until the trial ends.`
+                ? ` — the first ${trialDays} days are freeand nothing is charged until the trial ends.`
                 : '.'}
             </>
           ) : (

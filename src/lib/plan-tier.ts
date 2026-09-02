@@ -1,4 +1,4 @@
-// Where a plan sits on the upgrade ladder, and which way a change moves.
+// Where a plan sits on the upgrade ladderand which way a change moves.
 //
 // Used by the billing page, the checkout guard and the webhook, so all three
 // agree on what counts as an upgrade. A hotel may only move up the ladder —
@@ -15,7 +15,7 @@ export type PlanDirection = 'new' | 'upgrade' | 'downgrade' | 'same'
 
 /**
  * Position on the ladder. `tier_rank` is authoritative; price is only a
- * fallback for a database where migration 032 hasn't been applied yet, and it
+ * fallback for a database where migration 032 hasn't been applied yetand it
  * gets custom-priced tiers (Enterprise sits at 0.01) wrong — which is exactly
  * why the column exists.
  */

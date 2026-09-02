@@ -22,7 +22,7 @@ const EDGE = 8
 /** Never squash the menu below this, scroll it instead. */
 const MIN_HEIGHT = 120
 
-/** useLayoutEffect warns when it runs during SSR, and the menu never opens there. */
+/** useLayoutEffect warns when it runs during SSRand the menu never opens there. */
 const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect
 
 interface Position {
@@ -36,7 +36,7 @@ interface Position {
  * A dropdown menu whose panel is rendered through a portal with `position: fixed`,
  * so it is never clipped by an ancestor's `overflow-hidden` (e.g. a `.card`
  * wrapping a table) and always paints above other content. Closes on outside
- * click, Escape, scroll, and resize.
+ * click, Escape, scrolland resize.
  *
  * The panel opens below its trigger, but flips above it when that would run off
  * the bottom of the window — a row at the end of a long list would otherwise

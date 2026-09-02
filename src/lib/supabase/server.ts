@@ -24,10 +24,10 @@ async function createClientFromBearerToken(token: string) {
 }
 
 // `cache()` scopes one client to one request. Before this, a layout + page +
-// every nested server component each built their own client, and each client
+// every nested server component each built their own clientand each client
 // kept its own empty auth cache — so `auth.getUser()` hit the GoTrue endpoint
 // once per call site instead of once per request. One instance means the
-// session is fetched once and reused, and the token is refreshed at most once.
+// session is fetched once and reusedand the token is refreshed at most once.
 export const createClient = cache(async () => {
   const hdrs = await headers()
   const authHeader = hdrs.get('authorization')

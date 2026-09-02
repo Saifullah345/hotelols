@@ -13,7 +13,7 @@ import TrialBanner from '@/components/admin/TrialBanner'
 import { trialDaysOf } from '@/lib/paddle-plans'
 
 /** Screens that stay open once the plan lapses — the way to renew must not be
- *  behind the lock, and settings is where the account itself lives. */
+ *  behind the lockand settings is where the account itself lives. */
 const ALLOWED_WHEN_EXPIRED = ['/hotel-admin/billing', '/hotel-admin/settings']
 
 export const metadata = noIndexMetadata
@@ -30,9 +30,9 @@ export default async function HotelAdminLayout({ children }: { children: React.R
   // The role row used to wait for getAuthContext() to hand back a verified user
   // id, which put a second serial Supabase round-trip in front of every admin
   // navigation. The id the session cookie claims is available for free and is
-  // enough to *start* the query — it is only trusted afterwards, and only if
+  // enough to *start* the query — it is only trusted afterwardsand only if
   // getUser() confirms it names this user. Same guarantee getAuthContext() uses
-  // for the speculative profile read, and the fallback below is what the code
+  // for the speculative profile readand the fallback below is what the code
   // did before, so the worst case is the old timing and never a wrong answer.
   const claimedId = activeTenantId ? await getSessionSubject() : null
 

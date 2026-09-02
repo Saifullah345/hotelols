@@ -1,4 +1,4 @@
--- Trials, and the billing columns the app has been reading all along.
+-- Trialsand the billing columns the app has been reading all along.
 --
 -- Two things happen here:
 --
@@ -46,7 +46,7 @@ ALTER TABLE hotels
   ADD COLUMN IF NOT EXISTS billing_cycle            TEXT,
   ADD COLUMN IF NOT EXISTS paddle_customer_id       TEXT,
   ADD COLUMN IF NOT EXISTS paddle_subscription_id   TEXT,
-  -- When the current trial ends. Set once, on the first trial, and carried
+  -- When the current trial ends. Set once, on the first trialand carried
   -- across plan changes: switching plan on day 4 of 14 leaves 10 days, it does
   -- not restart the clock.
   ADD COLUMN IF NOT EXISTS trial_ends_at            TIMESTAMPTZ,

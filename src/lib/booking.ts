@@ -36,10 +36,10 @@ export type CheckInCandidate = { check_in?: string | null; check_out?: string | 
  * Override Check-In exists for the guest who turns up after the desk has
  * already written them off as a no-show, so it deliberately ignores a check-in
  * date that has passed. What it is not is a way back into a stay that is over:
- * once the departure date has gone by there is no night left to occupy, and
+ * once the departure date has gone by there is no night left to occupyand
  * checking the guest in would put an expired reservation back on the floor plan
  * with a room attached to it. Housing that guest means extending the booking's
- * dates first (or writing a new one) — the authorised path, and one that
+ * dates first (or writing a new one) — the authorised pathand one that
  * recalculates what they owe.
  *
  * `today` is a yyyy-mm-dd local calendar date — see lib/date.

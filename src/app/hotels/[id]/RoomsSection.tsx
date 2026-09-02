@@ -60,7 +60,7 @@ export default function RoomsSection({
   const [unavailableIds, setUnavailableIds] = useState<Set<string>>(new Set())
   const [availChecking, setAvailChecking] = useState(false)
 
-  // Resolved after mount — "today" depends on the viewer's timezone, and
+  // Resolved after mount — "today" depends on the viewer's timezoneand
   // rendering it during SSR would make the markup disagree on hydration.
   const [today, setToday] = useState('')
   useEffect(() => { setToday(todayISO()) }, [])

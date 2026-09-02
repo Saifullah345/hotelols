@@ -7,10 +7,10 @@ import { Loader2, RefreshCw } from 'lucide-react'
 /**
  * Recovers a hotel that has paid but is still being shown the lock.
  *
- * Webhooks never reach a machine that isn't publicly addressable, and even in
+ * Webhooks never reach a machine that isn't publicly addressableand even in
  * production one can be missed. When the hotel has a Paddle subscription on
  * file but the dashboard thinks it has nothing, the likeliest explanation is a
- * webhook that never landed — so ask Paddle once, directly, and refresh.
+ * webhook that never landed — so ask Paddle once, directlyand refresh.
  *
  * Once per mount, so a genuinely lapsed subscription doesn't turn into a
  * polling loop.

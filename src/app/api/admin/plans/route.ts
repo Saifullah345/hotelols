@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   if (name.length < 2) return NextResponse.json({ error: 'Plan name must be at least 2 characters' }, { status: 400 })
   if (name.length > 30) return NextResponse.json({ error: 'Plan name cannot exceed 30 characters' }, { status: 400 })
   if (!/^[a-zA-Z0-9 '\-]+$/.test(name)) {
-    return NextResponse.json({ error: 'Plan name may only contain letters, numbers, spaces, hyphens, and apostrophes' }, { status: 400 })
+    return NextResponse.json({ error: 'Plan name may only contain letters, numbers, spaces, hyphensand apostrophes' }, { status: 400 })
   }
   if (!Number.isFinite(priceMonthly) || priceMonthly <= 0) {
     return NextResponse.json({ error: 'Monthly price must be greater than 0' }, { status: 400 })
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
     // its rank stated, or it lands at the bottom.
     tier_rank:     rank.value,
     // Free days before the first charge. Paddle enforces it; this is the record
-    // of what was asked for, and what the pricing page advertises.
+    // of what was asked forand what the pricing page advertises.
     trial_days:    trial.value,
     feature_listing:          body.feature_listing          !== false,
     feature_housekeeping:     body.feature_housekeeping     !== false,

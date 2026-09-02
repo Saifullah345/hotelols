@@ -72,7 +72,7 @@ export default async function GuestsPage() {
     if (b.profile && !profileMap.has(b.user_id)) profileMap.set(b.user_id, b.profile)
   }
 
-  // Aggregate stays + pull latest special_requests, status, and check-in date per user
+  // Aggregate stays + pull latest special_requests, statusand check-in date per user
   const stayCount      = new Map<string, number>()
   const lastNotes      = new Map<string, string>()
   const lastStatusMap  = new Map<string, 'checked_in' | 'checked_out'>()

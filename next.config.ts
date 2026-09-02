@@ -17,7 +17,7 @@ const nextConfig: NextConfig = {
     // Client-side Router Cache. Next 15 defaults `dynamic` to 0, so a prefetched
     // RSC payload is thrown away immediately and re-fetched the moment you click
     // the link you just hovered — the sidebar's ~14 links were being fetched
-    // twice over, and re-fetched again on every back/forward.
+    // twice overand re-fetched again on every back/forward.
     //
     // Safe to hold here only because mutations already invalidate explicitly:
     // 37 router.refresh() call sites plus revalidateTag() in the API routes.

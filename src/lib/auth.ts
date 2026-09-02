@@ -8,9 +8,9 @@ import type { Profile } from '@/types'
  * Why this module exists
  * ─────────────────────
  * `supabase.auth.getUser()` is not a local read — it is an HTTPS call to the
- * GoTrue `/auth/v1/user` endpoint, and auth-js caches nothing between calls.
+ * GoTrue `/auth/v1/user` endpointand auth-js caches nothing between calls.
  * A single hotel-admin navigation used to make it four times (middleware, the
- * layout, the page, and often a nested server component), then follow each one
+ * layout, the pageand often a nested server component), then follow each one
  * with its own `profiles` lookup for `tenant_id`. That is six serial
  * round-trips to Supabase before the first row of real data is even requested.
  *
@@ -53,7 +53,7 @@ const fetchProfile = async (
  *
  * Deliberately no signature check: this value is used for one thing only —
  * deciding which `profiles` row to ask for — and never as proof of who the
- * caller is. A forged token names a row PostgREST will refuse to return, and
+ * caller is. A forged token names a row PostgREST will refuse to returnand
  * `getCurrentUser()` below rejects the request regardless. Returns null on
  * anything unexpected so the caller falls back to the verified path.
  */
@@ -77,7 +77,7 @@ function unverifiedSubject(accessToken: string | undefined): string | null {
  * verified id to come back.
  *
  * Every caller must do what `getAuthContext()` does below: use the result only
- * after confirming it equals the id `getCurrentUser()` verified, and re-query
+ * after confirming it equals the id `getCurrentUser()` verifiedand re-query
  * with the verified id otherwise. Read the caveat on `unverifiedSubject()`.
  */
 export const getSessionSubject = cache(async (): Promise<string | null> => {
@@ -102,7 +102,7 @@ export const getSessionSubject = cache(async (): Promise<string | null> => {
  * go out at once.
  *
  * It stays honest about which of the two is authoritative: the speculative row
- * is used only if it belongs to the user `getUser()` actually verified, and
+ * is used only if it belongs to the user `getUser()` actually verifiedand
  * otherwise it is thrown away and re-fetched the slow way. Worst case is the
  * behaviour this replaced; it is never less correct, only sometimes slower.
  */

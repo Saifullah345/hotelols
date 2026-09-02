@@ -31,7 +31,7 @@ function truncate(text: string, max = 155) {
 }
 
 /**
- * Next calls generateMetadata and the page component separately, and both need
+ * Next calls generateMetadata and the page component separatelyand both need
  * the hotel row. `cache()` makes the second call free instead of a second
  * round-trip to Supabase on every hotel page view.
  */

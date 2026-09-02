@@ -13,7 +13,7 @@ export const metadata = pageMetadata({
 
 const values = [
   { icon: Zap,           title: 'Speed first',        desc: 'Every action — check-in, payment, booking — should take seconds, not minutes.' },
-  { icon: ShieldCheck,   title: 'Secure by default',  desc: 'Role-based access, encrypted data, and audit trails built into the core.' },
+  { icon: ShieldCheck,   title: 'Secure by default',  desc: 'Role-based access, encrypted dataand audit trails built into the core.' },
   { icon: HeartHandshake,title: 'Guest-obsessed',     desc: 'Every feature we ship improves the experience for the person checking in.' },
   { icon: BarChart3,     title: 'Data transparency',  desc: 'Hotel owners deserve clear, real-time visibility into their operations.' },
   { icon: Globe,         title: 'Built to scale',     desc: 'From a single boutique to a multi-city portfolio — the platform grows with you.' },
@@ -56,16 +56,16 @@ export default function AboutPage() {
                 Remove the friction between a great hotel and a happy guest.
               </h2>
               <p className="mt-5 text-gray-500 leading-relaxed">
-                Too many hotels still run on paper registers, WhatsApp threads, and spreadsheets. We built BookQayam to change that — giving independent hotels and growing chains the same digital tools that enterprise hospitality companies use, without the enterprise price tag.
+                Too many hotels still run on paper registers, WhatsApp threadsand spreadsheets. We built BookQayam to change that — giving independent hotels and growing chains the same digital tools that enterprise hospitality companies use, without the enterprise price tag.
               </p>
               <p className="mt-4 text-gray-500 leading-relaxed">
-                For guests, that means effortless discovery, instant booking, and a smooth stay. For Hotel Owners, it means total control from one screen.
+                For guests, that means effortless discovery, instant bookingand a smooth stay. For Hotel Owners, it means total control from one screen.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               {[
-                { icon: Building2, label: 'Hotel owners',  desc: 'Manage rooms, bookings, staff, and payments' },
-                { icon: Users,     label: 'Guests',        desc: 'Discover, compare, and book stays easily' },
+                { icon: Building2, label: 'Hotel owners',  desc: 'Manage rooms, bookings, staffand payments' },
+                { icon: Users,     label: 'Guests',        desc: 'Discover, compareand book stays easily' },
                 { icon: Star,      label: 'Reviews',       desc: 'Transparent feedback for every property' },
                 { icon: Globe,     label: 'Everywhere',    desc: 'Accessible from any device, anywhere' },
               ].map(({ icon: Icon, label, desc }) => (

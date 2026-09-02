@@ -30,7 +30,7 @@ export default function HeroSearchBar({
   const [checkInFocus,  setCheckInFocus]  = useState(false)
   const [checkOutFocus, setCheckOutFocus] = useState(false)
 
-  // Resolved after mount: "today" depends on the viewer's timezone, and
+  // Resolved after mount: "today" depends on the viewer's timezoneand
   // rendering it during SSR would make the server markup disagree on hydration.
   const [today, setToday] = useState('')
   useEffect(() => { setToday(todayISO()) }, [])
@@ -98,7 +98,7 @@ export default function HeroSearchBar({
       {/* Check-in */}
       {/* A date input has no placeholder of its own — it always paints dd/mm/yyyy.
           So the native text is made transparent while the field is empty and
-          untouched, and the word sits on top of it instead. Focus hands the real
+          untouchedand the word sits on top of it instead. Focus hands the real
           editor back so you can see what you are typing. */}
       <label className="relative flex items-center gap-2 bg-gray-50 hover:bg-gray-100 rounded-xl px-3 py-2.5 cursor-pointer transition-colors flex-shrink-0">
         <Calendar className="h-4 w-4 text-indigo-500 flex-shrink-0" />

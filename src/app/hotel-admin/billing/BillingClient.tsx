@@ -97,7 +97,7 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
 
   const hotelId = hotel?.id
 
-  /** Asks the server what Paddle actually has configured, and lists what's wrong. */
+  /** Asks the server what Paddle actually has configuredand lists what's wrong. */
   const checkSetup = async () => {
     setChecking(true)
     try {
@@ -428,7 +428,7 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
           </div>
         </div>
 
-        {/* What happens next, and when. */}
+        {/* What happens nextand when. */}
         {subscribed && !trialing && renewsOn && (
           <p className="mt-3 flex items-center gap-2 text-sm text-gray-500">
             <CalendarClock className="h-4 w-4 text-gray-400" />
@@ -522,7 +522,7 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
           <div className="mt-4">
             {problems.length === 0 ? (
               <p className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-700">
-                Paddle setup looks correct — prices exist, trials match the plans, and the server is configured.
+                Paddle setup looks correct — prices exist, trials match the plansand the server is configured.
               </p>
             ) : (
               <ul className="space-y-2">
@@ -547,7 +547,7 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
             </h3>
             <p className="text-sm text-gray-500 mt-0.5">
               {trialing
-                ? 'Switch to any plan while you\'re on trial — free, and your trial end date stays the same.'
+                ? 'Switch to any plan while you\'re on trial — freeand your trial end date stays the same.'
                 : upgradeOnly
                   ? 'You can move up to a higher plan at any time. To move to a lower plan, contact support.'
                   : trialOnOffer > 0
@@ -969,7 +969,7 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
               </h3>
               <p className="text-sm text-gray-500 mt-2">
                 {trialing
-                  ? `Your free trial keeps running to ${trialEndsOn ?? 'the same date'} — it does not start over, and nothing is charged until it ends.`
+                  ? `Your free trial keeps running to ${trialEndsOn ?? 'the same date'} — it does not start overand nothing is charged until it ends.`
                   : 'The difference for the rest of this billing period will be charged to your card now.'}
               </p>
             </div>

@@ -64,10 +64,10 @@ export async function middleware(request: NextRequest) {
   // The trade is that getSession() does not verify the token's signature. That
   // is fine *here* and nowhere else: everything this function does with the
   // answer is coarse routing — bounce anonymous users off /hotel-admin, bounce
-  // signed-in users off /login. It authorises nothing, and it never reads a
+  // signed-in users off /login. It authorises nothingand it never reads a
   // field off the session, only whether there is one. A forged cookie gets past
   // this and is then rejected by the layout's getAuthContext(), which still
-  // calls getUser(), and by RLS on every query underneath it.
+  // calls getUser()and by RLS on every query underneath it.
   //
   // Not `getClaims()` either: it reports an unverifiable token as
   // AuthInvalidJwtError, status 400 — the same status a revoked refresh token
@@ -90,7 +90,7 @@ export async function middleware(request: NextRequest) {
     } else {
       // Truthiness only — reading `data.session.user` would trip the
       // "user object from getSession() could be insecure" proxy warning on
-      // every request, and nothing here needs the user's fields.
+      // every requestand nothing here needs the user's fields.
       signedIn = Boolean(data.session)
     }
   } catch {

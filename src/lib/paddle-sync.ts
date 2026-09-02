@@ -2,7 +2,7 @@
 //
 // Two things call this: the webhook (Paddle pushes) and the confirm endpoint
 // (the browser asks after checkout). They must agree, so the logic lives here
-// once. Webhooks can't reach a local dev server at all, and even in production
+// once. Webhooks can't reach a local dev server at alland even in production
 // one can be missed or arrive late — the confirm path is what makes the plan
 // land either way.
 
@@ -54,7 +54,7 @@ export async function resolvePlan(admin: Admin, data: Record<string, unknown>) {
   const items  = (data.items ?? []) as Array<{ price?: { id?: string } | null; price_id?: string }>
   const priceId = items[0]?.price?.id ?? items[0]?.price_id
 
-  // The whole row: the rank decides whether this is an upgrade, and the
+  // The whole row: the rank decides whether this is an upgradeand the
   // features go into the email that announces one. `*` rather than a column
   // list because naming tier_rank would make every plan assignment fail on a
   // database where migration 032 hasn't been applied yet.
@@ -155,7 +155,7 @@ export async function applySubscription(
   const subscriptionId = opts.subscriptionId ?? (data.subscription_id as string | undefined) ?? (data.id as string | undefined)
 
   // Read what the hotel is leaving *before* writing the new state. The plan
-  // comparison decides whether an upgrade gets announced, and it is also what
+  // comparison decides whether an upgrade gets announcedand it is also what
   // stops a second delivery of the same change from announcing it twice:
   // whichever of the webhook and the confirm call lands first moves plan_id, so
   // the other one sees no change and stays quiet.
@@ -170,7 +170,7 @@ export async function applySubscription(
 
   // `keepStatus` protects a running trial from a transaction payload, but it
   // must never keep "unsubscribed" — a hotel that has just paid is not
-  // unsubscribed, and leaving that word in place would lock the dashboard it
+  // unsubscribedand leaving that word in place would lock the dashboard it
   // just unlocked.
   const stored = before?.subscription_status
   const status = opts.keepStatus && stored && stored !== UNSUBSCRIBED
@@ -205,12 +205,12 @@ export async function applySubscription(
 
   // While trialing, the date access runs to *is* the trial end. Paddle's own
   // period end says the same thing, but the stored value is what the countdown
-  // in the dashboard reads, and the two must never disagree.
+  // in the dashboard readsand the two must never disagree.
   const expiresAt = isTrialing ? (trialEndsAt ?? periodEnd(data)) : periodEnd(data)
 
   // A queued cancellation, so the billing page can name the date access stops
   // instead of leaving the hotel to guess. Only a subscription payload carries
-  // the field — a transaction doesn't, and must not be read as "nothing is
+  // the field — a transaction doesn'tand must not be read as "nothing is
   // scheduled" and wipe a cancellation the hotel has already asked for.
   const knowsSchedule = 'scheduled_change' in data
   const scheduled = data.scheduled_change as { action?: string; effective_at?: string } | null | undefined
@@ -313,7 +313,7 @@ export async function announcePlanChange(admin: Admin, result: ApplyResult) {
       : 'Plan activated',
     trialDays !== null
       ? `Your ${planName} trial is running — ${trialDays} day${trialDays === 1 ? '' : 's'} free. ` +
-        'Your card is charged automatically when it ends, and you can change or cancel the plan any time before then.'
+        'Your card is charged automatically when it endsand you can change or cancel the plan any time before then.'
       : upgraded
         ? `Your plan has been upgraded${result.previousPlanName ? ` from ${result.previousPlanName}` : ''} to ${planName}. The new features are available now.`
         : `Your subscription is now on the ${planName} plan.`,
@@ -342,7 +342,7 @@ export async function announcePlanChange(admin: Admin, result: ApplyResult) {
     await sendEmail({ to, subject, html })
   } catch (e) {
     // The plan is already applied and the in-app notice is out; the email is
-    // the only thing lost, and it is not worth failing the request over.
+    // the only thing lostand it is not worth failing the request over.
     console.error('Failed to send plan upgrade email:', e)
   }
 }

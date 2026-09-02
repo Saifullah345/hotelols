@@ -90,8 +90,8 @@ const PAYMENT_BADGE: Record<string, string> = {
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
 // ─── Review sanitization ─────────────────────────────────────────────
-// Allows letters (including accented), spaces, and minimal punctuation.
-// Blocks digits, HTML, and symbol-heavy input like "jij%^$#@&*(^%".
+// Allows letters (including accented), spacesand minimal punctuation.
+// Blocks digits, HTMLand symbol-heavy input like "jij%^$#@&*(^%".
 function sanitizeReview(value: string) {
   return value
     .replace(/<[^>]*>/g, '')                          // strip any HTML tags

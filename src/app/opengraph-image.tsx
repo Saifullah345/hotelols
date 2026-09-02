@@ -92,7 +92,7 @@ export default async function OpengraphImage() {
           </div>
 
           <div style={{ display: 'flex', fontSize: 30, color: '#c7d2fe', marginTop: 24, maxWidth: 880 }}>
-            Browse verified hotels, pick your dates, and book in minutes.
+            Browse verified hotels, pick your datesand book in minutes.
           </div>
         </div>
 

@@ -93,7 +93,7 @@ export function nightsBetween(checkIn: string, checkOut: string): number {
  * Room IDs already taken for the given range across the given hotels.
  *
  * Mirrors the overlap rule enforced by the `bookings` insert trigger: only
- * confirmed and checked-in stays block a room, and a range touching another
+ * confirmed and checked-in stays block a roomand a range touching another
  * only at the changeover day is not a conflict (`check_in < other.check_out`
  * and `check_out > other.check_in`).
  */

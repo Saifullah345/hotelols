@@ -11,11 +11,11 @@ import { CACHE_TAGS } from '@/lib/cache'
  * Cancels the hotel's subscription.
  *
  * During a trial this is the "I've decided against it" button: nothing has been
- * charged and nothing will be, and the hotel keeps the days it was given. After
+ * charged and nothing will beand the hotel keeps the days it was given. After
  * the trial the plan runs to the end of the period already paid for.
  *
  * The result is written here rather than left to the webhook — a local server
- * never receives one, and a hotel that pressed Cancel must not be shown an
+ * never receives oneand a hotel that pressed Cancel must not be shown an
  * active subscription afterwards.
  */
 export async function POST(request: Request) {
@@ -104,7 +104,7 @@ export async function POST(request: Request) {
     message: immediate
       ? 'Subscription cancelled. Nothing has been charged.'
       : trialing
-        ? `Cancelled. You keep access until ${friendly ?? 'your trial ends'}, and your card will not be charged.`
+        ? `Cancelled. You keep access until ${friendly ?? 'your trial ends'}and your card will not be charged.`
         : `Cancelled. You keep access until ${friendly ?? 'the end of the billing period'}.`,
   })
 }

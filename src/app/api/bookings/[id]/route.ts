@@ -28,7 +28,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
   } else {
-    // A guest may only touch their own booking, and only inside the one-day
+    // A guest may only touch their own bookingand only inside the one-day
     // window that closes after the hotel has planned around it.
     if (booking.user_id !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })

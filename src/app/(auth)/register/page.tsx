@@ -98,7 +98,7 @@ export default function RegisterPage() {
         <ol className="list-decimal list-inside space-y-1 text-indigo-600 text-xs">
           <li>Verify your email address</li>
           <li>Sign in and complete your hotel setup</li>
-          <li>Add rooms, staff, and start accepting bookings</li>
+          <li>Add rooms, staffand start accepting bookings</li>
         </ol>
       </div>
       <Link href="/login" className="mt-6 inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-700 font-semibold transition-colors">

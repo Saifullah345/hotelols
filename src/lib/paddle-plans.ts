@@ -6,7 +6,7 @@
 // the plan always point at whatever is currently sellable.
 //
 // A plan with `trial_days` carries the trial on its prices: Paddle takes 0.00
-// at checkout, puts the subscription into `trialing`, and charges in full when
+// at checkout, puts the subscription into `trialing`and charges in full when
 // the trial runs out. That is the whole mechanism — nothing here has to run a
 // timer or watch a clock.
 
@@ -229,7 +229,7 @@ export type PlanPriceRow = {
  * The price a given hotel should check out on.
  *
  * A hotel that has already had its free period must not get another one by
- * cancelling and signing up again, and a Paddle trial lives on the price — so
+ * cancelling and signing up againand a Paddle trial lives on the price — so
  * a second, trial-free price is created for the plan the first time one is
  * needed and remembered on the plan from then on.
  *

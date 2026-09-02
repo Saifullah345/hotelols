@@ -7,7 +7,7 @@ import { RefreshCw, Loader2 } from 'lucide-react'
 
 /**
  * Repairs one plan's Paddle entry: publishes missing prices, replaces a price
- * whose amount has drifted, and strips any free trial (a trial is what makes
+ * whose amount has driftedand strips any free trial (a trial is what makes
  * the first charge come through as 0.00).
  */
 export default function SyncPlanButton({
@@ -46,7 +46,7 @@ export default function SyncPlanButton({
     <button
       onClick={sync}
       disabled={busy}
-      title="Publish this plan to Paddle, fix a drifted price, and remove any free trial"
+      title="Publish this plan to Paddle, fix a drifted priceand remove any free trial"
       className={`inline-flex w-full items-center justify-center gap-2 rounded-xl py-2 text-sm font-medium transition-colors disabled:opacity-60 ${
         published
           ? 'border border-gray-200 text-gray-700 hover:bg-gray-50'

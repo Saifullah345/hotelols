@@ -150,6 +150,55 @@
 .animate-marquee    { animation: marquee   30s  linear      infinite; }
 .animate-pulse-glow { animation: pulse-glow 2.5s ease-in-out infinite; }
 
+/* Featured review swap on the landing reviews section. The photo behind it
+   stays put — only the quote fades in when the carousel steps to the next
+   guest. */
+@keyframes review-swap {
+  0%   { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-review-swap { animation: review-swap 0.5s ease-out both; }
+
+/* Veil over the featured review photo. Three layers, bottom of the stack up:
+
+   A flat 28% white over the whole frame — haze, not a spotlight. It keeps the
+   photograph one continuous image instead of a lit half and a dark half.
+
+   A horizontal ramp, stepped every ~20% so no two adjacent stops differ enough
+   to draw an edge. An earlier version jumped 0.90 to 0.34 across a quarter of
+   the card and left a visible seam down the middle. The left stays white enough
+   to carry the quote; the right keeps the peaks.
+
+   A short pool at the bottom for the name, city and badge, which sit over the
+   darkest rock in the frame. Measured, not guessed: at 0.22 the worst 2% of
+   pixels behind that row give 4.7:1 for gray-700 and 4.8:1 for primary-800.
+   Raising it further does clear more headroom, but by 0.68 the mountains are
+   gone and the panel looks like a drawing again — hence the darker type in the
+   caption instead. Re-measure both if you swap the photograph. */
+.review-photo-scrim {
+  background:
+    linear-gradient(
+      to top,
+      rgba(255, 255, 255, 0.22) 0%,
+      rgba(255, 255, 255, 0.12) 20%,
+      rgba(255, 255, 255, 0) 45%
+    ),
+    linear-gradient(
+      to right,
+      rgba(255, 255, 255, 0.72) 0%,
+      rgba(255, 255, 255, 0.66) 22%,
+      rgba(255, 255, 255, 0.56) 44%,
+      rgba(255, 255, 255, 0.40) 66%,
+      rgba(255, 255, 255, 0.22) 84%,
+      rgba(255, 255, 255, 0.06) 100%
+    ),
+    rgba(255, 255, 255, 0.28);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-review-swap { animation: none; }
+}
+
 /* ── Skeleton shimmer ─────────────────────────────────────────────────── */
 @keyframes shimmer {
   0%   { background-position: -400px 0; }
@@ -163,7 +212,7 @@
 }
 /* ── Squared-off Analytics & Reports ──────────────────────────────────────
    The Reports screen drops rounded corners entirely. Scoped to a wrapper class
-   rather than changing `.card`, which every other admin screen shares, and
+   rather than changing `.card`, which every other admin screen sharesand
    rather than tagging each element, which would miss the shared `StatsCard`.
 
    Circles are left alone: avatars, status dots, the section badge and the

@@ -1,12 +1,14 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import {
   BedDouble, CreditCard, Users, BarChart3,
   Bell, CheckCircle2, ArrowRight, ShieldCheck,
-  CalendarDays, Receipt, ClipboardList, ChevronRight,
+  CalendarDays, Receipt, ClipboardList,
   Clock, Smartphone, Gift, Check, X as XIcon,
 } from 'lucide-react'
 import PublicNavbar from '@/components/layout/PublicNavbar'
 import PublicFooter from '@/components/layout/PublicFooter'
+import StepsCarousel from './StepsCarousel'
 import { pageMetadata } from '@/lib/seo'
 import { createAdminClient } from '@/lib/supabase/server'
 
@@ -17,6 +19,12 @@ export const metadata = pageMetadata({
   path: '/hotel-management',
 })
 
+// Hero backdrop. Swap for your own shot by dropping the file in public/ and
+// pointing at it ('/owners-hero.jpg'); images.unsplash.com is already allowed in
+// next.config.ts remotePatterns. Kept dark and free of recognisable faces — the
+// headline sits on top of it.
+const HERO_IMAGE = 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1800&q=70'
+
 const FEATURES = [
   { icon: CalendarDays, title: 'Booking Management',      desc: 'Handle walk-in and online bookings in seconds. Assign rooms, set dates, and track every reservation from one screen.' },
   { icon: BedDouble,    title: 'Room Management',         desc: 'Add rooms, set room types, upload photos, and update availability in real time — no spreadsheets.' },
@@ -26,11 +34,28 @@ const FEATURES = [
   { icon: Bell,         title: 'Real-time Notifications', desc: 'Get instant alerts for new bookings, check-ins due today, and pending payments — so nothing slips through.' },
 ]
 
-const STEPS = [
-  { num: '01', title: 'Register your hotel',  desc: 'Fill in your hotel details, upload photos, and go live in under 10 minutes.' },
-  { num: '02', title: 'Add your rooms',        desc: 'Create room types, set prices and availability. All rooms visible to guests instantly.' },
-  { num: '03', title: 'Receive bookings',      desc: 'Accept online bookings from guests or record walk-ins directly from the dashboard.' },
-  { num: '04', title: 'Manage & grow',         desc: 'Track payments, manage staff, view reports, and scale your business with confidence.' },
+const BENEFITS = [
+  { icon: Clock,         title: 'Save hours every day',            desc: 'Check in guests in under 30 seconds. No more hunting through notebooks.' },
+  { icon: Receipt,       title: 'Professional receipts instantly', desc: 'Auto-generated receipts for advance and final payments every time.' },
+  { icon: ClipboardList, title: 'Full audit trail',                desc: 'Every payment, booking change and check-in is logged with timestamps.' },
+  { icon: Smartphone,    title: 'Works on any device',             desc: 'Manage your hotel from a phone, tablet or desktop — anywhere.' },
+  { icon: ShieldCheck,   title: 'Secure & reliable',               desc: 'Enterprise-grade security with daily backups — you never lose a record.' },
+]
+
+const PAPERWORK = [
+  'Registers rewritten by hand every day',
+  'Receipts scribbled on a pad, or skipped',
+  'Availability guessed from memory',
+  'Revenue added up at month end, if at all',
+  'Records lost when a notebook goes missing',
+  'No idea which room type actually earns',
+]
+
+const STATS = [
+  { value: '14 days', label: 'Free trial on every plan' },
+  { value: '< 2 min', label: 'Average check-in time' },
+  { value: '24/7',    label: 'Access from anywhere' },
+  { value: '100%',    label: 'Payment accuracy' },
 ]
 
 const FEATURE_FLAGS = [
@@ -86,9 +111,125 @@ function formatPrice(n: number) {
   return n % 1 === 0 ? `$${n}` : `$${n.toFixed(2)}`
 }
 
+/** One pricing card. `highlighted` is the filled indigo treatment. */
+function PlanCard({ plan, highlighted }: { plan: Plan; highlighted: boolean }) {
+  const yearlyMonthly = plan.price_yearly / 12
+  const yearlySaving = plan.price_monthly > 0
+    ? Math.round((1 - yearlyMonthly / plan.price_monthly) * 100)
+    : 0
+  const extras = Array.isArray(plan.features) ? plan.features : []
+
+  return (
+    <div
+      className={`relative flex flex-col rounded-2xl p-6 ${
+        highlighted
+          ? 'bg-gradient-to-br from-primary-600 to-primary-700 text-white shadow-lg shadow-primary-200'
+          : 'border border-gray-200 bg-white'
+      }`}
+    >
+      {plan.trial_days > 0 && (
+        <span
+          className={`absolute right-5 top-5 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
+            highlighted ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700'
+          }`}
+        >
+          Free trial
+        </span>
+      )}
+
+      <p className={`text-sm font-semibold ${highlighted ? 'text-primary-100' : 'text-gray-500'}`}>
+        {plan.name}
+      </p>
+
+      <div className="mt-2 flex items-end gap-1">
+        <span className={`text-5xl font-black ${highlighted ? 'text-white' : 'text-gray-900'}`}>
+          {formatPrice(plan.price_monthly)}
+        </span>
+        <span className={`mb-2 text-sm ${highlighted ? 'text-primary-200' : 'text-gray-400'}`}>/month</span>
+      </div>
+
+      {plan.price_yearly > 0 && yearlySaving > 0 && (
+        <p className={`mt-1 text-xs ${highlighted ? 'text-primary-200' : 'text-gray-400'}`}>
+          {formatPrice(plan.price_yearly)}/yr
+          <span className={`ml-1 font-semibold ${highlighted ? 'text-emerald-200' : 'text-emerald-600'}`}>
+            save {yearlySaving}%
+          </span>
+        </p>
+      )}
+
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        <div className={`rounded-xl px-3 py-2.5 text-center ${highlighted ? 'bg-white/10' : 'bg-gray-50'}`}>
+          <p className={`text-lg font-black ${highlighted ? 'text-white' : 'text-primary-600'}`}>
+            {formatLimit(plan.max_rooms)}
+          </p>
+          <p className={`mt-0.5 text-xs ${highlighted ? 'text-primary-100' : 'text-gray-500'}`}>Rooms</p>
+        </div>
+        <div className={`rounded-xl px-3 py-2.5 text-center ${highlighted ? 'bg-white/10' : 'bg-gray-50'}`}>
+          <p className={`text-lg font-black ${highlighted ? 'text-white' : 'text-primary-600'}`}>
+            {formatLimit(plan.max_staff)}
+          </p>
+          <p className={`mt-0.5 text-xs ${highlighted ? 'text-primary-100' : 'text-gray-500'}`}>Staff accounts</p>
+        </div>
+      </div>
+
+      <ul className="mt-5 space-y-2">
+        {FEATURE_FLAGS.map(flag => {
+          const enabled = plan[flag.key as keyof Plan] as boolean
+          return (
+            <li
+              key={flag.key}
+              className={`flex items-center gap-2.5 text-sm ${
+                highlighted
+                  ? enabled ? 'text-white' : 'text-primary-300'
+                  : enabled ? 'text-gray-700' : 'text-gray-300'
+              }`}
+            >
+              {enabled
+                ? <Check className={`h-4 w-4 shrink-0 ${highlighted ? 'text-emerald-300' : 'text-emerald-500'}`} aria-hidden="true" />
+                : <XIcon className="h-4 w-4 shrink-0" aria-hidden="true" />}
+              {flag.label}
+            </li>
+          )
+        })}
+      </ul>
+
+      {extras.length > 0 && (
+        <ul className={`mt-4 space-y-1.5 border-t pt-4 ${highlighted ? 'border-white/20' : 'border-gray-100'}`}>
+          {extras.map(feat => (
+            <li
+              key={feat}
+              className={`flex items-start gap-2 text-sm ${highlighted ? 'text-primary-100' : 'text-gray-600'}`}
+            >
+              <CheckCircle2 className={`mt-0.5 h-4 w-4 shrink-0 ${highlighted ? 'text-emerald-300' : 'text-primary-400'}`} aria-hidden="true" />
+              {feat}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="mt-auto pt-6">
+        <Link
+          href="/register-hotel"
+          className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${
+            highlighted
+              ? 'bg-white text-primary-700 hover:bg-primary-50'
+              : 'border border-primary-200 text-primary-600 hover:bg-primary-50'
+          }`}
+        >
+          Register now
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
+        <p className={`mt-2 text-center text-xs ${highlighted ? 'text-primary-200' : 'text-gray-400'}`}>
+          No credit card required
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export default async function HotelManagementPage() {
   const plans = await getPlans()
-  // Mark the plan nearest the middle as "most popular"
+  // The middle plan carries the highlight, as before.
   const popularIdx = plans.length > 1 ? Math.floor(plans.length / 2) : 0
 
   return (
@@ -96,294 +237,205 @@ export default async function HotelManagementPage() {
       <PublicNavbar />
 
       {/* ── Hero ── */}
-      <section className="border-b border-gray-100 bg-white">
-        <div className="mx-auto max-w-5xl px-6 py-20 lg:py-28 text-center">
-          {/* Free trial badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 mb-6">
-            <Gift className="h-4 w-4 text-emerald-600" />
-            <span className="text-sm font-semibold text-emerald-700">14-day free trial — no credit card required</span>
-          </div>
-
-          <p className="text-sm font-semibold uppercase tracking-widest text-indigo-600 mb-4">For Hotel Owners</p>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-gray-900 leading-tight tracking-tight">
-            Run your hotel smarter,<br className="hidden sm:block" /> not harder.
-          </h1>
-          <p className="mt-6 text-lg text-gray-500 max-w-2xl mx-auto leading-relaxed">
-            A complete management system — bookings, rooms, payments, staff, and reports — all in one place. Try any plan free for 14 days.
-          </p>
-          <div className="mt-8 flex items-center justify-center gap-3 flex-wrap">
-            <Link href="/register-hotel" className="btn-gradient inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold">
-              Register your hotel <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link href="/login?role=hotel" className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
-              Hotel owner sign in
-            </Link>
-          </div>
-          <p className="mt-4 text-xs text-gray-400">14 days free on every plan · Cancel any time · No credit card needed to start</p>
+      <section className="relative isolate overflow-hidden bg-gray-900">
+        <div className="absolute inset-0 -z-10">
+          <Image src={HERO_IMAGE} alt="" fill priority sizes="100vw" className="object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-r from-gray-950 via-gray-950/90 to-gray-950/60" />
         </div>
-      </section>
 
-      {/* ── Trust strip ── */}
-      <section className="border-b border-gray-100 bg-gray-50">
-        <div className="mx-auto max-w-5xl px-6 py-5">
-          <div className="flex flex-wrap items-center justify-center gap-6 text-sm font-medium text-gray-400">
-            {['Bookings', 'Rooms', 'Payments', 'Staff', 'Reports', 'Receipts', 'Notifications'].map(t => (
-              <span key={t} className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-3.5 w-3.5 text-indigo-500" /> {t}
+        <div className="mx-auto grid max-w-7xl items-center gap-12 px-6 py-20 lg:grid-cols-2 lg:py-24">
+          <div>
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-4 py-1.5">
+              <Gift className="h-4 w-4 text-emerald-300" aria-hidden="true" />
+              <span className="text-sm font-semibold text-emerald-200">
+                14-day free trial — no credit card required
               </span>
-            ))}
-          </div>
-        </div>
-      </section>
+            </div>
 
-      {/* ── Features ── */}
-      <section className="border-b border-gray-100 bg-gray-50">
-        <div className="mx-auto max-w-5xl px-6 py-20">
-          <div className="text-center mb-12">
-            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">Features</p>
-            <h2 className="text-3xl font-extrabold text-gray-900">Everything your hotel needs</h2>
-            <p className="mt-3 text-gray-500 max-w-xl mx-auto">Built for independent hotels and boutique properties that want to work smarter without complex enterprise software.</p>
+            <h1 className="text-4xl font-extrabold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
+              Run your hotel smarter,<br className="hidden sm:block" /> not harder.
+            </h1>
+
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-gray-300">
+              A complete management system — bookings, rooms, payments, staff and reports — all in
+              one place. Try any plan free for 14 days.
+            </p>
+
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <Link
+                href="/register-hotel"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary-500"
+              >
+                Sign up now
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+              <Link
+                href="#features"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/25 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+              >
+                Explore the features
+              </Link>
+            </div>
+
+            <p className="mt-4 text-xs text-gray-400">
+              14 days free on every plan · Cancel any time · No credit card needed to start ·{' '}
+              <Link href="/login?role=hotel" className="font-semibold text-gray-300 underline-offset-2 hover:underline">
+                Already registered? Sign in
+              </Link>
+            </p>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {FEATURES.map(f => (
-              <div key={f.title} className="rounded-2xl border border-gray-100 bg-white p-6 hover:border-indigo-100 hover:shadow-sm transition-all">
-                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center mb-4">
-                  <f.icon className="h-5 w-5 text-indigo-600" />
-                </div>
-                <h3 className="font-bold text-gray-900 text-base mb-2">{f.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{f.desc}</p>
-              </div>
-            ))}
+
+          {/* Dashboard shot — the product, not a stock laptop */}
+          <div className="relative lg:justify-self-end">
+            <div className="overflow-hidden rounded-2xl border border-white/10 bg-gray-900 shadow-2xl">
+              <Image
+                src="/screenshots/dashboard.png"
+                alt="The BookQayam dashboard showing bookings, occupancy and revenue"
+                width={1920}
+                height={1033}
+                sizes="(min-width: 1024px) 560px, 100vw"
+                className="h-auto w-full"
+              />
+            </div>
           </div>
         </div>
       </section>
 
       {/* ── How it works ── */}
       <section className="border-b border-gray-100 bg-white">
-        <div className="mx-auto max-w-5xl px-6 py-20">
-          <div className="text-center mb-12">
-            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">How it works</p>
+        <div className="mx-auto max-w-6xl px-6 py-20">
+          <div className="mb-10 max-w-2xl">
+            <p className="mb-3 text-xs font-bold uppercase tracking-widest text-primary-500">How it works</p>
             <h2 className="text-3xl font-extrabold text-gray-900">Up and running in minutes</h2>
-            <p className="mt-3 text-gray-500">No training needed. Just register, add your rooms and start taking bookings.</p>
+            <p className="mt-3 text-gray-500">
+              No training needed. Register, add your rooms and start taking bookings.
+            </p>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {STEPS.map((step, i) => (
-              <div key={step.num} className="relative">
-                <p className="text-4xl font-black text-indigo-100 mb-3">{step.num}</p>
-                <h3 className="font-bold text-gray-900 mb-2">{step.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{step.desc}</p>
-                {i < STEPS.length - 1 && (
-                  <ChevronRight className="hidden lg:block absolute top-4 -right-3 h-5 w-5 text-gray-200" />
-                )}
+          <StepsCarousel />
+        </div>
+      </section>
+
+      {/* ── Features ── */}
+      <section id="features" className="scroll-mt-20 border-b border-gray-100 bg-gray-50">
+        <div className="mx-auto max-w-6xl px-6 py-20">
+          <div className="mb-12 text-center">
+            <p className="mb-3 text-xs font-bold uppercase tracking-widest text-primary-500">Features</p>
+            <h2 className="text-3xl font-extrabold text-gray-900">Everything your hotel needs</h2>
+            <p className="mx-auto mt-3 max-w-xl text-gray-500">
+              Built for independent hotels and boutique properties that want to work smarter without
+              complex enterprise software.
+            </p>
+          </div>
+
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.map(feature => (
+              <div
+                key={feature.title}
+                className="rounded-2xl border border-gray-100 bg-white p-6 transition-all hover:border-primary-100 hover:shadow-sm"
+              >
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50">
+                  <feature.icon className="h-5 w-5 text-primary-600" aria-hidden="true" />
+                </div>
+                <h3 className="mb-2 text-base font-bold text-gray-900">{feature.title}</h3>
+                <p className="text-sm leading-relaxed text-gray-500">{feature.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
+            {BENEFITS.map(benefit => (
+              <div key={benefit.title} className="flex gap-3 lg:flex-col lg:gap-2">
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-gray-100 bg-white">
+                  <benefit.icon className="h-4 w-4 text-primary-600" aria-hidden="true" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">{benefit.title}</p>
+                  <p className="mt-0.5 text-sm leading-relaxed text-gray-500">{benefit.desc}</p>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Benefits ── */}
-      <section className="border-b border-gray-100 bg-gray-50">
-        <div className="mx-auto max-w-5xl px-6 py-20">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">Why Hotelos</p>
-              <h2 className="text-3xl font-extrabold text-gray-900 leading-snug">Replace paper registers &amp; scattered spreadsheets.</h2>
-              <div className="mt-8 space-y-5">
-                {[
-                  { icon: Clock,         title: 'Save hours every day',           desc: 'Check in guests in under 30 seconds. No more hunting through notebooks.' },
-                  { icon: Receipt,       title: 'Professional receipts instantly', desc: 'Auto-generated receipts for advance and final payments every time.' },
-                  { icon: ClipboardList, title: 'Full audit trail',               desc: 'Every payment, booking change, and check-in is logged with timestamps.' },
-                  { icon: Smartphone,    title: 'Works on any device',            desc: 'Manage your hotel from a phone, tablet or desktop — anywhere.' },
-                  { icon: ShieldCheck,   title: 'Secure & reliable',              desc: 'Enterprise-grade security with daily backups — you never lose a record.' },
-                ].map(b => (
-                  <div key={b.title} className="flex gap-4">
-                    <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <b.icon className="h-4 w-4 text-indigo-600" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-900 text-sm">{b.title}</p>
-                      <p className="text-sm text-gray-500 mt-0.5 leading-relaxed">{b.desc}</p>
-                    </div>
+      {/* ── Paperwork vs plans ── */}
+      <section className="border-b border-gray-100 bg-white">
+        <div className="mx-auto max-w-7xl px-6 py-20">
+          <div className="mb-12 text-center">
+            <p className="mb-3 text-xs font-bold uppercase tracking-widest text-primary-500">Pricing</p>
+            <h2 className="text-3xl font-extrabold text-gray-900">Replace paper registers</h2>
+            <p className="mx-auto mt-3 max-w-xl text-gray-500">
+              Every plan includes a <span className="font-semibold text-emerald-600">14-day free trial</span>.
+              Pick the size that fits your property — upgrade any time.
+            </p>
+          </div>
+
+          <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,2fr)]">
+            {/* What you are replacing */}
+            <div className="space-y-6">
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-6">
+                <h3 className="font-bold text-gray-900">Current paperwork</h3>
+                <ul className="mt-4 space-y-3">
+                  {PAPERWORK.map(item => (
+                    <li key={item} className="flex items-start gap-2.5 text-sm text-gray-500">
+                      <XIcon className="mt-0.5 h-4 w-4 shrink-0 text-red-400" aria-hidden="true" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {STATS.map(stat => (
+                  <div key={stat.label} className="rounded-2xl border border-gray-100 bg-white p-4 text-center">
+                    <p className="text-2xl font-black text-primary-600">{stat.value}</p>
+                    <p className="mt-1 text-xs leading-snug text-gray-500">{stat.label}</p>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              {[
-                { value: '14 days', label: 'Free trial on every plan' },
-                { value: '< 2 min', label: 'Average check-in time' },
-                { value: '24/7',    label: 'Access from anywhere' },
-                { value: '100%',    label: 'Payment accuracy' },
-              ].map(s => (
-                <div key={s.label} className="rounded-2xl border border-gray-100 bg-white p-6 text-center">
-                  <p className="text-3xl font-black text-indigo-600 mb-1">{s.value}</p>
-                  <p className="text-sm text-gray-500">{s.label}</p>
-                </div>
-              ))}
-            </div>
+
+            {/* Plans */}
+            {plans.length === 0 ? (
+              <div className="flex items-center justify-center rounded-2xl border border-gray-100 py-16">
+                <p className="text-sm text-gray-400">Plans coming soon — contact us for pricing.</p>
+              </div>
+            ) : (
+              <div
+                className={`grid gap-6 ${
+                  plans.length === 1 ? 'max-w-sm' :
+                  plans.length === 2 ? 'sm:grid-cols-2' :
+                  'sm:grid-cols-2 xl:grid-cols-3'
+                }`}
+              >
+                {plans.map((plan, i) => (
+                  <PlanCard key={plan.id} plan={plan} highlighted={i === popularIdx && plans.length > 1} />
+                ))}
+              </div>
+            )}
           </div>
-        </div>
-      </section>
-
-      {/* ── Pricing ── */}
-      <section className="border-b border-gray-100 bg-white">
-        <div className="mx-auto max-w-6xl px-6 py-20">
-          <div className="text-center mb-4">
-            <p className="text-xs font-bold uppercase tracking-widest text-indigo-500 mb-3">Pricing</p>
-            <h2 className="text-3xl font-extrabold text-gray-900">Simple, transparent pricing</h2>
-            <p className="mt-3 text-gray-500 max-w-xl mx-auto">
-              Every plan includes a <span className="font-semibold text-emerald-600">14-day free trial</span>. Pick the size that fits your property — upgrade any time.
-            </p>
-          </div>
-
-          {/* Free trial banner */}
-          <div className="flex items-center justify-center gap-3 mb-10 p-4 rounded-2xl bg-emerald-50 border border-emerald-100 max-w-xl mx-auto">
-            <Gift className="h-5 w-5 text-emerald-600 shrink-0" />
-            <p className="text-sm text-emerald-800">
-              <span className="font-bold">14 days free</span> on every plan. No credit card required. Full access from day one.
-            </p>
-          </div>
-
-          {plans.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-400 text-sm">Plans coming soon — contact us for pricing.</p>
-            </div>
-          ) : (
-            <div className={`grid gap-6 ${
-              plans.length === 1 ? 'max-w-sm mx-auto' :
-              plans.length === 2 ? 'sm:grid-cols-2 max-w-2xl mx-auto' :
-              plans.length === 3 ? 'sm:grid-cols-3' :
-              'sm:grid-cols-2 lg:grid-cols-4'
-            }`}>
-              {plans.map((plan, i) => {
-                const isPopular   = i === popularIdx && plans.length > 1
-                const yearlyMonthly = plan.price_yearly / 12
-                const yearlySaving = Math.round((1 - yearlyMonthly / plan.price_monthly) * 100)
-                const featureList  = Array.isArray(plan.features) ? plan.features : []
-
-                return (
-                  <div
-                    key={plan.id}
-                    className={`relative rounded-2xl border flex flex-col ${
-                      isPopular
-                        ? 'border-indigo-500 shadow-lg shadow-indigo-100'
-                        : 'border-gray-200'
-                    }`}
-                  >
-                    {isPopular && (
-                      <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                        <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-600 text-white whitespace-nowrap">
-                          Most Popular
-                        </span>
-                      </div>
-                    )}
-
-                    <div className={`p-6 rounded-t-2xl ${isPopular ? 'bg-indigo-600' : 'bg-gray-50'}`}>
-                      <p className={`text-xs font-bold uppercase tracking-widest mb-1 ${isPopular ? 'text-indigo-200' : 'text-indigo-500'}`}>
-                        {plan.name}
-                      </p>
-                      <div className="flex items-end gap-1 mt-2">
-                        <span className={`text-4xl font-black ${isPopular ? 'text-white' : 'text-gray-900'}`}>
-                          {formatPrice(plan.price_monthly)}
-                        </span>
-                        <span className={`text-sm mb-1 ${isPopular ? 'text-indigo-200' : 'text-gray-400'}`}>/month</span>
-                      </div>
-                      {plan.price_yearly > 0 && yearlySaving > 0 && (
-                        <p className={`text-xs mt-1 ${isPopular ? 'text-indigo-200' : 'text-gray-400'}`}>
-                          {formatPrice(plan.price_yearly)}/yr{' '}
-                          <span className={`font-semibold ${isPopular ? 'text-emerald-300' : 'text-emerald-600'}`}>
-                            save {yearlySaving}%
-                          </span>
-                        </p>
-                      )}
-                      {/* Trial pill */}
-                      <div className={`mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                        isPopular ? 'bg-emerald-500/30 text-emerald-200' : 'bg-emerald-100 text-emerald-700'
-                      }`}>
-                        <Gift className="h-3 w-3" />
-                        {plan.trial_days > 0 ? `${plan.trial_days}-day free trial` : 'No trial'}
-                      </div>
-                    </div>
-
-                    <div className="p-6 flex flex-col flex-1 gap-5">
-                      {/* Limits */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="rounded-xl bg-gray-50 px-3 py-2.5 text-center">
-                          <p className="text-lg font-black text-indigo-600">{formatLimit(plan.max_rooms)}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">Rooms</p>
-                        </div>
-                        <div className="rounded-xl bg-gray-50 px-3 py-2.5 text-center">
-                          <p className="text-lg font-black text-indigo-600">{formatLimit(plan.max_staff)}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">Staff accounts</p>
-                        </div>
-                      </div>
-
-                      {/* Feature flags */}
-                      <ul className="space-y-2">
-                        {FEATURE_FLAGS.map(f => {
-                          const enabled = plan[f.key as keyof Plan] as boolean
-                          return (
-                            <li key={f.key} className={`flex items-center gap-2.5 text-sm ${enabled ? 'text-gray-700' : 'text-gray-300'}`}>
-                              {enabled
-                                ? <Check className="h-4 w-4 text-emerald-500 shrink-0" />
-                                : <XIcon className="h-4 w-4 shrink-0" />}
-                              {f.label}
-                            </li>
-                          )
-                        })}
-                      </ul>
-
-                      {/* Extra features from DB */}
-                      {featureList.length > 0 && (
-                        <ul className="space-y-1.5 border-t border-gray-100 pt-4">
-                          {featureList.map((feat: string) => (
-                            <li key={feat} className="flex items-start gap-2 text-sm text-gray-600">
-                              <CheckCircle2 className="h-4 w-4 text-indigo-400 shrink-0 mt-0.5" />
-                              {feat}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-
-                      <div className="mt-auto pt-2">
-                        <Link
-                          href="/register-hotel"
-                          className={`flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-                            isPopular
-                              ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                              : 'border border-indigo-200 text-indigo-600 hover:bg-indigo-50'
-                          }`}
-                        >
-                          Start {plan.trial_days > 0 ? `${plan.trial_days}-day` : ''} free trial
-                          <ArrowRight className="h-4 w-4" />
-                        </Link>
-                        <p className="text-center text-xs text-gray-400 mt-2">No credit card required</p>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
         </div>
       </section>
 
       {/* ── CTA ── */}
       <section className="bg-white">
         <div className="mx-auto max-w-5xl px-6 py-20 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 mb-6">
-            <Gift className="h-4 w-4 text-emerald-600" />
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5">
+            <Gift className="h-4 w-4 text-emerald-600" aria-hidden="true" />
             <span className="text-sm font-semibold text-emerald-700">14-day free trial — start today</span>
           </div>
           <h2 className="text-3xl font-extrabold text-gray-900">Ready to modernise your hotel?</h2>
-          <p className="mt-4 text-gray-500 max-w-xl mx-auto">
+          <p className="mx-auto mt-4 max-w-xl text-gray-500">
             Try any plan free for 14 days. No credit card required. Full access from day one.
           </p>
-          <div className="mt-8 flex items-center justify-center gap-3 flex-wrap">
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link href="/register-hotel" className="btn-gradient inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold">
-              Register your hotel <ArrowRight className="h-4 w-4" />
+              Register your hotel <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
-            <Link href="/login?role=hotel" className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+            <Link
+              href="/login?role=hotel"
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-6 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+            >
               Already registered? Sign in
             </Link>
           </div>

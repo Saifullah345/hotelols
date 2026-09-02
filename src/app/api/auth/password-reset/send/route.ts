@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     )
   }
 
-  // A code is only ever issued for an address that has an account, and an
+  // A code is only ever issued for an address that has an accountand an
   // unknown address is told so outright.
   //
   // NOTE: this is a deliberate product decision that replaces the previous

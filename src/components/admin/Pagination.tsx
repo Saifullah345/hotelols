@@ -25,7 +25,7 @@ export default function Pagination({ page, onPage, perPage, onPerPage, total, no
   const safePage = Math.min(page, totalPages)
   const start = (safePage - 1) * perPage
 
-  // First, last, and a window around the current page.
+  // First, lastand a window around the current page.
   const pageNumbers = useMemo(() => {
     const out: (number | '…')[] = []
     for (let i = 1; i <= totalPages; i++) {

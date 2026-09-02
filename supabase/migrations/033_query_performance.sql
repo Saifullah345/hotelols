@@ -35,7 +35,7 @@ CREATE INDEX IF NOT EXISTS idx_reviews_hotel_created
 
 -- ── Profiles ────────────────────────────────────────────────────────────────
 -- Every hotel-admin and staff page resolves the caller's hotel through
--- profiles.tenant_id, and staff/guest lists filter on it directly.
+-- profiles.tenant_idand staff/guest lists filter on it directly.
 CREATE INDEX IF NOT EXISTS idx_profiles_tenant
   ON profiles (tenant_id);
 

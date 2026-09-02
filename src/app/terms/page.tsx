@@ -44,7 +44,7 @@ export default function TermsPage() {
             <h2 className="text-xl font-bold text-gray-900 mb-3">2. Description of Service</h2>
             <p>
               BookQayam is a cloud-based hotel management platform that provides hotel owners and their staff with tools to manage
-              rooms, bookings, payments, staff roles, and analytics. The Platform is provided on a subscription basis and may
+              rooms, bookings, payments, staff rolesand analytics. The Platform is provided on a subscription basis and may
               include a mobile application.
             </p>
           </section>
@@ -64,10 +64,10 @@ export default function TermsPage() {
             <h2 className="text-xl font-bold text-gray-900 mb-3">4. Hotel Owner Responsibilities</h2>
             <p>Hotel owners who register their property on BookQayam are solely responsible for:</p>
             <ul className="list-disc pl-5 mt-2 space-y-1 text-sm">
-              <li>The accuracy of hotel information, room listings, pricing, and availability.</li>
-              <li>Compliance with all local laws, licensing requirements, and tax obligations applicable to their property.</li>
+              <li>The accuracy of hotel information, room listings, pricingand availability.</li>
+              <li>Compliance with all local laws, licensing requirementsand tax obligations applicable to their property.</li>
               <li>The conduct of staff members who access the Platform under the hotel&apos;s account.</li>
-              <li>Handling guest complaints, refunds, and disputes arising from their hotel operations.</li>
+              <li>Handling guest complaints, refundsand disputes arising from their hotel operations.</li>
             </ul>
           </section>
 
@@ -119,7 +119,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-xl font-bold text-gray-900 mb-3">9. Intellectual Property</h2>
             <p>
-              The Platform, including its design, code, trademarks, and content, is owned by BookQayam and protected by
+              The Platform, including its design, code, trademarksand content, is owned by BookQayam and protected by
               intellectual property laws. These terms do not grant you any ownership rights in the Platform.
               You may not copy, modify, or distribute the Platform without our prior written consent.
             </p>

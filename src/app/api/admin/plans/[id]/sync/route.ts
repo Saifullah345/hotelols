@@ -17,7 +17,7 @@ const PER_DAY: Record<string, number> = { day: 1, week: 7, month: 30, year: 365 
  *
  * Repairs the three things that actually go wrong: a plan that was never
  * published (no product or prices), a price whose amount has drifted from the
- * plan, and a trial in Paddle that isn't the one the plan promises — either an
+ * planand a trial in Paddle that isn't the one the plan promises — either an
  * unwanted one making the first charge 0.00, or a missing one on a plan sold as
  * "14 days free".
  *

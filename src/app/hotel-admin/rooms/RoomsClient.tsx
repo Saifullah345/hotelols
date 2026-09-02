@@ -188,7 +188,7 @@ export default function RoomsClient({
     const run = async () => {
       setChecking(true)
       // Same overlap rule the booking trigger enforces: only confirmed and
-      // checked-in stays hold a room, and a same-day changeover isn't a clash.
+      // checked-in stays hold a roomand a same-day changeover isn't a clash.
       const { data } = await createClient()
         .from('bookings')
         .select('room_id, room_ids, check_in, check_out, guest_name, user:profiles(full_name)')

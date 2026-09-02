@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   const selected_plan_id = typeof body?.plan_id  === 'string' ? body.plan_id                             : null
 
   if (!full_name || !email || !password || !hotel_name || !city) {
-    return NextResponse.json({ error: 'full_name, email, password, hotel_name, and city are required' }, { status: 400 })
+    return NextResponse.json({ error: 'full_name, email, password, hotel_nameand city are required' }, { status: 400 })
   }
   const hotelNameError = validateHotelName(hotel_name)
   if (hotelNameError) return NextResponse.json({ error: hotelNameError }, { status: 400 })

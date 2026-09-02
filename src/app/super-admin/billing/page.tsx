@@ -194,7 +194,7 @@ export default async function BillingPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Billing Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Platform-wide subscriptions, revenue, and billing health</p>
+          <p className="text-sm text-gray-500 mt-0.5">Platform-wide subscriptions, revenueand billing health</p>
         </div>
         <Link
           href="/super-admin/plans"

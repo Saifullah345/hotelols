@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     q.maybeSingle(),
   ])
 
-  // Still fails closed, and in the same order as before: no valid session is
+  // Still fails closedand in the same order as before: no valid session is
   // Unauthorized, a session without this role is Forbidden.
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (!found) {

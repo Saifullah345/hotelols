@@ -15,13 +15,13 @@ const EXT: Record<string, string> = {
 /**
  * Uploads run through the server with the service-role client rather than
  * straight from the browser: the path is then chosen here, so a signed-in user
- * can only ever write inside their own folder, and the bucket needs no storage
+ * can only ever write inside their own folderand the bucket needs no storage
  * policies of its own.
  */
 async function ensureBucket(admin: Awaited<ReturnType<typeof createAdminClient>>) {
   const { data } = await admin.storage.getBucket(BUCKET)
   if (data) return
-  // Public: an avatar is shown next to the guest's name all over the app, and a
+  // Public: an avatar is shown next to the guest's name all over the appand a
   // signed URL would expire mid-session.
   await admin.storage.createBucket(BUCKET, {
     public: true,

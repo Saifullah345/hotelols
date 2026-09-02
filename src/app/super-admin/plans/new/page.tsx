@@ -23,9 +23,9 @@ const planSchema = z.object({
     .string()
     .min(2, 'Name must be at least 2 characters')
     .max(30, 'Name cannot exceed 30 characters')
-    .regex(/^[a-zA-Z0-9 '\-]+$/, 'Only letters, numbers, spaces, hyphens, and apostrophes are allowed'),
+    .regex(/^[a-zA-Z0-9 '\-]+$/, 'Only letters, numbers, spaces, hyphensand apostrophes are allowed'),
   // Unlimited is a checkbox, not a magic -1 typed into the box. Typing a
-  // negative limit was possible before, and a plan saved with one (-20 rooms)
+  // negative limit was possible beforeand a plan saved with one (-20 rooms)
   // let no rooms be added at all.
   max_rooms: count('rooms'),
   unlimited_rooms: z.boolean().default(false),
@@ -54,7 +54,7 @@ const planSchema = z.object({
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Too many features — max 20 (you have ${lines.length})` })
         return
       }
-      // Printable letters, digits, spaces, and the punctuation chars a feature
+      // Printable letters, digits, spacesand the punctuation chars a feature
       // description reasonably needs. Blocks garbled pastes (%$#@…) and
       // Unicode runs that would corrupt the public plan cards.
       const invalid = /[^a-zA-Z0-9 &+\-.,/()'%!:]/
@@ -65,7 +65,7 @@ const planSchema = z.object({
           ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Line ${n} is too long — keep each feature under 80 characters` }); return
         }
         if (invalid.test(line)) {
-          ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Line ${n}: only letters, numbers, and basic punctuation (& + - . , / ( ) ' % ! :)` }); return
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Line ${n}: only letters, numbersand basic punctuation (& + - . , / ( ) ' % ! :)` }); return
         }
         if (/(^|\s)-\d/.test(line)) {
           ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Line ${n}: use positive values (e.g. "up to 20 rooms" not "-20 rooms")` }); return
@@ -142,7 +142,7 @@ export default function NewPlanPage() {
 
   // Saved through the API rather than straight to the database: the same
   // request publishes the plan to Paddle as a product with a monthly and a
-  // yearly price, and stores the ids the checkout needs.
+  // yearly priceand stores the ids the checkout needs.
   const onSubmit = async (data: PlanForm) => {
     try {
       const res = await fetch('/api/admin/plans', {
@@ -162,7 +162,7 @@ export default function NewPlanPage() {
       }
 
       // Only claim it reached Paddle when it actually did — a plan with no
-      // price can't be bought, and the billing page shows "Contact Sales".
+      // price can't be boughtand the billing page shows "Contact Sales".
       if (json.warning) {
         toast.success('Plan created')
         toast.warning(json.warning, { duration: 8000 })
@@ -309,7 +309,7 @@ export default function NewPlanPage() {
           <p className="mt-2 text-xs text-indigo-700">
             How long a hotel uses this plan before paying anything. Paddle takes 0.00 at checkout
             and charges in full the day the trial ends — 0 charges straight away. A hotel gets one
-            trial ever: changing plan mid-trial keeps the same end date, and it cannot be restarted
+            trial ever: changing plan mid-trial keeps the same end dateand it cannot be restarted
             by cancelling and signing up again.
           </p>
           {errors.trial_days && <p className="text-red-600 text-sm mt-1">{errors.trial_days.message}</p>}
@@ -324,7 +324,7 @@ export default function NewPlanPage() {
             placeholder="Priority support&#10;Custom reports&#10;API access"
           />
           <p className="text-xs text-gray-400 mt-1">
-            Max 20 features · 80 characters per line · letters, numbers, and basic punctuation only · no negative numbers
+            Max 20 features · 80 characters per line · letters, numbersand basic punctuation only · no negative numbers
           </p>
           {errors.features && <p className="text-red-600 text-sm mt-1">{errors.features.message}</p>}
         </div>

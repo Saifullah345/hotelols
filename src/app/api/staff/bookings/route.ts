@@ -5,7 +5,7 @@ import { getAuthContext } from '@/lib/auth'
 // Mirrors staff/bookings/page.tsx: staff have no RLS read access to `profiles`,
 // so the usual `user:profiles(...)` join comes back empty for them. Resolve
 // registered guests' names with the service-role client, scoped to this hotel's
-// bookings, and expose the merged result as JSON for the mobile app.
+// bookingsand expose the merged result as JSON for the mobile app.
 export async function GET(request: Request) {
   const supabase = await createClient()
   const { user, profile } = await getAuthContext()

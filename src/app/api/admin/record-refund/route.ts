@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   const { booking_id, amount, payment_method } = body
 
   if (!booking_id || !amount || !payment_method) {
-    return NextResponse.json({ error: 'booking_id, amount, and payment_method are required' }, { status: 400 })
+    return NextResponse.json({ error: 'booking_id, amountand payment_method are required' }, { status: 400 })
   }
 
   const refundAmount = Number(amount)

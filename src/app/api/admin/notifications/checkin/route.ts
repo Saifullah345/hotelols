@@ -12,7 +12,7 @@ export async function POST() {
 
   const today = new Date().toISOString().slice(0, 10)
 
-  // Fetch overdue checkouts, today's departures, and today's pending arrivals in parallel
+  // Fetch overdue checkouts, today's departuresand today's pending arrivals in parallel
   const [{ data: overdueBookings }, { data: departingBookings }, { data: arrivingBookings }] = await Promise.all([
     supabase.from('bookings').select('id').eq('hotel_id', hotelId).eq('status', 'checked_in').lt('check_out', today),
     supabase.from('bookings').select('id').eq('hotel_id', hotelId).eq('status', 'checked_in').eq('check_out', today),

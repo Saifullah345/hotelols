@@ -7,7 +7,7 @@ import { pageMetadata } from '@/lib/seo'
 export const metadata = pageMetadata({
   title: 'Privacy Policy — How BookQayam Handles Your Data',
   description:
-    'Read how BookQayam collects, stores, uses and protects the personal data of guests and hotel partners, and the choices you have over your information.',
+    'Read how BookQayam collects, stores, uses and protects the personal data of guests and hotel partnersand the choices you have over your information.',
   path: '/privacy',
 })
 
@@ -35,7 +35,7 @@ export default function PrivacyPage() {
             <h2 className="text-xl font-bold text-gray-900 mb-3">1. Who We Are</h2>
             <p>
               BookQayam operates a cloud-based hotel management platform (&ldquo;the Platform&rdquo;).
-              This Privacy Policy explains how we collect, use, and protect information when you use our services.
+              This Privacy Policy explains how we collect, useand protect information when you use our services.
               By using BookQayam you agree to the practices described in this policy.
             </p>
           </section>
@@ -46,15 +46,15 @@ export default function PrivacyPage() {
             <div className="space-y-3 text-sm">
               <div className="rounded-xl bg-gray-50 border border-gray-100 px-4 py-3">
                 <p className="font-semibold text-gray-900 mb-1">Account Information</p>
-                <p className="text-gray-500">Full name, email address, and password (stored as a secure hash) when you register.</p>
+                <p className="text-gray-500">Full name, email addressand password (stored as a secure hash) when you register.</p>
               </div>
               <div className="rounded-xl bg-gray-50 border border-gray-100 px-4 py-3">
                 <p className="font-semibold text-gray-900 mb-1">Hotel &amp; Business Data</p>
-                <p className="text-gray-500">Hotel name, address, city, contact details, room configurations, pricing, and bookings that you enter into the Platform.</p>
+                <p className="text-gray-500">Hotel name, address, city, contact details, room configurations, pricingand bookings that you enter into the Platform.</p>
               </div>
               <div className="rounded-xl bg-gray-50 border border-gray-100 px-4 py-3">
                 <p className="font-semibold text-gray-900 mb-1">Usage Data</p>
-                <p className="text-gray-500">Pages visited, features used, device type, browser, and IP address collected automatically to improve the service.</p>
+                <p className="text-gray-500">Pages visited, features used, device type, browserand IP address collected automatically to improve the service.</p>
               </div>
               <div className="rounded-xl bg-gray-50 border border-gray-100 px-4 py-3">
                 <p className="font-semibold text-gray-900 mb-1">Payment Data</p>
@@ -67,7 +67,7 @@ export default function PrivacyPage() {
             <h2 className="text-xl font-bold text-gray-900 mb-3">3. How We Use Your Information</h2>
             <ul className="list-disc pl-5 space-y-1 text-sm">
               <li>To create and manage your account and hotel profile.</li>
-              <li>To provide, maintain, and improve the Platform&apos;s features.</li>
+              <li>To provide, maintainand improve the Platform&apos;s features.</li>
               <li>To send transactional emails (account verification, booking confirmations, billing receipts).</li>
               <li>To respond to support requests and resolve disputes.</li>
               <li>To detect and prevent fraud, abuse, or security incidents.</li>
@@ -100,7 +100,7 @@ export default function PrivacyPage() {
             <h2 className="text-xl font-bold text-gray-900 mb-3">6. Third-Party Services</h2>
             <p className="mb-2">We use the following third-party services to operate the Platform:</p>
             <ul className="list-disc pl-5 space-y-1 text-sm">
-              <li><strong>Supabase</strong> — database, authentication, and file storage.</li>
+              <li><strong>Supabase</strong> — database, authenticationand file storage.</li>
               <li><strong>Stripe</strong> — payment processing. Subject to <a href="https://stripe.com/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Stripe&apos;s Privacy Policy</a>.</li>
               <li><strong>Resend</strong> — transactional email delivery.</li>
             </ul>

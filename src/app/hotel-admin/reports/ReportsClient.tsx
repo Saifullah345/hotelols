@@ -535,7 +535,7 @@ export default function ReportsClient({
             </div>
             <h3 className="text-xl font-bold text-gray-900">Unlock Advanced Analytics</h3>
             <p className="mt-2 text-sm text-gray-500 max-w-lg mx-auto">
-              Get RevPAR tracking, lead time distribution, check-in day patterns, cancellation trends, booking source breakdown, and payment method analytics.
+              Get RevPAR tracking, lead time distribution, check-in day patterns, cancellation trends, booking source breakdownand payment method analytics.
             </p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               {['RevPAR', 'Avg Length of Stay', 'Lead Time', 'Day Pattern', 'Cancellation Trend', 'Payment Methods', 'Booking Source'].map(f => (
@@ -547,7 +547,7 @@ export default function ReportsClient({
             <Link href="/hotel-admin/billing" className="mt-6 inline-flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm shadow-indigo-200">
               Upgrade Plan <ArrowRight className="h-4 w-4" />
             </Link>
-            <p className="mt-3 text-xs text-gray-400">Available on Growth, Pro, and Enterprise plans</p>
+            <p className="mt-3 text-xs text-gray-400">Available on Growth, Proand Enterprise plans</p>
           </div>
         )}
       </div>

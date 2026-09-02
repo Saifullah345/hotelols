@@ -33,7 +33,7 @@ export default async function HotelAdminDashboard() {
   const today = new Date().toISOString().split('T')[0]
 
   // Two reads replace four here. `id` instead of `*` on the head-counts stops
-  // PostgREST from planning a select over every column, and the room and
+  // PostgREST from planning a select over every columnand the room and
   // booking status tallies each come back as one grouped read instead of one
   // round-trip per status.
   const [{ data: hotelInfo },

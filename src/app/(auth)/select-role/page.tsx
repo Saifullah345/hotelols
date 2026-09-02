@@ -30,8 +30,8 @@ const ROLE_ICONS: Record<string, React.ElementType> = {
 
 const ROLE_DESC: Record<string, string> = {
   super_admin: 'Full platform administration access',
-  hotel_admin: 'Manage your hotel, bookings, and staff',
-  staff:       'Handle check-ins, bookings, and rooms',
+  hotel_admin: 'Manage your hotel, bookingsand staff',
+  staff:       'Handle check-ins, bookingsand rooms',
   customer:    'Browse hotels and manage your bookings',
 }
 

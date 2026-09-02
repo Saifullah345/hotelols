@@ -35,7 +35,7 @@ export default function PaddleProvider() {
         }
 
         if (event.name === 'checkout.completed') {
-          // Webhooks can't reach a local dev server, and can be missed in
+          // Webhooks can't reach a local dev serverand can be missed in
           // production — confirm straight away rather than waiting for one.
           const transactionId = (event.data as { transaction_id?: string } | undefined)?.transaction_id
           fetch('/api/paddle/confirm', {

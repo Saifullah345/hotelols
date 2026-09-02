@@ -529,7 +529,7 @@ export default function HotelSettingsPage() {
               <h3 className="font-bold text-red-600">Danger Zone</h3>
             </div>
             <p className="text-xs text-gray-500 mb-4">
-              Permanently removes your hotel and all its data — rooms, bookings, payments, and staff. This cannot be undone.
+              Permanently removes your hotel and all its data — rooms, bookings, paymentsand staff. This cannot be undone.
             </p>
             <input
               value={deleteConfirm}

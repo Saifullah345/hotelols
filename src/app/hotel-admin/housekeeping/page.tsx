@@ -43,7 +43,7 @@ export default async function HousekeepingPage() {
           <h2 className="text-xl font-bold text-gray-900">Housekeeping is a Growth feature</h2>
           <p className="mt-2 text-sm text-gray-500">
             Your current <span className="font-medium capitalize">{planName || 'Starter'}</span> plan does not include the Housekeeping module.
-            Upgrade to Growth or higher to unlock task management, room tracking, and staff assignments.
+            Upgrade to Growth or higher to unlock task management, room trackingand staff assignments.
           </p>
           <Link
             href="/hotel-admin/settings"

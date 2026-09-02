@@ -2,7 +2,7 @@ import type { createClient } from '@/lib/supabase/server'
 import { getSiteUrl } from '@/lib/supabase/env'
 
 /**
- * Where email confirmation links point, and where a confirmed user lands.
+ * Where email confirmation links pointand where a confirmed user lands.
  *
  * Why the links don't use GoTrue's own `action_link`
  * ──────────────────────────────────────────────────
@@ -22,7 +22,7 @@ import { getSiteUrl } from '@/lib/supabase/env'
  *
  * So the emails link at this app directly and carry `properties.hashed_token`,
  * which `/auth/confirm` redeems with `verifyOtp()`. No redirect allow-list is
- * involved, and the session is set as cookies by the SSR client, server-side.
+ * involvedand the session is set as cookies by the SSR client, server-side.
  */
 
 /** The `verifyOtp` types an emailed confirmation link can carry. */

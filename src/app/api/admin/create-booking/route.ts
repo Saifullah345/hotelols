@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   const hotelId = profile.tenant_id
   if (!hotelId) return NextResponse.json({ error: 'No hotel assigned to your account' }, { status: 400 })
 
-  // A hotel with a lapsed plan is read-only — the dashboard hides itself, and
+  // A hotel with a lapsed plan is read-only — the dashboard hides itselfand
   // this stops a stale tab or a direct request writing anyway.
   const expired = await blockIfExpired(hotelId)
   if (expired) return expired

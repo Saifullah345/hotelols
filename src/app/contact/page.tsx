@@ -1,7 +1,8 @@
-import Link from 'next/link'
 import { Phone, Mail, MessageCircle, Clock, MapPin } from 'lucide-react'
 import PublicNavbar from '@/components/layout/PublicNavbar'
 import PublicFooter from '@/components/layout/PublicFooter'
+import ContactForm from './ContactForm'
+import { activeSocialLinks } from '@/lib/social'
 import { pageMetadata } from '@/lib/seo'
 
 export const metadata = pageMetadata({
@@ -15,83 +16,132 @@ const PHONE   = '+92 325 5258421'
 const WA_LINK = 'https://wa.me/923255258421'
 const EMAIL   = 'sales@n6solution.com'
 
+const CHANNELS = [
+  {
+    title: 'Call us',
+    detail: PHONE,
+    note: 'Mon – Sat, 10 am – 7 pm',
+    href: `tel:${PHONE.replace(/\s/g, '')}`,
+    icon: Phone,
+    ring: 'from-indigo-100 to-indigo-200',
+    tint: 'text-indigo-600',
+    external: false,
+  },
+  {
+    title: 'WhatsApp',
+    detail: PHONE,
+    note: 'Chat with us instantly',
+    href: WA_LINK,
+    icon: MessageCircle,
+    ring: 'from-green-100 to-emerald-200',
+    tint: 'text-green-600',
+    external: true,
+  },
+  {
+    title: 'Email Us',
+    detail: EMAIL,
+    note: 'We reply within 24 hours',
+    href: `mailto:${EMAIL}`,
+    icon: Mail,
+    ring: 'from-purple-100 to-violet-200',
+    tint: 'text-purple-600',
+    external: false,
+  },
+]
+
 export default function ContactPage() {
+  const social = activeSocialLinks()
+
   return (
     <div className="min-h-screen bg-white">
       <PublicNavbar />
 
       {/* Hero */}
-      <section className="border-b border-gray-100 bg-white">
-        <div className="mx-auto max-w-5xl px-6 py-20 lg:py-24 text-center">
-          <p className="text-sm font-semibold uppercase tracking-widest text-indigo-600 mb-4">Get in touch</p>
-          <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 leading-tight tracking-tight">
+      <section className="bg-white">
+        <div className="mx-auto max-w-5xl px-6 pt-16 pb-10 text-center lg:pt-20">
+          <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-indigo-600">Get in touch</p>
+          <h1 className="text-4xl font-extrabold leading-tight tracking-tight text-gray-900 sm:text-5xl">
             We&apos;d love to hear from you
           </h1>
-          <p className="mt-5 text-lg text-gray-500 max-w-xl mx-auto leading-relaxed">
+          <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-gray-500">
             Have a question about BookQayam? Reach out — we typically respond within a few hours.
           </p>
         </div>
       </section>
 
-      <main className="mx-auto max-w-5xl px-6 py-16 space-y-12">
+      <main className="mx-auto max-w-6xl px-6 pb-16">
+        {/* Channels beside the form, as two halves of one row */}
+        <div className="grid items-start gap-10 lg:grid-cols-[1.05fr_1fr]">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+            {CHANNELS.map(({ title, detail, note, href, icon: Icon, ring, tint, external }) => (
+              <a
+                key={title}
+                href={href}
+                {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                className="group flex flex-col items-center text-center"
+              >
+                <span
+                  className={`flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br ${ring} shadow-sm transition-transform duration-200 group-hover:-translate-y-1`}
+                >
+                  <Icon className={`h-9 w-9 ${tint}`} aria-hidden="true" />
+                </span>
+                <h2 className="mt-5 font-bold text-gray-900">{title}</h2>
+                <p className="mt-1 break-all text-sm font-medium text-gray-700 group-hover:text-indigo-600">
+                  {detail}
+                </p>
+                <p className="mt-1 text-xs text-gray-400">{note}</p>
+              </a>
+            ))}
+          </div>
 
-        {/* Contact cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <a href={`tel:${PHONE.replace(/\s/g, '')}`}
-            className="group flex flex-col items-center text-center border border-gray-100 rounded-2xl p-8 hover:border-indigo-100 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
-            <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-indigo-600 transition-colors">
-              <Phone className="h-5 w-5 text-indigo-600 group-hover:text-white transition-colors" />
-            </div>
-            <h3 className="font-bold text-gray-900 mb-1">Call us</h3>
-            <p className="text-sm text-gray-400 mb-3">Mon – Sat, 10 am – 7 pm</p>
-            <p className="text-indigo-600 font-semibold text-sm">{PHONE}</p>
-          </a>
-
-          <a href={WA_LINK} target="_blank" rel="noopener noreferrer"
-            className="group flex flex-col items-center text-center border border-gray-100 rounded-2xl p-8 hover:border-green-100 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
-            <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-green-500 transition-colors">
-              <MessageCircle className="h-5 w-5 text-green-600 group-hover:text-white transition-colors" />
-            </div>
-            <h3 className="font-bold text-gray-900 mb-1">WhatsApp</h3>
-            <p className="text-sm text-gray-400 mb-3">Chat with us instantly</p>
-            <p className="text-green-600 font-semibold text-sm">{PHONE}</p>
-          </a>
-
-          <a href={`mailto:${EMAIL}`}
-            className="group flex flex-col items-center text-center border border-gray-100 rounded-2xl p-8 hover:border-indigo-100 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
-            <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-indigo-600 transition-colors">
-              <Mail className="h-5 w-5 text-indigo-600 group-hover:text-white transition-colors" />
-            </div>
-            <h3 className="font-bold text-gray-900 mb-1">Email us</h3>
-            <p className="text-sm text-gray-400 mb-3">We reply within 24 hours</p>
-            <p className="text-indigo-600 font-semibold text-sm break-all">{EMAIL}</p>
-          </a>
+          <ContactForm />
         </div>
 
         {/* Info strip */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          <div className="flex items-start gap-4 rounded-2xl bg-gray-50 border border-gray-100 px-6 py-5">
-            <div className="w-9 h-9 bg-white border border-gray-200 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Clock className="h-4 w-4 text-gray-500" />
+        <div className="mt-12 rounded-2xl border border-gray-100 bg-gray-50 px-6 py-5">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-6 sm:flex-row sm:gap-12">
+              <div className="flex items-start gap-4">
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white">
+                  <Clock className="h-4 w-4 text-gray-500" aria-hidden="true" />
+                </span>
+                <div>
+                  <p className="mb-1 text-sm font-semibold text-gray-900">Business Hours</p>
+                  <p className="text-sm text-gray-500">Monday – Saturday: 10:00 am – 7:00 pm PKT</p>
+                  <p className="text-sm text-gray-500">Sunday: Closed</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4">
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white">
+                  <MapPin className="h-4 w-4 text-gray-500" aria-hidden="true" />
+                </span>
+                <div>
+                  <p className="mb-1 text-sm font-semibold text-gray-900">Company</p>
+                  <p className="text-sm text-gray-500">N6 Solution SMC PVT LTD</p>
+                  <p className="text-sm text-gray-500">Pakistan</p>
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="font-semibold text-gray-900 text-sm mb-1">Business Hours</p>
-              <p className="text-sm text-gray-500">Monday – Saturday: 10:00 am – 7:00 pm PKT</p>
-              <p className="text-sm text-gray-500">Sunday: Closed</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-4 rounded-2xl bg-gray-50 border border-gray-100 px-6 py-5">
-            <div className="w-9 h-9 bg-white border border-gray-200 rounded-xl flex items-center justify-center flex-shrink-0">
-              <MapPin className="h-4 w-4 text-gray-500" />
-            </div>
-            <div>
-              <p className="font-semibold text-gray-900 text-sm mb-1">Company</p>
-              <p className="text-sm text-gray-500">N6 Solution SMC PVT LTD</p>
-              <p className="text-sm text-gray-500">Pakistan</p>
-            </div>
+
+            {social.length > 0 && (
+              <div className="flex items-center gap-2">
+                {social.map(({ label, icon: Icon, url }) => (
+                  <a
+                    key={label}
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    aria-label={label}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-400 transition-colors hover:text-gray-900"
+                  >
+                    <Icon className="h-4 w-4" aria-hidden="true" />
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-
       </main>
 
       <PublicFooter />

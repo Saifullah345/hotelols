@@ -15,7 +15,7 @@ export default async function BillingPage() {
   const admin = await createAdminClient()
 
   // Three serial reads became one wave. The hotel's own plan arrives embedded on
-  // the hotel row rather than as a follow-up lookup keyed by hotel.plan_id, and
+  // the hotel row rather than as a follow-up lookup keyed by hotel.plan_idand
   // the plan ladder doesn't depend on the hotel at all, so it goes out at the
   // same time.
   //
@@ -35,7 +35,7 @@ export default async function BillingPage() {
   ])
 
   // Split the embed back off so BillingClient receives the shape it always has:
-  // the hotel row, and the current plan as its own prop.
+  // the hotel rowand the current plan as its own prop.
   type PlanRow = NonNullable<typeof plans>[number]
   const currentPlan = ((hotelRow as { plan?: PlanRow | null } | null)?.plan ?? null) as PlanRow | null
   const hotel = hotelRow

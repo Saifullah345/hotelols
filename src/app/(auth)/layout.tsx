@@ -29,7 +29,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
                 Book stays.<br />Run hotels.
               </h2>
               <p className="mt-3 text-sm text-indigo-200/75 leading-relaxed">
-                One platform for guests and hotel owners — discover, book, and manage everything in one place.
+                One platform for guests and hotel owners — discover, bookand manage everything in one place.
               </p>
             </div>
 

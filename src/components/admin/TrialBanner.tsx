@@ -62,7 +62,7 @@ export default function TrialBanner({
         <p className={`mt-0.5 text-xs ${tone.body}`}>
           {cancelAt
             ? `Your trial ends on ${endsOn} and your subscription stops there — nothing will be charged.`
-            : `Your trial ends on ${endsOn}, and your card is charged automatically then. Change or cancel any time before it does.`}
+            : `Your trial ends on ${endsOn}and your card is charged automatically then. Change or cancel any time before it does.`}
         </p>
       </div>
 

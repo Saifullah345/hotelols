@@ -638,7 +638,7 @@ export default function BookingActions({
     // A check-in date that has passed only blocks a normal check-in — a
     // late-arrival override from a no-show is expected to be late. Neither one
     // may reopen a stay whose departure date is behind us; see
-    // checkInBlockReason for why, and for the wording shown here.
+    // checkInBlockReason for whyand for the wording shown here.
     if (status === 'checked_in') {
       const blocked = checkInBlockReason(
         { check_in: checkIn, check_out: checkOut, status: currentStatus },

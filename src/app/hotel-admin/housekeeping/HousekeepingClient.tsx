@@ -17,8 +17,8 @@ function sanitizeText(value: string) {
   return value.replace(/<[^>]*>/g, '').replace(/[<>]/g, '')
 }
 
-// Task descriptions: letters, digits, spaces, and minimal safe punctuation.
-// Dashes, slashes, and quotes are blocked — they appear in garbled/injected input
+// Task descriptions: letters, digits, spacesand minimal safe punctuation.
+// Dashes, slashesand quotes are blocked — they appear in garbled/injected input
 // but are not needed for real task descriptions like "Full turnover clean".
 function sanitizeTaskText(value: string) {
   return value
