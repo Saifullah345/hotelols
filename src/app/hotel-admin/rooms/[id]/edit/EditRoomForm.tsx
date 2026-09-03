@@ -23,6 +23,8 @@ const schema = z.object({
   name:            roomNameSchema,
   floor:           z.coerce.number().min(0, 'Floor must be 0 or above'),
   price_per_night: z.coerce.number().min(1, 'Price must be at least 1'),
+  // Blank clears it, taking the room off hourly booking.
+  rate_per_hour:   z.union([z.literal(''), z.coerce.number().min(1, 'Hourly rate must be at least 1')]).optional(),
   room_type_id:    z.string().uuid('Select a room type'),
   max_adults:      z.coerce.number().min(1).max(20),
   max_children:    z.coerce.number().min(0).max(20),
@@ -48,6 +50,7 @@ export interface EditRoomFormProps {
     name: string | null
     floor: number
     price_per_night: number
+    rate_per_hour: number | null
     room_type_id: string
     max_adults: number
     max_children: number
@@ -120,6 +123,7 @@ export default function EditRoomForm({
       name:            room.name ?? '',
       floor:           room.floor,
       price_per_night: room.price_per_night,
+      rate_per_hour: room.rate_per_hour ?? '',
       room_type_id:    room.room_type_id,
       max_adults:      room.max_adults,
       max_children:    room.max_children,
@@ -162,7 +166,11 @@ export default function EditRoomForm({
     const res = await fetch(`/api/rooms/${room.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...data, notes: data.notes || null }),
+      body: JSON.stringify({
+        ...data,
+        notes: data.notes || null,
+        rate_per_hour: data.rate_per_hour === '' || data.rate_per_hour == null ? null : data.rate_per_hour,
+      }),
     })
     const json = await res.json()
     if (!res.ok) { toast.error(json.error ?? 'Failed to update room'); return }
@@ -310,6 +318,22 @@ export default function EditRoomForm({
                   {upcomingBookings > 0 && (
                     <p className="text-xs text-gray-400 mt-1.5">Applies to future bookings only.</p>
                   )}
+                </div>
+                <div className="col-span-2">
+                  <label className="label">Price / Hour ({currency}) <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium pointer-events-none">$</span>
+                    <input
+                      {...register('rate_per_hour')}
+                      type="number" min={1} step="0.01"
+                      className="input pl-7"
+                      placeholder="Leave blank if this room isn't let by the hour"
+                    />
+                  </div>
+                  {errors.rate_per_hour && <p className="text-red-500 text-xs mt-1">{errors.rate_per_hour.message}</p>}
+                  <p className="text-xs text-gray-400 mt-1.5">
+                    Set a rate to offer this room for short stays; clear it to take it off hourly booking.
+                  </p>
                 </div>
               </div>
             </SectionCard>

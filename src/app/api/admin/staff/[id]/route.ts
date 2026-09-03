@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { stripHtml } from '@/lib/sanitize'
 import { isValidEmail } from '@/lib/validation'
 import { blockIfExpired } from '@/lib/subscription-guard'
+import { STAFF_PERMISSIONS } from '@/lib/staff-constants'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -46,7 +47,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
   const { admin, member } = auth
 
   const body = await request.json().catch(() => ({}))
-  const { name, email, phone, department, position, shift, salary, status } = body
+  const { name, email, phone, department, position, shift, salary, status, permissions } = body
 
   const updates: Record<string, unknown> = {}
 
@@ -101,6 +102,18 @@ export async function PATCH(request: Request, { params }: Ctx) {
     updates.is_active = status !== 'inactive'
   }
 
+  // Permissions gate what a staff login can reach, so only the known set is
+  // accepted — an unrecognised string here would sit in the row forever and
+  // read as a capability nothing grants.
+  if (permissions !== undefined) {
+    if (!Array.isArray(permissions))
+      return NextResponse.json({ error: 'Permissions must be a list' }, { status: 400 })
+    const unknown = permissions.filter(p => !(STAFF_PERMISSIONS as readonly string[]).includes(p))
+    if (unknown.length)
+      return NextResponse.json({ error: `Unknown permission: ${unknown.join(', ')}` }, { status: 400 })
+    updates.permissions = permissions
+  }
+
   if (Object.keys(updates).length) {
     const { error } = await admin.from('staff').update(updates).eq('id', id)
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
@@ -117,6 +130,16 @@ export async function DELETE(_request: Request, { params }: Ctx) {
 
   if (member.user_id === user.id) {
     return NextResponse.json({ error: 'You cannot remove your own account' }, { status: 400 })
+  }
+
+  // Roster-only entries (migration 015) have no login to delete — deleting the
+  // staff row is the whole job. Passing a null id to deleteUser() throws, which
+  // used to surface as the "login could not be deleted" warning below on a
+  // record that never had one.
+  if (!member.user_id) {
+    const { error: staffError } = await admin.from('staff').delete().eq('id', id)
+    if (staffError) return NextResponse.json({ error: staffError.message }, { status: 400 })
+    return NextResponse.json({ success: true })
   }
 
   const { error: authError } = await admin.auth.admin.deleteUser(member.user_id)

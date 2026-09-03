@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getAuthContext } from '@/lib/auth'
 import { canGuestEdit } from '@/lib/booking'
+import { hourlyProblem, stayHours, staysOverlap, type StayInterval } from '@/lib/hourly'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -18,7 +19,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
   const adminRead = await createAdminClient()
   const { data: booking } = await adminRead
     .from('bookings')
-    .select('id, hotel_id, room_id, room_ids, user_id, status, created_at, check_in, check_out')
+    .select('id, hotel_id, room_id, room_ids, user_id, status, created_at, check_in, check_out, booking_type, check_in_time, check_out_time')
     .eq('id', id)
     .single()
   if (!booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
@@ -46,7 +47,23 @@ export async function PATCH(request: Request, { params }: Ctx) {
   }
 
   const body = await request.json()
-  const { check_in, check_out, room_ids, adults, children, special_requests, source, guest_name, guest_phone } = body
+  const {
+    check_in, check_out, room_ids, adults, children, special_requests, source, guest_name, guest_phone,
+    booking_type, check_in_time, check_out_time,
+  } = body
+
+  // The stay keeps whatever type it was booked as unless the caller changes it,
+  // so an edit that only moves the guest count can't silently reprice a short
+  // stay as a night.
+  const nextType = booking_type ?? booking.booking_type ?? 'nightly'
+  const isHourly = nextType === 'hourly'
+  const nextStay: StayInterval = {
+    check_in:       check_in       ?? booking.check_in,
+    check_out:      check_out      ?? booking.check_out,
+    booking_type:   nextType,
+    check_in_time:  check_in_time  ?? booking.check_in_time,
+    check_out_time: check_out_time ?? booking.check_out_time,
+  }
 
   const updates: Record<string, unknown> = {}
 
@@ -79,7 +96,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
   // would happily let them move onto a room somebody else holds.
   const { data: bookedRooms } = await adminRead
     .from('rooms')
-    .select('id, hotel_id, status, price_per_night, capacity, max_adults, max_children')
+    .select('id, hotel_id, status, price_per_night, rate_per_hour, capacity, max_adults, max_children')
     .in('id', nextRoomIds)
 
   if (!bookedRooms || bookedRooms.length !== nextRoomIds.length) {
@@ -97,27 +114,39 @@ export async function PATCH(request: Request, { params }: Ctx) {
     }
   }
 
-  if (check_in && check_out && new Date(check_out) <= new Date(check_in)) {
+  if (isHourly) {
+    const problem = hourlyProblem(nextStay)
+    if (problem) return NextResponse.json({ error: problem }, { status: 400 })
+    if (bookedRooms.some(r => r.rate_per_hour == null)) {
+      return NextResponse.json(
+        { error: 'One or more selected rooms have no hourly rate. Set one on the room first, or book by night.' },
+        { status: 400 },
+      )
+    }
+  } else if (check_in && check_out && new Date(check_out) <= new Date(check_in)) {
     return NextResponse.json({ error: 'Check-out must be after check-in' }, { status: 400 })
   }
 
   // Re-check availability whenever the dates OR the rooms move — a room added
   // to an unchanged stay still has to be free for it.
-  if ((check_in && check_out) || roomsChanged) {
-    const from = check_in  ?? booking.check_in
-    const to   = check_out ?? booking.check_out
-
-    const { data: conflict } = await adminRead
-      .from('bookings').select('id')
+  if ((check_in && check_out) || roomsChanged || isHourly) {
+    // Inclusive date window, then an exact hour-boundary comparison — see the
+    // same note in /api/admin/create-booking: a same-day hourly stay has
+    // check_in === check_out and a strict window would match nothing at all.
+    const { data: sameWindow } = await adminRead
+      .from('bookings')
+      .select('id, check_in, check_out, booking_type, check_in_time, check_out_time')
       .overlaps('room_ids', nextRoomIds)
       .neq('id', id)
       .in('status', ['confirmed', 'checked_in', 'pending'])
-      .lt('check_in', to)
-      .gt('check_out', from)
-      .maybeSingle()
+      .lte('check_in', nextStay.check_out)
+      .gte('check_out', nextStay.check_in)
 
-    if (conflict) {
-      return NextResponse.json({ error: 'One or more rooms are already booked for those dates.' }, { status: 409 })
+    if ((sameWindow ?? []).some(b => staysOverlap(nextStay, b as StayInterval))) {
+      return NextResponse.json(
+        { error: `One or more rooms are already booked for ${isHourly ? 'that time slot' : 'those dates'}.` },
+        { status: 409 },
+      )
     }
   }
 
@@ -125,6 +154,10 @@ export async function PATCH(request: Request, { params }: Ctx) {
     updates.check_in  = check_in
     updates.check_out = check_out
   }
+
+  if (booking_type   !== undefined) updates.booking_type   = nextType
+  if (check_in_time  !== undefined) updates.check_in_time  = isHourly ? check_in_time  : null
+  if (check_out_time !== undefined) updates.check_out_time = isHourly ? check_out_time : null
 
   if (roomsChanged) {
     updates.room_ids = nextRoomIds
@@ -134,15 +167,21 @@ export async function PATCH(request: Request, { params }: Ctx) {
   }
 
   // Price follows whichever of the two actually moved.
-  if ((check_in && check_out) || roomsChanged) {
-    const from = (updates.check_in as string) ?? booking.check_in
-    const to   = (updates.check_out as string) ?? booking.check_out
-    const nights = Math.max(1, Math.ceil(
-      (new Date(to).getTime() - new Date(from).getTime()) / 86_400_000
-    ))
-    updates.total_amount = nights * bookedRooms.reduce(
-      (sum: number, r: { price_per_night: number }) => sum + (r.price_per_night ?? 0), 0
-    )
+  if ((check_in && check_out) || roomsChanged || isHourly) {
+    if (isHourly) {
+      updates.total_amount = stayHours(nextStay) * bookedRooms.reduce(
+        (sum: number, r: { rate_per_hour?: number | null }) => sum + (r.rate_per_hour ?? 0), 0
+      )
+    } else {
+      const from = (updates.check_in as string) ?? booking.check_in
+      const to   = (updates.check_out as string) ?? booking.check_out
+      const nights = Math.max(1, Math.ceil(
+        (new Date(to).getTime() - new Date(from).getTime()) / 86_400_000
+      ))
+      updates.total_amount = nights * bookedRooms.reduce(
+        (sum: number, r: { price_per_night: number }) => sum + (r.price_per_night ?? 0), 0
+      )
+    }
   }
 
   if (adults           !== undefined) updates.adults           = adults

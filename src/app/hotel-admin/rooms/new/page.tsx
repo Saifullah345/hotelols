@@ -23,6 +23,8 @@ const schema = z.object({
   name:            roomNameSchema,
   floor:           z.coerce.number().min(0, 'Floor must be 0 or above'),
   price_per_night: z.coerce.number().min(1, 'Price must be at least 1'),
+  // Optional: a room is only offered for short stays once it has an hourly rate.
+  rate_per_hour:   z.union([z.literal(''), z.coerce.number().min(1, 'Hourly rate must be at least 1')]).optional(),
   room_type_id:    z.string().uuid('Select a room type'),
   max_adults:      z.coerce.number().min(1).max(20),
   max_children:    z.coerce.number().min(0).max(20),
@@ -144,7 +146,12 @@ export default function NewRoomPage() {
   const onSubmit = async (data: RoomForm) => {
     if (!tenantId) return
     const supabase = createClient()
-    const { error } = await supabase.from('rooms').insert({ ...data, hotel_id: tenantId, notes: data.notes || null })
+    const { error } = await supabase.from('rooms').insert({
+      ...data,
+      hotel_id: tenantId,
+      notes: data.notes || null,
+      rate_per_hour: data.rate_per_hour === '' || data.rate_per_hour == null ? null : data.rate_per_hour,
+    })
     if (error) { toast.error(error.message); return }
     toast.success('Room added successfully')
     router.push('/hotel-admin/rooms')
@@ -268,6 +275,22 @@ export default function NewRoomPage() {
                     />
                   </div>
                   {errors.price_per_night && <p className="text-red-500 text-xs mt-1">{errors.price_per_night.message}</p>}
+                </div>
+                <div className="col-span-2">
+                  <label className="label">Price / Hour <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium pointer-events-none">$</span>
+                    <input
+                      {...register('rate_per_hour')}
+                      type="number" min={1} step="0.01"
+                      className="input pl-7"
+                      placeholder="Leave blank if this room isn't let by the hour"
+                    />
+                  </div>
+                  {errors.rate_per_hour && <p className="text-red-500 text-xs mt-1">{errors.rate_per_hour.message}</p>}
+                  <p className="text-xs text-gray-400 mt-1.5">
+                    Set this to offer the room for short stays — hourly bookings are priced from it.
+                  </p>
                 </div>
               </div>
             </SectionCard>

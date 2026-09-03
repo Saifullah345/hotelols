@@ -31,7 +31,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
   if (blocked) return blocked
 
   const body = await request.json()
-  const { room_number, name, floor, price_per_night, room_type_id,
+  const { room_number, name, floor, price_per_night, rate_per_hour, room_type_id,
           max_adults, max_children, amenities, images, notes, status } = body
 
   // Validate identity fields (reject markup / symbol-only input)
@@ -65,6 +65,8 @@ export async function PATCH(request: Request, { params }: Ctx) {
   if (name            !== undefined) updates.name            = name       // null clears it
   if (floor           !== undefined) updates.floor           = floor
   if (price_per_night !== undefined) updates.price_per_night = price_per_night
+  // null clears it — a room with no hourly rate simply isn't offered by the hour.
+  if (rate_per_hour   !== undefined) updates.rate_per_hour   = rate_per_hour
   if (room_type_id    !== undefined) updates.room_type_id    = room_type_id
   if (max_adults      !== undefined) updates.max_adults      = max_adults
   if (max_children    !== undefined) updates.max_children    = max_children

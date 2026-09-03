@@ -3,6 +3,7 @@ import { getAuthContext } from '@/lib/auth'
 import { NextResponse } from 'next/server'
 import { nameSchema } from '@/lib/validation'
 import { blockIfExpired } from '@/lib/subscription-guard'
+import { hourlyProblem, stayHours, staysOverlap, type StayInterval } from '@/lib/hourly'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -75,21 +76,17 @@ export async function POST(request: Request) {
 
   const checkInDate  = new Date(check_in)
   const checkOutDate = new Date(check_out)
+  const isHourly     = booking_type === 'hourly'
 
-  if (booking_type === 'hourly') {
-    if (checkOutDate < checkInDate) {
-      return NextResponse.json({ error: 'Check-out date cannot be before check-in date' }, { status: 400 })
-    }
-    if (!check_in_time || !check_out_time) {
-      return NextResponse.json({ error: 'Check-in time and check-out time are required for hourly bookings' }, { status: 400 })
-    }
-    if (checkOutDate.getTime() === checkInDate.getTime() && check_out_time <= check_in_time) {
-      return NextResponse.json({ error: 'Check-out time must be after check-in time' }, { status: 400 })
-    }
-  } else {
-    if (checkOutDate <= checkInDate) {
-      return NextResponse.json({ error: 'Check-out must be after check-in' }, { status: 400 })
-    }
+  const stay: StayInterval = {
+    check_in, check_out, booking_type, check_in_time, check_out_time,
+  }
+
+  if (isHourly) {
+    const problem = hourlyProblem(stay)
+    if (problem) return NextResponse.json({ error: problem }, { status: 400 })
+  } else if (checkOutDate <= checkInDate) {
+    return NextResponse.json({ error: 'Check-out must be after check-in' }, { status: 400 })
   }
 
   // Fetch all selected rooms in one query
@@ -120,17 +117,26 @@ export async function POST(request: Request) {
   }
 
   // Check conflicts for all rooms at once — overlaps() matches any room on an
-  // existing booking, not just its primary one
-  const { data: conflicts } = await supabase
+  // existing booking, not just its primary one. The date window is inclusive
+  // (lte/gte) because a same-day hourly stay has check_in === check_out, which a
+  // strict lt/gt window excludes outright — it would return nothing and let the
+  // desk double-book the room. staysOverlap() then compares real hour
+  // boundaries, so the extra day this pulls in costs nothing.
+  const { data: sameWindow } = await supabase
     .from('bookings')
-    .select('id, room_ids')
+    .select('id, room_ids, check_in, check_out, booking_type, check_in_time, check_out_time')
     .overlaps('room_ids', roomIds)
     .in('status', ['confirmed', 'checked_in'])
-    .lt('check_in', check_out)
-    .gt('check_out', check_in)
+    .lte('check_in', check_out)
+    .gte('check_out', check_in)
 
-  if (conflicts && conflicts.length > 0) {
-    return NextResponse.json({ error: 'One or more rooms are not available for the selected dates' }, { status: 409 })
+  const conflicts = (sameWindow ?? []).filter(b => staysOverlap(stay, b as StayInterval))
+
+  if (conflicts.length > 0) {
+    return NextResponse.json(
+      { error: `One or more rooms are not available for the selected ${isHourly ? 'time slot' : 'dates'}` },
+      { status: 409 },
+    )
   }
 
   // Hotel currency
@@ -142,12 +148,15 @@ export async function POST(request: Request) {
   const currency = (hotel as { currency?: string } | null)?.currency ?? 'USD'
 
   let total_amount: number
-  if (booking_type === 'hourly') {
-    const [h1, m1] = check_in_time.split(':').map(Number)
-    const [h2, m2] = check_out_time.split(':').map(Number)
-    const dayDiff = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / 86_400_000)
-    const hours   = Math.max(0, ((h2 * 60 + m2) - (h1 * 60 + m1)) / 60 + dayDiff * 24)
-    total_amount  = hours * rooms.reduce(
+  if (isHourly) {
+    // A room the hotel never priced by the hour would otherwise bill at 0.
+    if (rooms.some((r: { rate_per_hour?: number | null }) => r.rate_per_hour == null)) {
+      return NextResponse.json(
+        { error: 'One or more selected rooms have no hourly rate. Set one on the room first, or book by night.' },
+        { status: 400 },
+      )
+    }
+    total_amount = stayHours(stay) * rooms.reduce(
       (sum: number, r: { rate_per_hour?: number }) => sum + (r.rate_per_hour ?? 0), 0,
     )
   } else {
@@ -188,11 +197,11 @@ export async function POST(request: Request) {
     user_id:          guest_user_id ?? null,
     guest_name:       guest_user_id ? null : (guest_name ?? null),
     guest_phone:      guest_user_id ? null : (guest_phone ?? null),
-    booking_type,
+    booking_type: isHourly ? 'hourly' : 'nightly',
     check_in,
     check_out,
-    check_in_time:    check_in_time  ?? null,
-    check_out_time:   check_out_time ?? null,
+    check_in_time:    isHourly ? check_in_time  : null,
+    check_out_time:   isHourly ? check_out_time : null,
     guests,
     adults:           adults ?? 1,
     children:         children ?? 0,

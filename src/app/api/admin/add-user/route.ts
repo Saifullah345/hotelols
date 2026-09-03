@@ -105,6 +105,11 @@ export async function POST(request: Request) {
       await adminClient.from('staff').insert({
         hotel_id:    effectiveHotelId,
         user_id:     existingUserId,
+        // Mirrored onto the staff row as well as the profile (migration 015 did
+        // the same back-fill), so every roster view names the person whether or
+        // not it joins profiles.
+        name:        full_name,
+        email,
         department:  department  || 'General',
         position:    position    || 'Staff',
         permissions: permissions || [],
@@ -195,6 +200,8 @@ export async function POST(request: Request) {
     const { error: staffError } = await adminClient.from('staff').insert({
       hotel_id:    effectiveHotelId,
       user_id:     createdUserId,
+      name:        full_name,
+      email,
       department:  department  || 'General',
       position:    position    || 'Staff',
       permissions: permissions || [],
@@ -213,7 +220,11 @@ export async function POST(request: Request) {
     } catch (emailError) {
       const reason = emailError instanceof Error ? emailError.message : String(emailError)
       console.error('Failed to send account email:', reason)
-      emailWarning = `Account created, but the notification email could not be sent: ${reason}`
+      // The account itself is live either way, so say so — the admin's next
+      // move is to pass the credentials on by hand, not to create it again.
+      emailWarning =
+        `The account is ready to use, but the welcome email could not be sent — ${reason} ` +
+        `Share the login details with ${full_name} directly for now.`
     }
   }
 

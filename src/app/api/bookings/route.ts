@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getAuthContext } from '@/lib/auth'
 import { isProfileComplete, missingProfileFields, PROFILE_INCOMPLETE } from '@/lib/profile'
 import { blockIfExpired } from '@/lib/subscription-guard'
+import { hourlyProblem, stayHours, staysOverlap, type StayInterval } from '@/lib/hourly'
 
 export async function GET(request: Request) {
   const supabase = await createClient()
@@ -58,7 +59,13 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { check_in, check_out, room_id, room_ids, hotel_id, guests, adults, children, special_requests } = body
+  const {
+    check_in, check_out, room_id, room_ids, hotel_id, guests, adults, children, special_requests,
+    booking_type: rawBookingType, check_in_time, check_out_time,
+  } = body
+
+  const isHourly = rawBookingType === 'hourly'
+  const bookingType = isHourly ? 'hourly' : 'nightly'
 
   // Several rooms booked in one go stay ONE reservation — `room_ids` carries
   // them all and the `booking_room_ids_sync` trigger keeps `room_id` in step.
@@ -76,7 +83,14 @@ export async function POST(request: Request) {
       { status: 400 },
     )
   }
-  if (new Date(check_out) <= new Date(check_in)) {
+  const stay: StayInterval = {
+    check_in, check_out, booking_type: bookingType, check_in_time, check_out_time,
+  }
+
+  if (isHourly) {
+    const problem = hourlyProblem(stay)
+    if (problem) return NextResponse.json({ error: problem }, { status: 400 })
+  } else if (new Date(check_out) <= new Date(check_in)) {
     return NextResponse.json({ error: 'Check-out must be after check-in' }, { status: 400 })
   }
 
@@ -91,25 +105,35 @@ export async function POST(request: Request) {
   }
 
   // `overlaps` matches a room wherever it appears on another booking, not just
-  // as that booking's primary room.
-  const { data: conflicting } = await supabase
+  // as that booking's primary room. The date filter is deliberately inclusive
+  // (lte/gte): a same-day hourly stay has check_in === check_out, which a strict
+  // lt/gt window excludes entirely — it would find no conflicts at all and
+  // double-book the room. It over-selects by a day at each end instead, and
+  // staysOverlap() below decides on the real hour boundaries.
+  const { data: sameWindow } = await supabase
     .from('bookings')
-    .select('id')
+    .select('id, check_in, check_out, booking_type, check_in_time, check_out_time')
     .overlaps('room_ids', roomIds)
     .in('status', ['confirmed', 'checked_in'])
-    .lt('check_in', check_out)
-    .gt('check_out', check_in)
+    .lte('check_in', check_out)
+    .gte('check_out', check_in)
+
+  const conflicting = (sameWindow ?? []).filter(b => staysOverlap(stay, b as StayInterval))
 
   if (conflicting && conflicting.length > 0) {
     return NextResponse.json(
-      { error: `${roomIds.length > 1 ? 'One or more rooms are' : 'Room is'} not available for selected dates` },
+      {
+        error: `${roomIds.length > 1 ? 'One or more rooms are' : 'Room is'} not available for the selected ${
+          isHourly ? 'time slot' : 'dates'
+        }`,
+      },
       { status: 409 },
     )
   }
 
   const { data: rooms } = await supabase
     .from('rooms')
-    .select('id, hotel_id, status, price_per_night, room_number, capacity, max_adults, max_children')
+    .select('id, hotel_id, status, price_per_night, rate_per_hour, room_number, capacity, max_adults, max_children')
     .in('id', roomIds)
 
   if (!rooms || rooms.length !== roomIds.length) {
@@ -136,8 +160,19 @@ export async function POST(request: Request) {
     )
   }
 
+  // A room is only bookable by the hour once the hotel has priced it that way.
+  if (isHourly && rooms.some(r => r.rate_per_hour == null)) {
+    return NextResponse.json(
+      { error: `${roomIds.length > 1 ? 'One or more rooms are' : 'This room is'} not available for hourly booking` },
+      { status: 400 },
+    )
+  }
+
   const nights = Math.ceil((new Date(check_out).getTime() - new Date(check_in).getTime()) / 86400000)
-  const total_amount = nights * rooms.reduce((sum, r) => sum + Number(r.price_per_night ?? 0), 0)
+  const hours  = isHourly ? stayHours(stay) : 0
+  const total_amount = isHourly
+    ? hours  * rooms.reduce((sum, r) => sum + Number(r.rate_per_hour   ?? 0), 0)
+    : nights * rooms.reduce((sum, r) => sum + Number(r.price_per_night ?? 0), 0)
 
   // Built field by field rather than spreading the request body — a guest must
   // not be able to post their own `status` or `total_amount`.
@@ -148,6 +183,9 @@ export async function POST(request: Request) {
     room_ids: roomIds,
     check_in,
     check_out,
+    booking_type:   bookingType,
+    check_in_time:  isHourly ? check_in_time  : null,
+    check_out_time: isHourly ? check_out_time : null,
     adults:   adultCount,
     children: childCount,
     guests:   partySize,
@@ -187,7 +225,9 @@ export async function POST(request: Request) {
       const roomLabel = rooms.length > 1
         ? `${rooms.length} rooms (${rooms.map(r => r.room_number).join(', ')})`
         : `Room ${rooms[0].room_number}`
-      const message = `${guestName} booked ${roomLabel} for ${nights} night${nights === 1 ? '' : 's'} (${check_in} → ${check_out}).`
+      const message = isHourly
+        ? `${guestName} booked ${roomLabel} for ${hours} hour${hours === 1 ? '' : 's'} on ${check_in} (${check_in_time} → ${check_out_time}).`
+        : `${guestName} booked ${roomLabel} for ${nights} night${nights === 1 ? '' : 's'} (${check_in} → ${check_out}).`
 
       await admin.from('notifications').insert(
         admins.map(a => ({
