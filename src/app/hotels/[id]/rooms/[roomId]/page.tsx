@@ -173,10 +173,15 @@ export default async function RoomDetailPage({
                   </span>
                 )}
                 {location && (
-                  <span className="flex items-center gap-1.5">
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 hover:text-primary-600 transition-colors"
+                  >
                     <MapPin className="h-4 w-4 text-indigo-400" />
                     {location}
-                  </span>
+                  </a>
                 )}
               </div>
 
@@ -296,15 +301,20 @@ export default async function RoomDetailPage({
                   </div>
                 </div>
                 {location && (
-                  <div className="flex items-start gap-3">
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-start gap-3 hover:text-primary-600 transition-colors group"
+                  >
                     <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
                       <MapPin className="h-4 w-4 text-emerald-500" />
                     </div>
                     <div>
                       <p className="text-xs text-gray-400">Location</p>
-                      <p className="font-semibold text-gray-900">{location}</p>
+                      <p className="font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">{location}</p>
                     </div>
-                  </div>
+                  </a>
                 )}
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center shrink-0">

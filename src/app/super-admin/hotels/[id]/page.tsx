@@ -111,10 +111,15 @@ export default async function HotelDetailsPage({ params }: { params: Promise<{ i
                   {hotel.status}
                 </span>
               </div>
-              <p className="text-gray-500 text-sm flex items-center gap-1 mt-0.5">
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([hotel.address, hotel.city, hotel.country].filter(Boolean).join(', '))}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-500 text-sm flex items-center gap-1 mt-0.5 hover:text-primary-600 transition-colors"
+              >
                 <MapPin className="h-3 w-3" />
                 {[hotel.city, hotel.country].filter(Boolean).join(', ') || '—'}
-              </p>
+              </a>
             </div>
           </div>
         </div>
@@ -152,7 +157,14 @@ export default async function HotelDetailsPage({ params }: { params: Promise<{ i
           <dl className="space-y-3 text-sm">
             <div className="flex items-center gap-2 text-gray-600"><Mail  className="h-4 w-4 text-gray-400 shrink-0" />{hotel.email  || '—'}</div>
             <div className="flex items-center gap-2 text-gray-600"><Phone className="h-4 w-4 text-gray-400 shrink-0" />{hotel.phone  || '—'}</div>
-            <div className="flex items-center gap-2 text-gray-600"><MapPin className="h-4 w-4 text-gray-400 shrink-0" />{hotel.address || '—'}</div>
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([hotel.address, hotel.city, hotel.country].filter(Boolean).join(', '))}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition-colors"
+            >
+              <MapPin className="h-4 w-4 text-gray-400 shrink-0" />{hotel.address || '—'}
+            </a>
             <div className="flex justify-between border-t border-gray-100 pt-3">
               <span className="text-gray-500">Check-in / Check-out</span>
               <span className="text-gray-900 text-xs">{hotel.check_in_time} · {hotel.check_out_time}</span>

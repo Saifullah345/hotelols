@@ -26,9 +26,14 @@ export default function HotelImageGallery({
       <div className="min-w-0">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">{hotelName}</h1>
         {location && (
-          <p className="mt-1 flex items-center gap-1.5 text-sm text-gray-500">
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 flex items-center gap-1.5 text-sm text-gray-500 hover:text-primary-600 transition-colors"
+          >
             <MapPin className="h-4 w-4 shrink-0 text-primary-600" /> {location}
-          </p>
+          </a>
         )}
       </div>
       {rating ? (
