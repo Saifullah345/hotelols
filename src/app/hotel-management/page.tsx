@@ -4,7 +4,9 @@ import {
   BedDouble, CreditCard, Users, BarChart3,
   Bell, CheckCircle2, ArrowRight, ShieldCheck,
   CalendarDays, Receipt, ClipboardList,
-  Clock, Smartphone, Gift, Check, X as XIcon,
+  Clock, Smartphone, Gift,
+  PenLine, ReceiptText, CircleHelp, TrendingUp, FileWarning, FileQuestion,
+  Headphones, Sprout, Building2, Rocket, Star, NotebookPen,
 } from 'lucide-react'
 import PublicNavbar from '@/components/layout/PublicNavbar'
 import PublicFooter from '@/components/layout/PublicFooter'
@@ -42,21 +44,56 @@ const BENEFITS = [
   { icon: ShieldCheck,   title: 'Secure & reliable',               desc: 'Enterprise-grade security with daily backups — you never lose a record.' },
 ]
 
+// What a paper-run property is living with — the strip above the plans.
 const PAPERWORK = [
-  'Registers rewritten by hand every day',
-  'Receipts scribbled on a pad, or skipped',
-  'Availability guessed from memory',
-  'Revenue added up at month end, if at all',
-  'Records lost when a notebook goes missing',
-  'No idea which room type actually earns',
+  { icon: PenLine,      label: 'Registers rewritten by hand every day'   },
+  { icon: ReceiptText,  label: 'Receipts scribbled on a pad, or skipped' },
+  { icon: CircleHelp,   label: 'Availability guessed from memory'        },
+  { icon: TrendingUp,   label: 'Revenue added up at month end, if at all'},
+  { icon: FileWarning,  label: 'Records lost when a notebook goes missing' },
+  { icon: FileQuestion, label: 'No idea which room type actually earns'  },
 ]
 
-const STATS = [
-  { value: '14 days', label: 'Free trial on every plan' },
-  { value: '< 2 min', label: 'Average check-in time' },
-  { value: '24/7',    label: 'Access from anywhere' },
-  { value: '100%',    label: 'Payment accuracy' },
-]
+// Reassurance strip under the plans. Takes the trial length so it quotes the
+// same number as the headline and the buttons.
+function trustItems(trialDays: number) {
+  return [
+    { icon: ShieldCheck, title: `${trialDays}-day free trial`, desc: 'Try all features, risk-free'  },
+    { icon: CreditCard,  title: 'No credit card required',     desc: 'Start instantly, no payments' },
+    { icon: Clock,       title: 'Setup in < 2 minutes',        desc: 'Get started in no time'       },
+    { icon: Headphones,  title: '24/7 support',                desc: 'We’re here when you need us'  },
+  ]
+}
+
+/**
+ * Card dressing that isn't in the `plans` table: the icon and the one-line
+ * "who is this for". Chosen by the plan's position in the price-sorted list —
+ * cheapest is the entry tier, dearest is the top one — so adding or renaming a
+ * plan in Super Admin needs no change here. Anything in between falls back to
+ * the middle treatment.
+ */
+const PLAN_LOOKS = {
+  entry:  { icon: Sprout,     tagline: 'Perfect for small hotels & guest houses' },
+  middle: { icon: Building2,  tagline: 'Best for growing hotels'                 },
+  top:    { icon: Rocket,     tagline: 'For larger properties & teams'           },
+} as const
+
+function planLook(index: number, total: number) {
+  if (total > 1 && index === 0)         return PLAN_LOOKS.entry
+  if (total > 1 && index === total - 1) return PLAN_LOOKS.top
+  return PLAN_LOOKS.middle
+}
+
+/** Plan names are free-form text (migration 004) and are stored lower-case in
+ * places ("starter", "growth") — title-cased for display without touching the
+ * stored value. Written without a regex on purpose: an escape slip here fails
+ * silently, leaving the name lower-case with nothing to show for it. */
+function planTitle(name: string) {
+  return name
+    .split(' ')
+    .map(word => (word ? word[0].toUpperCase() + word.slice(1) : word))
+    .join(' ')
+}
 
 const FEATURE_FLAGS = [
   { key: 'feature_listing',          label: 'Website Listing'    },
@@ -111,117 +148,153 @@ function formatPrice(n: number) {
   return n % 1 === 0 ? `$${n}` : `$${n.toFixed(2)}`
 }
 
-/** One pricing card. `highlighted` is the filled indigo treatment. */
-function PlanCard({ plan, highlighted }: { plan: Plan; highlighted: boolean }) {
+/** Comparable form of a bullet: lower case, punctuation flattened to spaces. */
+function normaliseBullet(label: string) {
+  return label.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+/**
+ * The bullet list for a plan card: the plan's own copy first (it is written for
+ * the buyer and carries the "Everything in <lower plan>" line), then any generic
+ * capability flag it hasn't already covered.
+ *
+ * The two lists describe overlapping things in different words — a plan can list
+ * "Housekeeping module" in `features` while also having `feature_housekeeping`
+ * set, and the Growth plan managed four such pairs at once. A flag is dropped
+ * whenever some line of the plan's own copy already contains it, so the card
+ * says each thing once, in the hotel's own wording.
+ */
+function planBullets(extras: string[], included: string[]) {
+  const seen = new Set<string>()
+  const bullets: string[] = []
+
+  for (const label of extras) {
+    const key = normaliseBullet(label)
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    bullets.push(label)
+  }
+
+  const written = bullets.map(normaliseBullet)
+  for (const label of included) {
+    const key = normaliseBullet(label)
+    if (!key || seen.has(key) || written.some(line => line.includes(key))) continue
+    seen.add(key)
+    bullets.push(label)
+  }
+
+  return bullets
+}
+
+/**
+ * One pricing card. `highlighted` is the outlined-indigo "Most popular"
+ * treatment — a ring and a badge rather than a filled panel, so all three cards
+ * stay equally readable and the emphasis comes from the border and the CTA.
+ *
+ * Only the features a plan actually includes are listed. The old card also
+ * printed the excluded ones in grey with a cross, which made the entry plan read
+ * as a list of things you don't get.
+ */
+function PlanCard({
+  plan, highlighted, index, total, trialDays,
+}: {
+  plan: Plan
+  highlighted: boolean
+  index: number
+  total: number
+  trialDays: number
+}) {
   const yearlyMonthly = plan.price_yearly / 12
   const yearlySaving = plan.price_monthly > 0
     ? Math.round((1 - yearlyMonthly / plan.price_monthly) * 100)
     : 0
+  const look = planLook(index, total)
+  const Icon = look.icon
+  const included = FEATURE_FLAGS.filter(f => plan[f.key as keyof Plan] as boolean).map(f => f.label)
   const extras = Array.isArray(plan.features) ? plan.features : []
+  const bullets = planBullets(extras, included)
 
   return (
     <div
-      className={`relative flex flex-col rounded-2xl p-6 ${
+      className={`relative flex flex-col rounded-2xl bg-white p-6 transition-shadow ${
         highlighted
-          ? 'bg-gradient-to-br from-primary-600 to-primary-700 text-white shadow-lg shadow-primary-200'
-          : 'border border-gray-200 bg-white'
+          ? 'border-2 border-primary-500 shadow-lg shadow-primary-100 lg:-my-4 lg:pt-10'
+          : 'border border-gray-200 hover:shadow-md'
       }`}
     >
-      {plan.trial_days > 0 && (
-        <span
-          className={`absolute right-5 top-5 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
-            highlighted ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700'
-          }`}
-        >
-          Free trial
+      {highlighted && (
+        <span className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-primary-600 px-3 py-1 text-[11px] font-bold text-white shadow-sm">
+          <Star className="h-3 w-3 fill-white" aria-hidden="true" />
+          Most Popular
         </span>
       )}
 
-      <p className={`text-sm font-semibold ${highlighted ? 'text-primary-100' : 'text-gray-500'}`}>
-        {plan.name}
-      </p>
-
-      <div className="mt-2 flex items-end gap-1">
-        <span className={`text-5xl font-black ${highlighted ? 'text-white' : 'text-gray-900'}`}>
-          {formatPrice(plan.price_monthly)}
+      {/* Identity */}
+      <div className="flex items-center gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50">
+          <Icon className="h-5 w-5 text-primary-600" aria-hidden="true" />
         </span>
-        <span className={`mb-2 text-sm ${highlighted ? 'text-primary-200' : 'text-gray-400'}`}>/month</span>
+        <div className="min-w-0">
+          <h3 className="truncate text-base font-bold text-gray-900">{planTitle(plan.name)}</h3>
+          <p className="text-xs text-gray-500">{look.tagline}</p>
+        </div>
       </div>
 
-      {plan.price_yearly > 0 && yearlySaving > 0 && (
-        <p className={`mt-1 text-xs ${highlighted ? 'text-primary-200' : 'text-gray-400'}`}>
-          {formatPrice(plan.price_yearly)}/yr
-          <span className={`ml-1 font-semibold ${highlighted ? 'text-emerald-200' : 'text-emerald-600'}`}>
-            save {yearlySaving}%
-          </span>
+      {/* Price */}
+      <div className="mt-5 flex items-end gap-1">
+        <span className="text-4xl font-black tracking-tight text-gray-900">
+          {formatPrice(plan.price_monthly)}
+        </span>
+        <span className="mb-1.5 text-sm text-gray-400">/month</span>
+      </div>
+
+      {plan.price_yearly > 0 && (
+        <p className="mt-1 text-xs text-gray-400">
+          {formatPrice(plan.price_yearly)}/year
+          {yearlySaving > 0 && (
+            <span className="ml-1.5 font-semibold text-emerald-600">save {yearlySaving}%</span>
+          )}
         </p>
       )}
 
-      <div className="mt-5 grid grid-cols-2 gap-3">
-        <div className={`rounded-xl px-3 py-2.5 text-center ${highlighted ? 'bg-white/10' : 'bg-gray-50'}`}>
-          <p className={`text-lg font-black ${highlighted ? 'text-white' : 'text-primary-600'}`}>
-            {formatLimit(plan.max_rooms)}
-          </p>
-          <p className={`mt-0.5 text-xs ${highlighted ? 'text-primary-100' : 'text-gray-500'}`}>Rooms</p>
+      {/* Limits */}
+      <div className="mt-5 grid grid-cols-2 divide-x divide-gray-200 overflow-hidden rounded-xl bg-gray-50">
+        <div className="px-3 py-3 text-center">
+          <p className="text-lg font-black text-primary-600">{formatLimit(plan.max_rooms)}</p>
+          <p className="mt-0.5 text-xs text-gray-500">Rooms</p>
         </div>
-        <div className={`rounded-xl px-3 py-2.5 text-center ${highlighted ? 'bg-white/10' : 'bg-gray-50'}`}>
-          <p className={`text-lg font-black ${highlighted ? 'text-white' : 'text-primary-600'}`}>
-            {formatLimit(plan.max_staff)}
-          </p>
-          <p className={`mt-0.5 text-xs ${highlighted ? 'text-primary-100' : 'text-gray-500'}`}>Staff accounts</p>
+        <div className="px-3 py-3 text-center">
+          <p className="text-lg font-black text-primary-600">{formatLimit(plan.max_staff)}</p>
+          <p className="mt-0.5 text-xs text-gray-500">Staff accounts</p>
         </div>
       </div>
 
-      <ul className="mt-5 space-y-2">
-        {FEATURE_FLAGS.map(flag => {
-          const enabled = plan[flag.key as keyof Plan] as boolean
-          return (
-            <li
-              key={flag.key}
-              className={`flex items-center gap-2.5 text-sm ${
-                highlighted
-                  ? enabled ? 'text-white' : 'text-primary-300'
-                  : enabled ? 'text-gray-700' : 'text-gray-300'
-              }`}
-            >
-              {enabled
-                ? <Check className={`h-4 w-4 shrink-0 ${highlighted ? 'text-emerald-300' : 'text-emerald-500'}`} aria-hidden="true" />
-                : <XIcon className="h-4 w-4 shrink-0" aria-hidden="true" />}
-              {flag.label}
-            </li>
-          )
-        })}
+      {/* What's included */}
+      <ul className="mt-5 space-y-2.5">
+        {bullets.map(label => (
+          <li key={label} className="flex items-start gap-2.5 text-sm text-gray-700">
+            <CheckCircle2
+              className="mt-0.5 h-4 w-4 shrink-0 fill-primary-600 text-white"
+              aria-hidden="true"
+            />
+            {label}
+          </li>
+        ))}
       </ul>
-
-      {extras.length > 0 && (
-        <ul className={`mt-4 space-y-1.5 border-t pt-4 ${highlighted ? 'border-white/20' : 'border-gray-100'}`}>
-          {extras.map(feat => (
-            <li
-              key={feat}
-              className={`flex items-start gap-2 text-sm ${highlighted ? 'text-primary-100' : 'text-gray-600'}`}
-            >
-              <CheckCircle2 className={`mt-0.5 h-4 w-4 shrink-0 ${highlighted ? 'text-emerald-300' : 'text-primary-400'}`} aria-hidden="true" />
-              {feat}
-            </li>
-          ))}
-        </ul>
-      )}
 
       <div className="mt-auto pt-6">
         <Link
           href="/register-hotel"
-          className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${
+          className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
             highlighted
-              ? 'bg-white text-primary-700 hover:bg-primary-50'
+              ? 'bg-primary-600 text-white shadow-sm shadow-primary-200 hover:bg-primary-700'
               : 'border border-primary-200 text-primary-600 hover:bg-primary-50'
           }`}
         >
-          Register now
+          {trialDays > 0 ? 'Start Free Trial' : 'Get Started'}
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
-        <p className={`mt-2 text-center text-xs ${highlighted ? 'text-primary-200' : 'text-gray-400'}`}>
-          No credit card required
-        </p>
+        <p className="mt-2.5 text-center text-xs text-gray-400">No credit card required</p>
       </div>
     </div>
   )
@@ -231,6 +304,12 @@ export default async function HotelManagementPage() {
   const plans = await getPlans()
   // The middle plan carries the highlight, as before.
   const popularIdx = plans.length > 1 ? Math.floor(plans.length / 2) : 0
+  // One source for every mention of the trial on this page, so the headline, the
+  // buttons and the reassurance strip can never quote different numbers.
+  // `plans.trial_days` is currently 0 on every row, so this falls back to the
+  // 14 days the rest of the site advertises — set trial_days in Super Admin →
+  // Plans and the copy follows the data instead.
+  const trialDays = Math.max(0, ...plans.map(p => p.trial_days ?? 0)) || 14
 
   return (
     <div className="min-h-screen bg-white">
@@ -358,61 +437,92 @@ export default async function HotelManagementPage() {
         </div>
       </section>
 
-      {/* ── Paperwork vs plans ── */}
+      {/* ── Pricing ── */}
       <section className="border-b border-gray-100 bg-white">
         <div className="mx-auto max-w-7xl px-6 py-20">
-          <div className="mb-12 text-center">
+          <div className="mb-10 text-center">
             <p className="mb-3 text-xs font-bold uppercase tracking-widest text-primary-500">Pricing</p>
-            <h2 className="text-3xl font-extrabold text-gray-900">Replace paper registers</h2>
-            <p className="mx-auto mt-3 max-w-xl text-gray-500">
-              Every plan includes a <span className="font-semibold text-emerald-600">14-day free trial</span>.
-              Pick the size that fits your property — upgrade any time.
+            <h2 className="text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+              Simple pricing for every property
+            </h2>
+            <p className="mx-auto mt-3 max-w-2xl text-gray-500">
+              Start free for <span className="font-semibold text-gray-700">{trialDays} days</span>. Choose a
+              plan that fits your property and upgrade anytime.
             </p>
           </div>
 
-          <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,2fr)]">
-            {/* What you are replacing */}
-            <div className="space-y-6">
-              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-6">
-                <h3 className="font-bold text-gray-900">Current paperwork</h3>
-                <ul className="mt-4 space-y-3">
-                  {PAPERWORK.map(item => (
-                    <li key={item} className="flex items-start gap-2.5 text-sm text-gray-500">
-                      <XIcon className="mt-0.5 h-4 w-4 shrink-0 text-red-400" aria-hidden="true" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
+          {/* What you are replacing — one strip rather than a column beside the
+              plans, so the cards get the full width on every breakpoint. */}
+          <div className="mb-12 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-7">
+            <div className="grid items-center gap-6 lg:grid-cols-[minmax(0,290px)_minmax(0,1fr)] lg:gap-8">
+              <div className="flex items-start gap-4">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-50">
+                  <NotebookPen className="h-6 w-6 text-primary-500" aria-hidden="true" />
+                </span>
+                <div>
+                  <h3 className="text-[15px] font-bold text-gray-900">Still using paper registers?</h3>
+                  <p className="mt-1.5 text-[13px] leading-relaxed text-gray-500">
+                    Switch to BookQayam and save time, avoid mistakes, and keep everything organized.
+                  </p>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                {STATS.map(stat => (
-                  <div key={stat.label} className="rounded-2xl border border-gray-100 bg-white p-4 text-center">
-                    <p className="text-2xl font-black text-primary-600">{stat.value}</p>
-                    <p className="mt-1 text-xs leading-snug text-gray-500">{stat.label}</p>
-                  </div>
+              {/* Single rule between the pitch and the six symptoms, matching the
+                  divider in the design — the items themselves are not boxed. */}
+              <ul className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-6 lg:border-l lg:border-gray-200 lg:pl-8">
+                {PAPERWORK.map(item => (
+                  <li key={item.label} className="text-center">
+                    <item.icon className="mx-auto h-7 w-7 text-primary-500" strokeWidth={1.6} aria-hidden="true" />
+                    <p className="mx-auto mt-2.5 max-w-[10rem] text-[11.5px] leading-[1.45] text-gray-500">
+                      {item.label}
+                    </p>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
+          </div>
 
-            {/* Plans */}
-            {plans.length === 0 ? (
-              <div className="flex items-center justify-center rounded-2xl border border-gray-100 py-16">
-                <p className="text-sm text-gray-400">Plans coming soon — contact us for pricing.</p>
-              </div>
-            ) : (
-              <div
-                className={`grid gap-6 ${
-                  plans.length === 1 ? 'max-w-sm' :
-                  plans.length === 2 ? 'sm:grid-cols-2' :
-                  'sm:grid-cols-2 xl:grid-cols-3'
-                }`}
-              >
-                {plans.map((plan, i) => (
-                  <PlanCard key={plan.id} plan={plan} highlighted={i === popularIdx && plans.length > 1} />
-                ))}
-              </div>
-            )}
+          {/* Plans */}
+          {plans.length === 0 ? (
+            <div className="flex items-center justify-center rounded-2xl border border-gray-100 py-16">
+              <p className="text-sm text-gray-400">Plans coming soon — contact us for pricing.</p>
+            </div>
+          ) : (
+            <div
+              className={`mx-auto grid gap-6 ${
+                plans.length === 1 ? 'max-w-sm' :
+                plans.length === 2 ? 'max-w-3xl sm:grid-cols-2' :
+                'sm:grid-cols-2 lg:grid-cols-3'
+              }`}
+            >
+              {plans.map((plan, i) => (
+                <PlanCard
+                  key={plan.id}
+                  plan={plan}
+                  highlighted={i === popularIdx && plans.length > 1}
+                  index={i}
+                  total={plans.length}
+                  trialDays={trialDays}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Reassurance */}
+          <div className="mt-12 rounded-2xl border border-gray-100 bg-gray-50/70 px-6 py-6">
+            <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {trustItems(trialDays).map(item => (
+                <li key={item.title} className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-100">
+                    <item.icon className="h-5 w-5 text-primary-600" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-gray-900">{item.title}</p>
+                    <p className="text-xs text-gray-500">{item.desc}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </section>
