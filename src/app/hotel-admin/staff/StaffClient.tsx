@@ -462,6 +462,17 @@ export default function StaffClient({
 }) {
   const router = useRouter()
   const [view,     setView]     = useState<'table' | 'grid'>('table')
+
+  // The table is 760px wide at minimum and puts Actions in the last column, so
+  // on a phone the Edit and Delete buttons sit off the right edge behind a
+  // horizontal scroll nobody finds — the module reads as having no way to manage
+  // a staff member at all. Cards carry the same two buttons in view, so that is
+  // what a narrow screen opens on. Set once, after mount (a width read during
+  // SSR would disagree with the server's markup), and only as the starting
+  // point — the toggle above still decides from then on.
+  useEffect(() => {
+    if (window.matchMedia('(max-width: 767px)').matches) setView('grid')
+  }, [])
   const [adding,   setAdding]   = useState(false)
   const [editing,  setEditing]  = useState<StaffMember | null>(null)
   const [deleting, setDeleting] = useState<StaffMember | null>(null)
