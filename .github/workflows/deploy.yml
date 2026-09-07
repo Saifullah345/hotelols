@@ -33,6 +33,19 @@ jobs:
             echo "── building Next.js ──"
             npm run build
 
+            # next.config.ts sets output: 'standalone'. That build writes a
+            # self-contained server to .next/standalone but deliberately copies
+            # neither public/ nor .next/static into it, so the running server has
+            # no public directory at all and every file under it answers 404 —
+            # which is why /screenshots/dashboard.png, /hotel-placeholder.svg and
+            # the guest avatars were all broken on the live site while the pages
+            # around them rendered fine. Next's own deployment docs call for this
+            # copy; it is what makes those files exist next to server.js.
+            echo "── copying static assets into the standalone build ──"
+            mkdir -p .next/standalone/public .next/standalone/.next/static
+            cp -r public/. .next/standalone/public/
+            cp -r .next/static/. .next/standalone/.next/static/
+
             echo "── reloading PM2 ──"
             pm2 reload hotelos --update-env
 

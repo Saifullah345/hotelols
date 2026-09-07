@@ -6,11 +6,12 @@ import {
   CalendarDays, Receipt, ClipboardList,
   Clock, Smartphone, Gift,
   PenLine, ReceiptText, CircleHelp, TrendingUp, FileWarning, FileQuestion,
-  Headphones, Sprout, Building2, Rocket, Star, NotebookPen,
+  Headphones, Sprout, Building2, Rocket, Star, NotebookPen, Zap,
 } from 'lucide-react'
 import PublicNavbar from '@/components/layout/PublicNavbar'
 import PublicFooter from '@/components/layout/PublicFooter'
 import StepsCarousel from './StepsCarousel'
+import OwnerCtaArt from './OwnerCtaArt'
 import { pageMetadata } from '@/lib/seo'
 import { createAdminClient } from '@/lib/supabase/server'
 
@@ -356,8 +357,14 @@ export default async function HotelManagementPage() {
               </Link>
             </div>
 
+            {/* Two lines, not one: run together, "Already registered? Sign in"
+                broke across the wrap and read as part of the trial small print
+                rather than as the way back in for someone who already has an
+                account. */}
             <p className="mt-4 text-xs text-gray-400">
-              14 days free on every plan · Cancel any time · No credit card needed to start ·{' '}
+              14 days free on every plan · Cancel any time · No credit card needed to start
+            </p>
+            <p className="mt-2 text-xs text-gray-400">
               <Link href="/login?role=hotel" className="font-semibold text-gray-300 underline-offset-2 hover:underline">
                 Already registered? Sign in
               </Link>
@@ -529,25 +536,81 @@ export default async function HotelManagementPage() {
 
       {/* ── CTA ── */}
       <section className="bg-white">
-        <div className="mx-auto max-w-5xl px-6 py-20 text-center">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5">
-            <Gift className="h-4 w-4 text-emerald-600" aria-hidden="true" />
-            <span className="text-sm font-semibold text-emerald-700">14-day free trial — start today</span>
-          </div>
-          <h2 className="text-3xl font-extrabold text-gray-900">Ready to modernise your hotel?</h2>
-          <p className="mx-auto mt-4 max-w-xl text-gray-500">
-            Try any plan free for 14 days. No credit card required. Full access from day one.
-          </p>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Link href="/register-hotel" className="btn-gradient inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold">
-              Register your hotel <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
-            <Link
-              href="/login?role=hotel"
-              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-6 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+        <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8">
+          <div className="relative isolate overflow-hidden rounded-[28px] bg-gradient-to-br from-slate-50 via-indigo-50/70 to-indigo-100/60 px-6 py-12 sm:px-12 sm:py-14">
+            {/* Decorative sweep in the bottom corner — the same one the hero
+                illustration sits on, so the two read as one family. */}
+            <svg
+              className="pointer-events-none absolute -bottom-10 -left-16 -z-10 h-64 w-[28rem] text-primary-200/50"
+              viewBox="0 0 400 200"
+              fill="none"
+              aria-hidden="true"
             >
-              Already registered? Sign in
-            </Link>
+              <path d="M0 150 C 90 90 150 190 250 120 S 360 40 400 70" stroke="currentColor" strokeWidth="2" />
+              <path d="M0 178 C 90 118 150 218 250 148 S 360 68 400 98" stroke="currentColor" strokeWidth="2" />
+            </svg>
+
+            <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)]">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full bg-primary-100/80 px-4 py-1.5">
+                  <Gift className="h-4 w-4 text-primary-600" aria-hidden="true" />
+                  <span className="text-sm font-semibold text-primary-700">
+                    {trialDays}-day free trial — start today
+                  </span>
+                </div>
+
+                <h2 className="mt-6 text-4xl font-extrabold leading-tight tracking-tight text-gray-900 sm:text-5xl">
+                  Ready to modernise your hotel?
+                </h2>
+
+                <p className="mt-4 max-w-lg text-lg text-gray-500">
+                  Try any plan free for {trialDays} days. No credit card required. Full access from day one.
+                </p>
+
+                <div className="mt-8 flex flex-wrap items-center gap-3">
+                  <Link
+                    href="/register-hotel"
+                    className="btn-gradient inline-flex items-center gap-2 px-7 py-3.5 text-sm font-bold"
+                  >
+                    Register your hotel <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </Link>
+                  <Link
+                    href="/login?role=hotel"
+                    className="inline-flex items-center gap-2 rounded-xl border border-primary-200 bg-white px-7 py-3.5 text-sm font-bold text-primary-700 transition-colors hover:bg-primary-50"
+                  >
+                    Already registered? Sign in
+                  </Link>
+                </div>
+
+              </div>
+
+              <div className="hidden lg:block">
+                <OwnerCtaArt className="h-auto w-full" />
+              </div>
+            </div>
+
+            {/* The three objections worth answering right at the button.
+                Full card width rather than inside the text column: the three
+                together need roughly 500px, and the column beside the
+                illustration is narrower than that at every size it appears at,
+                so "Quick setup" was dropping onto a line of its own. */}
+            <ul className="mt-10 flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-primary-200/60 pt-6 text-sm font-medium text-gray-600 md:flex-nowrap">
+              {[
+                { icon: CalendarDays, label: `${trialDays}-day free trial` },
+                { icon: CreditCard,   label: 'No credit card required'     },
+                { icon: Zap,          label: 'Quick setup'                 },
+              ].map(({ icon: Icon, label }, i) => (
+                <li key={label} className="flex items-center gap-4 whitespace-nowrap">
+                  {i > 0 && <span className="hidden h-6 w-px bg-primary-200 sm:block" aria-hidden="true" />}
+                  <span className="flex items-center gap-2.5">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white">
+                      <Icon className="h-4 w-4 text-primary-600" aria-hidden="true" />
+                    </span>
+                    {label}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </section>
