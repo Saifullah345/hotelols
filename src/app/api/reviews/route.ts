@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { stripHtml } from '@/lib/sanitize'
+
+/** One review per stay — said the same way whichever check catches it. */
+const ALREADY_REVIEWED = 'You have already reviewed this booking.'
 
 export async function GET(request: Request) {
   const supabase = await createClient()
@@ -73,14 +76,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'You can only review after check-out' }, { status: 400 })
   }
 
-  const { data: existing } = await supabase
+  // Read the existing review with the service-role client, not the caller's.
+  // `reviews` is UNIQUE(booking_id), but the guest's RLS view only shows
+  // published reviews and their own — a review the hotel has unpublished, or one
+  // left under another account on the same stay, is invisible here. The check
+  // then passed, the insert hit the unique index, and the guest was shown
+  // "duplicate key value violates unique constraint reviews_booking_id_key".
+  const admin = await createAdminClient()
+  const { data: existing } = await admin
     .from('reviews')
     .select('id')
     .eq('booking_id', booking_id)
-    .single()
+    .maybeSingle()
 
   if (existing) {
-    return NextResponse.json({ error: 'You already reviewed this booking' }, { status: 400 })
+    return NextResponse.json({ error: ALREADY_REVIEWED }, { status: 409 })
   }
 
   const { data, error } = await supabase
@@ -95,6 +105,14 @@ export async function POST(request: Request) {
     .select('*, user:profiles(full_name)')
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  if (error) {
+    // 23505 = unique violation. The check above lost a race with a second
+    // submit (a double tap sends two requests that both find nothing), so the
+    // outcome is the same as finding the row: this stay is already reviewed.
+    if (error.code === '23505') {
+      return NextResponse.json({ error: ALREADY_REVIEWED }, { status: 409 })
+    }
+    return NextResponse.json({ error: 'Could not save your review. Please try again.' }, { status: 400 })
+  }
   return NextResponse.json(data, { status: 201 })
 }

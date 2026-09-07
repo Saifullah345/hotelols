@@ -161,7 +161,7 @@ export async function applySubscription(
   // the other one sees no change and stays quiet.
   const { data: before } = await admin
     .from('hotels')
-    .select('plan_id, subscription_status, trial_ends_at, trial_started_at, trial_used_at, plan_activated_at')
+    .select('plan_id, subscription_status, trial_ends_at, trial_started_at, trial_used_at, plan_activated_at, paddle_subscription_id')
     .eq('id', hotelId)
     .maybeSingle()
   const { data: previousPlan } = before?.plan_id
@@ -184,11 +184,23 @@ export async function applySubscription(
   // Kept as it was found whenever it is still running. Taking the earlier of
   // the two dates means neither a plan change nor a replayed webhook can push
   // the end date out: a trial can only ever be used up, never extended.
-  const storedTrialEnd  = time(before?.trial_ends_at)
+  //
+  // That clamp applies *within* one subscription. A payload for a different
+  // subscription id is a different subscription and brings its own dates, so it
+  // is not measured against the old one — doing that pinned a hotel's
+  // `plan_expires_at` to the subscription it had just replaced, and the billing
+  // page went on showing the old end date as though re-subscribing had not
+  // worked. (A second free trial is prevented by `trial_used_at`, which is
+  // never cleared, not by this.)
+  const sameSubscription =
+    !subscriptionId ||
+    !before?.paddle_subscription_id ||
+    subscriptionId === before.paddle_subscription_id
+  const storedTrialEnd  = sameSubscription ? time(before?.trial_ends_at) : null
   // A transaction payload carries no trial_dates; when the caller has told us
   // this is a trial, its billing period is the trial window.
   const payloadTrialEnd = time(trialEnd(data)) ?? (isTrialing ? time(periodEnd(data)) : null)
-  let trialEndsAt: string | null = before?.trial_ends_at ?? null
+  let trialEndsAt: string | null = sameSubscription ? (before?.trial_ends_at ?? null) : null
   let trialStarted = false
 
   if (isTrialing) {

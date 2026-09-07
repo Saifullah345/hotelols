@@ -2,6 +2,7 @@
 
 import { BedDouble, Trash2 } from 'lucide-react'
 import { formatCurrency } from '@/lib/currency'
+import { roomLabel } from '@/lib/room-label'
 
 export type PickableRoom = {
   id: string
@@ -50,7 +51,7 @@ export default function RoomPicker({
             <span className="flex min-w-0 items-center gap-2 text-sm text-gray-800">
               <BedDouble className="h-3.5 w-3.5 shrink-0 text-blue-400" />
               <span className="truncate">
-                {r.name ?? `Room ${r.room_number}`}
+                {roomLabel(r)}
                 {r.room_type?.name && <span className="text-gray-400"> · {r.room_type.name}</span>}
               </span>
             </span>
@@ -63,7 +64,7 @@ export default function RoomPicker({
                 onClick={() => remove(r.id)}
                 disabled={selected.length <= 1}
                 title={selected.length <= 1 ? 'A booking must keep at least one room' : 'Remove this room'}
-                aria-label={`Remove ${r.name ?? `Room ${r.room_number}`}`}
+                aria-label={`Remove ${roomLabel(r)}`}
                 className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400"
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -86,7 +87,7 @@ export default function RoomPicker({
         <option value="">+ Add a room…</option>
         {available.map(r => (
           <option key={r.id} value={r.id}>
-            {r.name ?? `Room ${r.room_number}`}
+            {roomLabel(r)}
             {r.room_type?.name ? ` · ${r.room_type.name}` : ''}
             {` — ${formatCurrency(Number(r.price_per_night), currency)}/night`}
           </option>

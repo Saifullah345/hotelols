@@ -20,6 +20,7 @@ import PhoneInput from '@/components/ui/PhoneInput'
 import type { BookingSource } from '@/types'
 import { formatCurrency } from '@/lib/currency'
 import { phoneSchema, nameSchema } from '@/lib/validation'
+import { roomLabel } from '@/lib/room-label'
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 const dateRefineMsg = { message: 'Check-out must be after check-in', path: ['check_out'] }
@@ -422,7 +423,7 @@ function RoomPicker({
                 {/* Room info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="font-semibold text-sm text-gray-900">{r.name ?? `Room ${r.room_number}`}</span>
+                    <span className="font-semibold text-sm text-gray-900">{roomLabel(r)}</span>
                     <span className="text-xs text-gray-400">#{r.room_number}</span>
                     {r.room_type?.name && (
                       <span className="px-1.5 py-0.5 text-[10px] bg-gray-100 text-gray-500 rounded-md font-semibold uppercase tracking-wide">{r.room_type.name}</span>
@@ -489,7 +490,7 @@ function RoomPicker({
                 <div key={id} className="flex items-center justify-between px-3 py-2 text-sm">
                   <div className="flex items-center gap-2">
                     <BedDouble className="h-3.5 w-3.5 text-gray-400" />
-                    <span className="text-gray-700">{room.name ?? `Room ${room.room_number}`}</span>
+                    <span className="text-gray-700">{roomLabel(room)}</span>
                   </div>
                   <span className="text-gray-600 font-medium">{formatCurrency(roomTotal, currency)}</span>
                 </div>

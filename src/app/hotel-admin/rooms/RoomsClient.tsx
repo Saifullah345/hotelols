@@ -12,6 +12,7 @@ import { formatCurrency } from '@/lib/currency'
 import { isUnlimited, limitReached, usagePercent, usageLevel } from '@/lib/plan-features'
 import { selectRoomList, type RoomListRow } from '@/lib/rooms-list'
 import Pagination from '@/components/admin/Pagination'
+import { roomLabel } from '@/lib/room-label'
 
 const statusBadge: Record<string, string> = {
   available: 'badge-green', booked: 'badge-blue',
@@ -82,7 +83,7 @@ function RoomGridCard({ room, rangeActive, occupancy, availFrom, availTo, curren
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <h3 className="font-bold text-gray-900 text-sm leading-tight truncate">
-              {room.name ?? `Room ${room.room_number}`}
+              {roomLabel(room)}
             </h3>
             <p className="text-xs text-gray-400 mt-0.5">
               {room.room_type?.name ?? '–'} · {room.floor === 0 ? 'Ground floor' : `Floor ${room.floor}`}
@@ -91,6 +92,14 @@ function RoomGridCard({ room, rangeActive, occupancy, availFrom, availTo, curren
           <div className="text-right shrink-0">
             <p className="font-bold text-gray-900 text-sm">{formatCurrency(room.price_per_night, currency)}</p>
             <p className="text-[11px] text-gray-400">/night</p>
+            {/* A room is only offered for short stays once it has an hourly
+                rate, so saying which rooms have one is how an admin sees why a
+                room can't be booked by the hour. */}
+            {room.rate_per_hour != null && (
+              <p className="text-[11px] font-semibold text-indigo-600 mt-0.5">
+                {formatCurrency(room.rate_per_hour, currency)}/hr
+              </p>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-1.5 mt-2.5 text-xs text-gray-500">
@@ -742,7 +751,7 @@ export default function RoomsClient({
                         )}
                         <div>
                           <p className="font-semibold text-gray-900 text-sm leading-snug">
-                            {room.name ?? `Room ${room.room_number}`}
+                            {roomLabel(room)}
                           </p>
                           <p className="text-xs text-gray-400 mt-0.5">#{room.room_number}</p>
                         </div>
@@ -768,6 +777,11 @@ export default function RoomsClient({
 
                     <td className="table-cell font-semibold text-gray-900 text-sm">
                       {formatCurrency(room.price_per_night, currency)}
+                      {room.rate_per_hour != null && (
+                        <span className="block text-[11px] font-semibold text-indigo-600">
+                          {formatCurrency(room.rate_per_hour, currency)}/hr
+                        </span>
+                      )}
                     </td>
 
                     {rangeActive && (() => {

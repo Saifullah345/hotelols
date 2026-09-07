@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { ImageSlider } from './ImageSlider'
 import { formatCurrency } from '@/lib/currency'
+import { roomLabel, cleanLabel } from '@/lib/room-label'
 
 const statusStyle: Record<string, { badge: string; dot: string }> = {
   available:   { badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-400' },
@@ -20,7 +21,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const { id } = await params
   const supabase = await createClient()
   const { data: room } = await supabase.from('rooms').select('name, room_number').eq('id', id).single()
-  return { title: room ? `${room.name ?? `Room ${room.room_number}`}` : 'Room' }
+  return { title: room ? roomLabel(room) : 'Room' }
 }
 
 export default async function ViewRoomPage({
@@ -67,7 +68,7 @@ export default async function ViewRoomPage({
           </Link>
           <div>
             <h2 className="text-2xl font-bold text-gray-900">
-              {room.name ?? `Room ${room.room_number}`}
+              {roomLabel(room)}
             </h2>
             <p className="text-sm text-gray-500 mt-0.5">
               #{room.room_number} · {roomType} · {room.floor === 0 ? 'Ground Floor' : `Floor ${room.floor}`}
@@ -163,7 +164,7 @@ export default async function ViewRoomPage({
               </div>
               <div>
                 <p className="text-xs text-gray-400">Display Name</p>
-                <p className="text-sm font-semibold text-gray-800">{room.name ?? '—'}</p>
+                <p className="text-sm font-semibold text-gray-800">{cleanLabel(room.name) || '—'}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">

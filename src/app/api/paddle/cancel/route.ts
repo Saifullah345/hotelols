@@ -58,12 +58,22 @@ export async function POST(request: Request) {
     const payload = updated as unknown as Record<string, unknown>
     const result = await applySubscription(admin, payload, { hotelId })
     endsAt = result.expiresAt ?? endsAt
-    // Paddle reports a subscription cancelled at period end as still active
-    // with a scheduled change; one cancelled immediately comes back canceled.
+    // Paddle reports a subscription cancelled at period end as still active (or
+    // still trialing) with a scheduled change; one cancelled immediately comes
+    // back canceled. `applySubscription` has already stored Paddle's own status
+    // and the cancellation date, so only the date access runs to is corrected
+    // here.
+    //
+    // Writing 'canceled' at this point is what used to break the way back in:
+    // `subscriptionIsLive`/`subscriptionIsTrialing` both read the status, so a
+    // plan with a fortnight left looked dead, the "Keep subscription" button
+    // disappeared, /api/paddle/resume refused with "not in a trialing state",
+    // and the only button left opened a fresh checkout — which is why one hotel
+    // ended up with a stack of overlapping Paddle subscriptions.
     if (updated.scheduled_change?.action === 'cancel') {
       endsAt = updated.scheduled_change.effective_at
       await admin.from('hotels')
-        .update({ subscription_status: 'canceled', plan_expires_at: endsAt, subscription_cancel_at: endsAt })
+        .update({ plan_expires_at: endsAt, subscription_cancel_at: endsAt })
         .eq('id', hotelId)
     }
   } else {

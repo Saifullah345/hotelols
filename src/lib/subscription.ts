@@ -143,6 +143,14 @@ export function getSubscription(
     return { ...base, state: 'expiring', canOperate: true, publiclyVisible: true }
   }
 
+  // Cancelled at period end: Paddle keeps reporting the subscription as active
+  // until the date arrives, so nothing above catches this. It still ends, and a
+  // hotel that has changed its mind needs to see that before it does — waiting
+  // for the last week to say so is too late to be useful.
+  if (cancelAt && cancelAt.getTime() > now) {
+    return { ...base, state: 'expiring', canOperate: true, publiclyVisible: true }
+  }
+
   return { ...base, state: 'active', canOperate: true, publiclyVisible: true }
 }
 
@@ -156,11 +164,18 @@ export function subscriptionMessage(info: SubscriptionInfo, planName?: string | 
       return `${plan} has expired. Your hotel is hidden from guests and management is read-only until you renew.`
     case 'past_due':
       return `We couldn't take payment for ${plan.toLowerCase()}. Update your payment method to avoid losing access.`
-    case 'expiring':
+    case 'expiring': {
+      // A cancellation the hotel asked for reads differently from a plan simply
+      // running out: it can be called off, and saying so is the point.
+      if (info.cancelAt) {
+        const on = info.cancelAt.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+        return `${plan} is cancelled and ends on ${on}. Keep your plan to stay listed — nothing else is charged if you do nothing.`
+      }
       if (info.daysLeft === null) return `${plan} is ending soon.`
       if (info.daysLeft <= 0)  return `${plan} expires today.`
       if (info.daysLeft === 1) return `${plan} expires tomorrow. Renew to stay listed.`
       return `${plan} expires in ${info.daysLeft} days. Renew to stay listed.`
+    }
     default:
       return null
   }

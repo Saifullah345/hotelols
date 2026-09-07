@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import type { HKTask, RoomOption, StaffOption } from './page'
 import Pagination from '@/components/admin/Pagination'
+import { roomLabel } from '@/lib/room-label'
 
 // ── Input sanitization ────────────────────────────────────────────────────
 function sanitizeText(value: string) {
@@ -136,7 +137,7 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
     setSaving(true)
     const supabase = createClient()
     const roomMatch = rooms.find(r => r.id === form.room_id)
-    const roomNum   = roomMatch ? (roomMatch.name ?? `Room ${roomMatch.room_number}`) : '—'
+    const roomNum   = roomMatch ? roomLabel(roomMatch) : '—'
     const notesText = sanitizeText(form.notes.trim())
 
     const { data, error } = await supabase.from('housekeeping_tasks').insert({
@@ -239,7 +240,7 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
     }).eq('id', editTarget.id)
     if (error) { toast.error(error.message); setSaving(false); return }
     const roomMatch = rooms.find(r => r.id === editForm.room_id)
-    const roomNum   = roomMatch ? (roomMatch.name ?? `Room ${roomMatch.room_number}`) : editTarget.room_number
+    const roomNum   = roomMatch ? roomLabel(roomMatch) : editTarget.room_number
     setTasks(prev => prev.map(t => t.id !== editTarget.id ? t : {
       ...t,
       room_id:     editForm.room_id || null,
@@ -607,7 +608,7 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
                   <option value="">Select a room…</option>
                   {rooms.map(r => (
                     <option key={r.id} value={r.id}>
-                      {r.name ?? `Room ${r.room_number}`}
+                      {roomLabel(r)}
                     </option>
                   ))}
                 </select>
@@ -725,7 +726,7 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
                   <option value="">Select a room…</option>
                   {rooms.map(r => (
                     <option key={r.id} value={r.id}>
-                      {r.name ?? `Room ${r.room_number}`}
+                      {roomLabel(r)}
                     </option>
                   ))}
                 </select>

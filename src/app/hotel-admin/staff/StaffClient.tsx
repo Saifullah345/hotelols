@@ -334,11 +334,24 @@ function DeleteStaffModal({ member, onClose, onDeleted }: {
 
   const del = async () => {
     setDeleting(true)
-    const res = await fetch(`/api/admin/staff/${member.id}`, { method: 'DELETE' })
+    let res: Response
+    try {
+      res = await fetch(`/api/admin/staff/${member.id}`, { method: 'DELETE' })
+    } catch {
+      setDeleting(false)
+      toast.error('Could not reach the server. Check your connection and try again.')
+      return
+    }
     const json = await res.json().catch(() => ({}))
     setDeleting(false)
-    if (!res.ok) { toast.error(json.error ?? 'Failed to remove'); return }
-    toast.success('Staff member removed')
+    if (!res.ok) {
+      // A body that isn't JSON means the route failed before it could answer.
+      // Naming the status beats the bare "Failed to delete" that used to be all
+      // an unhandled server error produced here.
+      toast.error(json.error ?? `Could not delete this staff member (server error ${res.status}).`)
+      return
+    }
+    toast.success('Staff member deleted')
     if (json.warning) toast.warning(json.warning)
     onDeleted()
   }
@@ -353,7 +366,7 @@ function DeleteStaffModal({ member, onClose, onDeleted }: {
         <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 mx-auto mb-4">
           <AlertTriangle className="h-6 w-6 text-red-600" />
         </div>
-        <h3 className="text-lg font-bold text-gray-900 text-center mb-1">Remove Staff Member?</h3>
+        <h3 className="text-lg font-bold text-gray-900 text-center mb-1">Delete Staff Member?</h3>
         <p className="text-sm text-gray-700 font-semibold text-center">{displayName(member)}</p>
         <p className="text-xs text-gray-500 text-center mt-1 mb-6">
           {member.position} · {member.department}
@@ -366,7 +379,7 @@ function DeleteStaffModal({ member, onClose, onDeleted }: {
           <button onClick={del} disabled={deleting}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors disabled:opacity-60">
             {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-            {deleting ? 'Removing…' : 'Remove'}
+            {deleting ? 'Deleting…' : 'Delete'}
           </button>
         </div>
       </div>
@@ -424,7 +437,7 @@ function StaffCard({ member, onEdit, onDelete }: {
           className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50 transition-colors">
           <Pencil className="h-3.5 w-3.5" /> Edit
         </button>
-        <button onClick={onDelete}
+        <button onClick={onDelete} title="Delete" aria-label="Delete staff member"
           className="flex items-center justify-center w-9 h-9 rounded-xl text-gray-400 border border-gray-200 hover:border-red-200 hover:text-red-500 hover:bg-red-50 transition-colors">
           <Trash2 className="h-3.5 w-3.5" />
         </button>
@@ -600,7 +613,7 @@ export default function StaffClient({
                             className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-colors">
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
-                          <button onClick={() => setDeleting(s)} title="Remove"
+                          <button onClick={() => setDeleting(s)} title="Delete"
                             className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors">
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>

@@ -124,33 +124,52 @@ export async function PATCH(request: Request, { params }: Ctx) {
 
 export async function DELETE(_request: Request, { params }: Ctx) {
   const { id } = await params
-  const auth = await authorise(id)
-  if (auth.error) return auth.error
-  const { admin, member, user } = auth
 
-  if (member.user_id === user.id) {
-    return NextResponse.json({ error: 'You cannot remove your own account' }, { status: 400 })
-  }
+  // Everything below is wrapped: an uncaught throw here leaves Next to answer
+  // with a bare 500 whose body isn't JSON, and the dashboard could then only say
+  // "Failed to delete" with no reason attached. Whatever goes wrong, the client
+  // gets a sentence it can show.
+  try {
+    const auth = await authorise(id)
+    if (auth.error) return auth.error
+    const { admin, member, user } = auth
 
-  // Roster-only entries (migration 015) have no login to delete — deleting the
-  // staff row is the whole job. Passing a null id to deleteUser() throws, which
-  // used to surface as the "login could not be deleted" warning below on a
-  // record that never had one.
-  if (!member.user_id) {
-    const { error: staffError } = await admin.from('staff').delete().eq('id', id)
-    if (staffError) return NextResponse.json({ error: staffError.message }, { status: 400 })
+    if (member.user_id === user.id) {
+      return NextResponse.json({ error: 'You cannot delete your own account' }, { status: 400 })
+    }
+
+    // Roster-only entries (migration 015) have no login to delete — deleting the
+    // staff row is the whole job. Passing a null id to deleteUser() throws, which
+    // used to surface as the "login could not be deleted" warning below on a
+    // record that never had one.
+    if (!member.user_id) {
+      const { error: staffError } = await admin.from('staff').delete().eq('id', id)
+      if (staffError) return NextResponse.json({ error: staffError.message }, { status: 400 })
+      return NextResponse.json({ success: true })
+    }
+
+    // deleteUser() reports most problems as `error`, but a transport or config
+    // failure throws instead — either way the staff row is what the admin asked
+    // to be gone, so both land on the same fallback.
+    const authError = await admin.auth.admin.deleteUser(member.user_id)
+      .then(r => r.error as unknown)
+      .catch((e: unknown) => e)
+
+    if (authError) {
+      const { error: staffError } = await admin.from('staff').delete().eq('id', id)
+      if (staffError) return NextResponse.json({ error: staffError.message }, { status: 400 })
+      return NextResponse.json({
+        success: true,
+        warning: 'Staff record deleted. Their login could not be removed because other records reference it.',
+      })
+    }
+
     return NextResponse.json({ success: true })
+  } catch (e) {
+    console.error('Failed to delete staff member', id, e)
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : 'Could not delete this staff member.' },
+      { status: 500 },
+    )
   }
-
-  const { error: authError } = await admin.auth.admin.deleteUser(member.user_id)
-  if (authError) {
-    const { error: staffError } = await admin.from('staff').delete().eq('id', id)
-    if (staffError) return NextResponse.json({ error: staffError.message }, { status: 400 })
-    return NextResponse.json({
-      success: true,
-      warning: 'Staff record removed. Their login could not be deleted because other records reference it.',
-    })
-  }
-
-  return NextResponse.json({ success: true })
 }

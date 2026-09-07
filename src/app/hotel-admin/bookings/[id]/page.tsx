@@ -11,6 +11,7 @@ import BookingActions from '../BookingActions'
 import { formatCurrency } from '@/lib/currency'
 import { guestLabel, guestContact } from '@/lib/guest'
 import GuestAvatar from '@/components/admin/GuestAvatar'
+import { roomLabel } from '@/lib/room-label'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -243,7 +244,7 @@ export default async function ViewBookingPage({ params }: Ctx) {
                   )}
                   <div className="p-3 space-y-1">
                     <div className="flex items-start justify-between gap-1">
-                      <p className="font-semibold text-sm text-gray-900 leading-tight">{r.name ?? `Room ${r.room_number}`}</p>
+                      <p className="font-semibold text-sm text-gray-900 leading-tight">{roomLabel(r)}</p>
                       {r.room_type?.name && (
                         <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-500 shrink-0">
                           {r.room_type.name}
@@ -273,7 +274,7 @@ export default async function ViewBookingPage({ params }: Ctx) {
             <div className="p-4 space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <p className="font-bold text-gray-900">{primaryRoom?.name ?? `Room ${primaryRoom?.room_number}`}</p>
+                  <p className="font-bold text-gray-900">{roomLabel(primaryRoom)}</p>
                   <p className="text-xs text-gray-400">#{primaryRoom?.room_number}</p>
                 </div>
                 {primaryRoom?.room_type?.name && (
@@ -366,7 +367,7 @@ export default async function ViewBookingPage({ params }: Ctx) {
                   <tr key={r.id}>
                     <td className="py-2">
                       <Link href={`/hotel-admin/rooms/${r.id}`} className="font-medium text-gray-900 hover:text-primary-600">
-                        {r.name ?? `Room ${r.room_number}`}
+                        {roomLabel(r)}
                       </Link>
                       <span className="text-gray-400 text-xs ml-1.5">
                         #{r.room_number} · {r.floor === 0 ? 'Ground' : `Floor ${r.floor}`}
@@ -454,7 +455,7 @@ export default async function ViewBookingPage({ params }: Ctx) {
                       href={`/hotel-admin/bookings/${r.id}`}
                       className={`font-medium ${r.id === booking.id ? 'text-gray-900' : 'text-primary-600 hover:text-primary-700'}`}
                     >
-                      {room?.name ?? `Room ${room?.room_number ?? '—'}`}
+                      {roomLabel(room)}
                       {extra > 0 && <span className="text-gray-400"> +{extra} more</span>}
                     </Link>
                     <p className="text-xs text-gray-400 font-mono">

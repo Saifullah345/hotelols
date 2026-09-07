@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Sparkles } from 'lucide-react'
 import { getPlanFeatures } from '@/lib/plan-features'
 import HousekeepingClient from './HousekeepingClient'
+import { roomLabel } from '@/lib/room-label'
 
 export const metadata = { title: 'Housekeeping' }
 
@@ -79,7 +80,7 @@ export default async function HousekeepingPage() {
       id: t.id as string,
       hotel_id: t.hotel_id as string,
       room_id: t.room_id as string | null,
-      room_number: room?.name || (room?.room_number ? `Room ${room.room_number}` : '—'),
+      room_number: room ? roomLabel(room) : '—',
       task: t.task as string,
       priority: t.priority as HKTask['priority'],
       assignee: (t.assignee as string) || '',

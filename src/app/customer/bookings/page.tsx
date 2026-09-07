@@ -18,6 +18,8 @@ import {
   distributeGuests, assignRoomsToRows, roomSetChanged,
 } from '@/lib/booking'
 import RoomPicker from '@/components/admin/RoomPicker'
+import { stayHours } from '@/lib/hourly'
+import { roomLabel } from '@/lib/room-label'
 
 /** The availability endpoint already filters; nothing extra is off-limits here. */
 const EMPTY_SET: Set<string> = new Set()
@@ -32,6 +34,8 @@ type RoomInfo = {
   room_number: string
   name: string | null
   price_per_night: number
+  /** Set only when the hotel lets this room by the hour. */
+  rate_per_hour?: number | null
   max_adults: number
   max_children: number
   room_type?: { name?: string } | null
@@ -43,6 +47,10 @@ type Booking = {
   status: string
   check_in: string
   check_out: string
+  /** 'hourly' short stays run inside one day and carry the times below. */
+  booking_type?: string | null
+  check_in_time?: string | null
+  check_out_time?: string | null
   adults: number
   children: number
   total_amount: number
@@ -102,6 +110,25 @@ function sanitizeReview(value: string) {
 function nights(ci: string, co: string) {
   return Math.max(1, Math.ceil((new Date(co).getTime() - new Date(ci).getTime()) / 86_400_000))
 }
+/** "2 hours" for a short stay, "3 nights" otherwise — what the guest booked. */
+function stayLength(b: Booking): string {
+  if (b.booking_type === 'hourly') {
+    const h = stayHours(b)
+    return `${h} hour${h !== 1 ? 's' : ''}`
+  }
+  const n = nights(b.check_in, b.check_out)
+  return `${n} night${n !== 1 ? 's' : ''}`
+}
+/** '14:00:00' → '2:00 pm'. Blank when the row carries no time. */
+function clockTime(value?: string | null): string {
+  if (!value) return ''
+  const [h, m] = value.split(':')
+  const hour = Number(h)
+  if (!Number.isFinite(hour)) return ''
+  const suffix = hour < 12 ? 'am' : 'pm'
+  const twelve = hour % 12 === 0 ? 12 : hour % 12
+  return `${twelve}:${m ?? '00'} ${suffix}`
+}
 function resolvePayment(raw: Payment | Payment[] | undefined) {
   const list = Array.isArray(raw) ? raw : raw ? [raw] : []
   return list.find(p => p.status === 'completed') ?? list[0]
@@ -158,7 +185,7 @@ function ConfirmCancelModal({
   onDismiss: () => void
 }) {
   const booking = stay.primary
-  const n = nights(booking.check_in, booking.check_out)
+  const isHourly = booking.booking_type === 'hourly'
   const fmt = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 
   return (
@@ -180,16 +207,20 @@ function ConfirmCancelModal({
         {/* Booking summary */}
         <div className="px-6 py-4 space-y-2 border-b border-gray-100">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-400">Check-in</span>
+            <span className="text-gray-400">{isHourly ? 'Date' : 'Check-in'}</span>
             <span className="font-medium text-gray-800">{fmt(booking.check_in)}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-gray-400">Check-out</span>
-            <span className="font-medium text-gray-800">{fmt(booking.check_out)}</span>
+            <span className="text-gray-400">{isHourly ? 'Hours' : 'Check-out'}</span>
+            <span className="font-medium text-gray-800">
+              {isHourly
+                ? `${clockTime(booking.check_in_time)} – ${clockTime(booking.check_out_time)}`
+                : fmt(booking.check_out)}
+            </span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-400">Duration</span>
-            <span className="font-medium text-gray-800">{n} night{n !== 1 ? 's' : ''}</span>
+            <span className="font-medium text-gray-800">{stayLength(booking)}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-400">Rooms</span>
@@ -281,20 +312,35 @@ function EditBookingModal({
   useEffect(() => { setToday(todayISO()) }, [])
 
   const currency  = booking.hotel?.currency ?? 'PKR'
+  // A short stay is one day wide, so it is moved by its date alone — the hours
+  // stay as booked. Without this the modal asks for a check-out "at least one
+  // night" later and turns an hourly reservation into an overnight one.
+  const editHourly = booking.booking_type === 'hourly'
   const n         = checkIn && checkOut && checkOut > checkIn ? nights(checkIn, checkOut) : 0
+  const units     = editHourly ? stayHours(booking) : n
   const hoursLeft = guestEditHoursLeft(booking.created_at)
 
   // What else the hotel has free for these nights. A guest can't work this out
   // from the browser — their view of other people's bookings is empty by design.
   useEffect(() => {
-    if (!checkIn || !checkOut || checkOut <= checkIn) { setOffered([]); return }
+    const ready = editHourly ? Boolean(checkIn) : Boolean(checkIn && checkOut && checkOut > checkIn)
+    if (!ready) { setOffered([]); return }
     let cancelled = false
     const load = async () => {
       const params = new URLSearchParams({
         hotel_id: booking.hotel_id,
         check_in: checkIn,
-        check_out: checkOut,
+        check_out: editHourly ? checkIn : checkOut,
         exclude: bookings.map(b => b.id).join(','),
+        // Matched on hour boundaries, so a room free for the rest of the day
+        // isn't hidden by another short stay that morning.
+        ...(editHourly
+          ? {
+              booking_type: 'hourly',
+              check_in_time:  booking.check_in_time  ?? '',
+              check_out_time: booking.check_out_time ?? '',
+            }
+          : {}),
       })
       const res = await fetch(`/api/rooms/availability?${params}`)
       if (!res.ok || cancelled) return
@@ -302,7 +348,7 @@ function EditBookingModal({
     }
     load()
     return () => { cancelled = true }
-  }, [booking.hotel_id, bookings, checkIn, checkOut])
+  }, [booking.hotel_id, booking.check_in_time, booking.check_out_time, bookings, checkIn, checkOut, editHourly])
 
   // Rooms already on the booking plus everything still on offer.
   const catalogue = useMemo(() => {
@@ -315,7 +361,10 @@ function EditBookingModal({
   const adultLimit = Math.max(1, chosen.reduce((s, r) => s + (r.max_adults ?? 0), 0))
   const childLimit = chosen.reduce((s, r) => s + (r.max_children ?? 0), 0)
   const nightly    = chosen.reduce((s, r) => s + Number(r.price_per_night ?? 0), 0)
-  const newTotal   = nightly > 0 ? n * nightly : stay.total
+  const perHour    = chosen.reduce((s, r) => s + Number(r.rate_per_hour ?? 0), 0)
+  const newTotal   = editHourly
+    ? (perHour > 0 ? units * perHour : stay.total)
+    : (nightly > 0 ? n * nightly : stay.total)
   const roomsChanged = roomSetChanged(roomIds, originalRoomIds)
 
   // Changing the rooms changes how many guests fit.
@@ -326,12 +375,19 @@ function EditBookingModal({
 
   const onCheckInChange = (value: string) => {
     setCheckIn(value)
+    // An hourly stay ends the day it starts; only a nightly one needs a night
+    // added underneath it.
+    if (editHourly) { setCheckOut(value); return }
     if (value && (!checkOut || checkOut <= value)) setCheckOut(addDays(value, 1))
   }
 
   const save = async () => {
-    if (!checkIn || !checkOut) { toast.error('Select check-in and check-out dates'); return }
-    if (n <= 0) { toast.error('Check-out must be at least one night after check-in'); return }
+    if (editHourly) {
+      if (!checkIn) { toast.error('Select the day of your stay'); return }
+    } else {
+      if (!checkIn || !checkOut) { toast.error('Select check-in and check-out dates'); return }
+      if (n <= 0) { toast.error('Check-out must be at least one night after check-in'); return }
+    }
     if (!roomIds.length) { toast.error('Keep at least one room, or cancel the booking'); return }
 
     // Rooms are edited as one pool, then mapped back onto the rows they came
@@ -460,19 +516,32 @@ function EditBookingModal({
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Stay</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">Check-in</label>
+                <label className="label">{editHourly ? 'Date' : 'Check-in'}</label>
                 <input type="date" value={checkIn} min={today || undefined}
                   onChange={e => onCheckInChange(e.target.value)} className="input text-sm" />
               </div>
               <div>
-                <label className="label">Check-out</label>
-                <input type="date" value={checkOut} min={checkIn ? addDays(checkIn, 1) : (today || undefined)}
-                  onChange={e => setCheckOut(e.target.value)} className="input text-sm" />
+                <label className="label">{editHourly ? 'Hours' : 'Check-out'}</label>
+                {editHourly ? (
+                  <p className="input text-sm bg-gray-50 text-gray-600">
+                    {clockTime(booking.check_in_time)} – {clockTime(booking.check_out_time)}
+                  </p>
+                ) : (
+                  <input type="date" value={checkOut} min={checkIn ? addDays(checkIn, 1) : (today || undefined)}
+                    onChange={e => setCheckOut(e.target.value)} className="input text-sm" />
+                )}
               </div>
             </div>
-            {n > 0 && (
+            {editHourly && (
+              <p className="text-xs text-gray-400">
+                Ask the hotel to change the hours — you can move the stay to another day here.
+              </p>
+            )}
+            {units > 0 && (
               <div className="flex items-center justify-between rounded-xl bg-indigo-50 border border-indigo-100 px-4 py-2.5 text-sm">
-                <span className="text-indigo-700 font-medium">{n} night{n !== 1 ? 's' : ''}</span>
+                <span className="text-indigo-700 font-medium">
+                  {editHourly ? `${units} hour${units !== 1 ? 's' : ''}` : `${units} night${units !== 1 ? 's' : ''}`}
+                </span>
                 <span className="font-bold text-indigo-900">{formatCurrency(newTotal, currency)}</span>
               </div>
             )}
@@ -538,7 +607,7 @@ function BookingCard({
   const { id, status, check_in, check_out, hotel, room } = booking
   const adults    = stay.adults
   const children  = stay.children
-  const n         = nights(check_in, check_out)
+  const isHourly  = booking.booking_type === 'hourly'
   // A stay's payment is only settled once every row on it is.
   const payments  = bookings.map(b => resolvePayment(b.payment)?.status ?? 'pending')
   const payStatus = payments.every(p => p === 'completed') ? 'completed'
@@ -557,7 +626,7 @@ function BookingCard({
   const cancellable = bookings.every(b => b.status === 'pending')
 
   const label = (r: RoomInfo) =>
-    `${r.name ?? r.room_number}${r.room_type?.name ? ` · ${r.room_type.name}` : ''}`
+    `${roomLabel(r)}${r.room_type?.name ? ` · ${r.room_type.name}` : ''}`
 
   return (
     <div className={`bg-white rounded-2xl border overflow-hidden transition-shadow hover:shadow-md ${isCancelled ? 'border-red-100' : 'border-gray-200'}`}>
@@ -626,7 +695,7 @@ function BookingCard({
         </div>
         <div>
           <p className="text-gray-400 text-[10px] uppercase tracking-wide mb-0.5 flex items-center gap-1">
-            <Calendar className="h-3 w-3" /> Check-in
+            <Calendar className="h-3 w-3" /> {isHourly ? 'Date' : 'Check-in'}
           </p>
           <p className="text-sm font-medium text-gray-800">
             {new Date(check_in).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -634,17 +703,20 @@ function BookingCard({
         </div>
         <div>
           <p className="text-gray-400 text-[10px] uppercase tracking-wide mb-0.5 flex items-center gap-1">
-            <Calendar className="h-3 w-3" /> Check-out
+            {isHourly ? <Clock className="h-3 w-3" /> : <Calendar className="h-3 w-3" />}
+            {isHourly ? 'Hours' : 'Check-out'}
           </p>
           <p className="text-sm font-medium text-gray-800">
-            {new Date(check_out).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+            {isHourly
+              ? `${clockTime(booking.check_in_time)} – ${clockTime(booking.check_out_time)}`
+              : new Date(check_out).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
           </p>
         </div>
         <div>
           <p className="text-gray-400 text-[10px] uppercase tracking-wide mb-0.5 flex items-center gap-1">
-            <MoonStar className="h-3 w-3" /> Duration
+            {isHourly ? <Clock className="h-3 w-3" /> : <MoonStar className="h-3 w-3" />} Duration
           </p>
-          <p className="text-sm font-medium text-gray-800">{n} night{n !== 1 ? 's' : ''}</p>
+          <p className="text-sm font-medium text-gray-800">{stayLength(booking)}</p>
         </div>
       </div>
 
@@ -803,7 +875,7 @@ export default function CustomerBookingsPage() {
     if (ids.length) {
       const { data: roomRows } = await supabase
         .from('rooms')
-        .select('id, room_number, name, price_per_night, max_adults, max_children, room_type:room_types(name)')
+        .select('id, room_number, name, price_per_night, rate_per_hour, max_adults, max_children, room_type:room_types(name)')
         .in('id', ids)
       setRoomsById(
         Object.fromEntries(((roomRows ?? []) as unknown as RoomInfo[]).map(r => [r.id, r])),
@@ -868,7 +940,7 @@ export default function CustomerBookingsPage() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ booking_id: bookingId, hotel_id: booking?.hotel_id ?? '', rating, comment: cleanComment }),
     })
-    const json = await res.json()
+    const json = await res.json().catch(() => ({}))
     if (!res.ok) { toast.error(json.error ?? 'Could not submit review') }
     else {
       toast.success('Review submitted!')

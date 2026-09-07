@@ -44,7 +44,7 @@ export default function SubscriptionBanner({
         body: 'text-amber-700',
         button: 'bg-primary-600 hover:bg-primary-700',
         Icon: Clock,
-        heading: 'Subscription ending soon',
+        heading: info.cancelAt ? 'Subscription cancelled' : 'Subscription ending soon',
       }
 
   const { Icon } = tone
@@ -62,6 +62,7 @@ export default function SubscriptionBanner({
       >
         {info.state === 'past_due' ? 'Update payment'
           : info.state === 'unsubscribed' ? 'Choose a plan'
+          : info.cancelAt && info.state === 'expiring' ? 'Keep my plan'
           : 'Renew now'}
       </Link>
     </div>

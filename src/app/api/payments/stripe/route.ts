@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import Stripe from 'stripe'
+import { roomLabel, type LabelledRoom } from '@/lib/room-label'
 
 function getStripeClient() {
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
       price_data: {
         currency: 'usd',
         product_data: {
-          name: `${(booking.hotel as { name?: string })?.name} — Room ${(booking.room as { room_number?: string })?.room_number}`,
+          name: `${(booking.hotel as { name?: string })?.name} — ${roomLabel(booking.room as LabelledRoom | null)}`,
           description: `Check-in: ${booking.check_in} | Check-out: ${booking.check_out}`,
         },
         unit_amount: Math.round(booking.total_amount * 100),

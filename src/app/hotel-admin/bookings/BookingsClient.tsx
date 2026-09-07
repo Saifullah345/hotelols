@@ -21,6 +21,7 @@ import { DATE_RANGES, resolveDateWindow, inWindow } from '@/lib/dateRange'
 import DateRangeChips from '@/components/admin/DateRangeChips'
 import Pagination from '@/components/admin/Pagination'
 import PhoneInput from '@/components/ui/PhoneInput'
+import { roomLabel } from '@/lib/room-label'
 
 // ── Types ──────────────────────────────────────────────────────────
 export type RoomOption = {
@@ -78,7 +79,7 @@ function toStays(list: Booking[]): Stay[] {
     // A row can itself hold several rooms; only its primary room is embedded,
     // so the names are what we can show and the count is what's really booked.
     roomCount: bookings.reduce((s, b) => s + Math.max(1, b.room_ids?.length ?? 1), 0),
-    roomNames: bookings.map(b => b.room?.name ?? `Room ${b.room?.room_number ?? '—'}`),
+    roomNames: bookings.map(b => roomLabel(b.room)),
     total:     bookings.reduce((s, b) => s + Number(b.total_amount ?? 0), 0),
     adults:    bookings.reduce((s, b) => s + (b.adults ?? 0), 0),
     children:  bookings.reduce((s, b) => s + (b.children ?? 0), 0),
@@ -260,7 +261,7 @@ function EditBookingModal({ stay, currency, rooms, allBookings, onClose, onSaved
               <span className="ml-1.5 text-gray-400">
                 · {stay.roomCount > 1
                     ? `${stay.roomCount} rooms`
-                    : (booking.room?.name ?? `Room ${booking.room?.room_number ?? '—'}`)}
+                    : roomLabel(booking.room)}
               </span>
             </p>
           </div>
@@ -812,7 +813,7 @@ export default function BookingsClient({
                   const srcObj   = SOURCES.find(s => s.value === b.source) ?? SOURCES[0]
                   const SrcIcon  = srcObj.icon
                   const multi    = stay.roomCount > 1
-                  const roomName = b.room?.name ?? `Room ${b.room?.room_number}`
+                  const roomName = roomLabel(b.room)
                   const typeName = (b.room?.room_type as { name?: string } | null)?.name
                   // Rows show their own room; rooms sharing a row aren't embedded.
                   const namedRooms  = stay.roomNames.join(', ')

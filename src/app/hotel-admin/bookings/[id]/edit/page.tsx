@@ -12,6 +12,7 @@ import { nameSchema, phoneSchema } from '@/lib/validation'
 import { distributeGuests, assignRoomsToRows, roomSetChanged } from '@/lib/booking'
 import { guestLabel } from '@/lib/guest'
 import RoomPicker, { type PickableRoom } from '@/components/admin/RoomPicker'
+import { roomLabel } from '@/lib/room-label'
 
 const SOURCES = [
   { value: 'walk_in',  label: 'Walk-in',  icon: DoorOpen,      color: 'text-orange-600', activeClass: 'border-orange-400 bg-orange-50 text-orange-700' },
@@ -309,9 +310,9 @@ export default function EditBookingPage() {
   }
 
   const guest = booking ? guestLabel(booking) : 'Guest'
-  const roomLabel = roomCount > 1
+  const roomHeading = roomCount > 1
     ? `${roomCount} rooms`
-    : (booking?.room?.name ?? `Room ${booking?.room?.room_number}`)
+    : roomLabel(booking?.room)
 
   return (
     <div className="max-w-4xl mx-auto space-y-5">
@@ -323,7 +324,7 @@ export default function EditBookingPage() {
         </Link>
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Edit Booking</h2>
-          <p className="text-sm text-gray-500 mt-0.5">{guest} · {roomLabel}</p>
+          <p className="text-sm text-gray-500 mt-0.5">{guest} · {roomHeading}</p>
         </div>
       </div>
 

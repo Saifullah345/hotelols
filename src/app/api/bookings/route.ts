@@ -4,6 +4,7 @@ import { getAuthContext } from '@/lib/auth'
 import { isProfileComplete, missingProfileFields, PROFILE_INCOMPLETE } from '@/lib/profile'
 import { blockIfExpired } from '@/lib/subscription-guard'
 import { hourlyProblem, stayHours, staysOverlap, type StayInterval } from '@/lib/hourly'
+import { cleanLabel, roomNumberLabel } from '@/lib/room-label'
 
 export async function GET(request: Request) {
   const supabase = await createClient()
@@ -222,12 +223,12 @@ export async function POST(request: Request) {
     if (admins && admins.length > 0) {
       const { data: guest } = await admin.from('profiles').select('full_name').eq('id', user.id).single()
       const guestName = guest?.full_name?.trim() || 'A guest'
-      const roomLabel = rooms.length > 1
-        ? `${rooms.length} rooms (${rooms.map(r => r.room_number).join(', ')})`
-        : `Room ${rooms[0].room_number}`
+      const roomText = rooms.length > 1
+        ? `${rooms.length} rooms (${rooms.map(r => cleanLabel(r.room_number) || '?').join(', ')})`
+        : roomNumberLabel(rooms[0].room_number)
       const message = isHourly
-        ? `${guestName} booked ${roomLabel} for ${hours} hour${hours === 1 ? '' : 's'} on ${check_in} (${check_in_time} → ${check_out_time}).`
-        : `${guestName} booked ${roomLabel} for ${nights} night${nights === 1 ? '' : 's'} (${check_in} → ${check_out}).`
+        ? `${guestName} booked ${roomText} for ${hours} hour${hours === 1 ? '' : 's'} on ${check_in} (${check_in_time} → ${check_out_time}).`
+        : `${guestName} booked ${roomText} for ${nights} night${nights === 1 ? '' : 's'} (${check_in} → ${check_out}).`
 
       await admin.from('notifications').insert(
         admins.map(a => ({

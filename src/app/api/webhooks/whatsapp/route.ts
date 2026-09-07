@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { roomNumberLabel } from '@/lib/room-label'
 
 // Meta WhatsApp Cloud API — webhook verification
 export async function GET(request: Request) {
@@ -195,7 +196,7 @@ async function handleBotMessage(
 
     const roomList = available.slice(0, 5).map((r: { room_number: string; price_per_night: number; room_type: { name?: string }[] | { name?: string } | null }, i: number) => {
       const typeName = Array.isArray(r.room_type) ? r.room_type[0]?.name : (r.room_type as { name?: string } | null)?.name
-      return `${i + 1}️⃣ Room ${r.room_number} — ${typeName ?? 'Standard'} · $${r.price_per_night}/night`
+      return `${i + 1}️⃣ ${roomNumberLabel(r.room_number)} — ${typeName ?? 'Standard'} · $${r.price_per_night}/night`
     }).join('\n')
 
     const roomIds = available.slice(0, 5).map((r: { id: string }) => r.id)

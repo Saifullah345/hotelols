@@ -19,7 +19,7 @@
  */
 
 const SHARED_COLUMNS =
-  'id, room_number, name, floor, sort_order, capacity, price_per_night, status, room_type_id, ' +
+  'id, room_number, name, floor, sort_order, capacity, price_per_night, rate_per_hour, status, room_type_id, ' +
   'room_type:room_types(id, name, capacity)'
 
 /** Slim shape: thumbnail only, plus the photo count as a number. */
@@ -37,6 +37,8 @@ export type RoomListRow = {
   sort_order: number
   capacity: number
   price_per_night: number
+  /** Set only when the hotel lets this room by the hour. */
+  rate_per_hour: number | null
   status: string
   room_type_id: string
   room_type: { id?: string; name?: string; capacity?: number } | null

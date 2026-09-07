@@ -16,6 +16,7 @@ import RoomGallery from './RoomGallery'
 import RoomBookingPanel, { type ExtraService } from './RoomBookingPanel'
 import { formatCurrency } from '@/lib/currency'
 import { hasValidRange } from '@/lib/search'
+import { roomLabel, type LabelledRoom } from '@/lib/room-label'
 
 // ── Icon helpers ──────────────────────────────────────────────────────
 function getAmenityIcon(name: string): LucideIcon {
@@ -63,7 +64,9 @@ export async function generateMetadata({
   ])
 
   const type  = (room?.room_type as { name?: string } | null)?.name ?? ''
-  const rName = room?.name ?? `Room ${room?.room_number}`
+  // The join types `room_type` as an array; the row itself is a single object,
+  // which is what the label helper reads.
+  const rName = roomLabel(room as LabelledRoom | null)
   const title = hotel?.name ? `${rName}${type ? ` (${type})` : ''} — ${hotel.name}` : rName
 
   return {
@@ -78,11 +81,17 @@ export default async function RoomDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string; roomId: string }>
-  searchParams: Promise<{ check_in?: string; check_out?: string; adults?: string; children?: string }>
+  searchParams: Promise<{
+    check_in?: string; check_out?: string; adults?: string; children?: string
+    booking_type?: string; check_in_time?: string; check_out_time?: string
+  }>
 }) {
   const { id: hotelId, roomId } = await params
   // Dates and party size travel with the guest from the search results.
-  const { check_in, check_out, adults: adultsParam, children: childrenParam } = await searchParams
+  const {
+    check_in, check_out, adults: adultsParam, children: childrenParam,
+    booking_type, check_in_time: checkInTimeParam, check_out_time: checkOutTimeParam,
+  } = await searchParams
 
   const authSupabase = await createClient()
   const user = await getCurrentUser()
@@ -118,6 +127,10 @@ export default async function RoomDetailPage({
   const location      = [hotel.city, hotel.country].filter(Boolean).join(', ')
   const currency      = (hotel.currency as string | null) ?? 'PKR'
   const datesApplied  = hasValidRange(check_in, check_out)
+  // A short stay is same-day, so `hasValidRange` rejects it; it is restored on
+  // its own terms after the profile detour rather than coming back as a night.
+  const hourlyApplied = booking_type === 'hourly'
+    && Boolean(check_in && checkInTimeParam && checkOutTimeParam)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -134,7 +147,7 @@ export default async function RoomDetailPage({
         </Link>
 
         {/* Gallery */}
-        <RoomGallery images={images} roomName={room.name ?? `Room ${room.room_number}`} />
+        <RoomGallery images={images} roomName={roomLabel(room)} />
 
         {/* Content grid */}
         {/* Stretched columns (no `items-start`) so the sticky booking panel has
@@ -152,7 +165,7 @@ export default async function RoomDetailPage({
                 </span>
               )}
               <h1 className="text-2xl font-bold text-gray-900 leading-tight">
-                {room.name ?? `Room ${room.room_number}`}
+                {roomLabel(room)}
               </h1>
 
               <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-gray-500">
@@ -189,6 +202,11 @@ export default async function RoomDetailPage({
               <div className="mt-4 pt-4 border-t border-gray-100 flex items-baseline gap-2 lg:hidden">
                 <p className="text-2xl font-bold text-gray-900">{formatCurrency(room.price_per_night, currency)}</p>
                 <p className="text-sm text-gray-500">/ night</p>
+                {room.rate_per_hour != null && (
+                  <p className="text-sm text-indigo-600 font-medium">
+                    · {formatCurrency(room.rate_per_hour, currency)} / hour
+                  </p>
+                )}
               </div>
             </div>
 
@@ -275,6 +293,12 @@ export default async function RoomDetailPage({
                   <p className="text-xs text-gray-400 mb-1">Price / Night</p>
                   <p className="font-semibold text-indigo-700">{formatCurrency(room.price_per_night, currency)}</p>
                 </div>
+                {room.rate_per_hour != null && (
+                  <div className="p-3 rounded-xl bg-gray-50">
+                    <p className="text-xs text-gray-400 mb-1">Price / Hour</p>
+                    <p className="font-semibold text-indigo-700">{formatCurrency(room.rate_per_hour, currency)}</p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -336,15 +360,19 @@ export default async function RoomDetailPage({
                 roomId={roomId}
                 hotelId={hotelId}
                 pricePerNight={room.price_per_night}
+                ratePerHour={room.rate_per_hour}
                 maxAdults={room.max_adults}
                 maxChildren={room.max_children}
                 extraServices={extraServices}
                 isLoggedIn={!!user}
                 currency={currency}
-                defaultCheckIn={datesApplied ? check_in : undefined}
+                defaultCheckIn={datesApplied || hourlyApplied ? check_in : undefined}
                 defaultCheckOut={datesApplied ? check_out : undefined}
                 defaultAdults={Number(adultsParam) || undefined}
                 defaultChildren={Number(childrenParam) || undefined}
+                defaultBookingType={hourlyApplied ? 'hourly' : undefined}
+                defaultCheckInTime={hourlyApplied ? checkInTimeParam : undefined}
+                defaultCheckOutTime={hourlyApplied ? checkOutTimeParam : undefined}
               />
             </div>
           </div>

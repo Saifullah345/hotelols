@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { getAuthContext } from '@/lib/auth'
 import { canMoveTo, subscriptionIsLive, subscriptionIsTrialing } from '@/lib/plan-tier'
 import { priceForCheckout, trialDaysOf } from '@/lib/paddle-plans'
+import { getPaddleSubscription } from '@/lib/paddle'
 
 /**
  * Approves a plan purchase and hands back the Paddle price to check out with.
@@ -58,6 +59,22 @@ export async function POST(request: Request) {
 
   // Already subscribed: this is a plan change, not a purchase.
   if (live && hotel.paddle_subscription_id) {
+    // …unless the hotel cancelled and is now trying to come back. A
+    // cancellation queued for period end leaves the Paddle subscription running
+    // with a `scheduled_change`, so buying here would not replace it — it would
+    // add a second subscription alongside one still counting down to its own
+    // cancellation. Clearing the scheduled change is what re-subscribing means
+    // while the plan is still inside its paid period.
+    const existing = await getPaddleSubscription(hotel.paddle_subscription_id)
+    if (existing?.scheduled_change?.action === 'cancel') {
+      return NextResponse.json({
+        error: 'Your plan is still running — it is only scheduled to end. Resume it instead of starting a second subscription.',
+        code: 'use_resume',
+        /** False when the hotel picked a different tier: resume, then move it. */
+        samePlan: target.id === hotel.plan_id,
+      }, { status: 409 })
+    }
+
     return NextResponse.json({
       error: 'You already have a running subscription — change the plan instead of buying a second one.',
       code: 'use_change_plan',

@@ -202,6 +202,14 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
         await changePlan(plan)
         return
       }
+
+      // Cancelled but still inside the paid period. The subscription is alive
+      // and merely scheduled to stop, so coming back means clearing that — a
+      // fresh checkout would leave the old one running and bill for both.
+      if (res.status === 409 && intent.code === 'use_resume') {
+        await doResume({ thenSwitchTo: intent.samePlan ? null : plan })
+        return
+      }
       if (!res.ok) {
         toast.error(intent.error ?? 'This plan change is not available.')
         return
@@ -302,18 +310,41 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
     setPendingResume(true)
   }
 
-  async function doResume() {
+  async function doResume(opts: { thenSwitchTo?: Plan | null } = {}) {
     setPendingResume(false)
     setResuming(true)
     try {
       const res = await fetch('/api/paddle/resume', { method: 'POST' })
       const json = await res.json().catch(() => ({}))
       if (res.ok) {
-        toast.success(`Your ${json.planName ?? currentPlan?.name ?? 'subscription'} will continue after the trial.`)
+        const name = json.planName ?? currentPlan?.name ?? 'subscription'
+        toast.success(
+          json.alreadyRunning
+            ? `Your ${name} plan is running — nothing is scheduled to end.`
+            : `Your ${name} plan will continue. The cancellation has been called off.`,
+        )
+        // They came back on a different tier: the subscription is alive again,
+        // so moving it is now an ordinary plan change.
+        if (opts.thenSwitchTo) {
+          await doChangePlan(opts.thenSwitchTo)
+          return
+        }
         router.refresh()
-      } else {
-        toast.error(json.error ?? 'Could not resume the subscription. Please try "Sync from Paddle".')
+        return
       }
+
+      // Nothing left to resume — the subscription really is gone. Buying a new
+      // one is the right answer, and the server has just said so.
+      if (json.code === 'needs_checkout') {
+        const target = opts.thenSwitchTo ?? currentPlan ?? plans[0]
+        if (!target) { toast.error(json.error ?? 'No plan is available to subscribe to.'); return }
+        toast.message('Starting a new subscription instead…')
+        setResuming(false)
+        await openCheckout(target)
+        return
+      }
+
+      toast.error(json.error ?? 'Could not resume the subscription. Please try "Sync from Paddle".')
     } catch {
       toast.error('Could not reach the server. Please try again.')
     } finally {
@@ -331,6 +362,12 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
   const trialEndsOn   = longDate(hotel?.trial_ends_at)
   const renewsOn      = longDate(hotel?.plan_expires_at)
   const cancelsOn     = longDate(hotel?.subscription_cancel_at)
+
+  // Cancelled, but the plan is still running until that date. On a paid plan
+  // this state used to offer nothing but "Resubscribe", which bought a second
+  // subscription alongside the one already counting down; keeping the existing
+  // one is both cheaper for the hotel and the only thing that actually works.
+  const cancelScheduled = subscribed && Boolean(cancelsOn)
 
   // The trial on offer to a hotel that hasn't had one yet.
   const trialOnOffer = hotel?.trial_used_at
@@ -490,8 +527,8 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
             Check Paddle setup
           </button>
 
-          {/* Un-cancel: shown only when the subscription has a scheduled cancellation. */}
-          {trialing && cancelsOn && (
+          {/* Un-cancel: shown whenever the subscription has a scheduled cancellation. */}
+          {cancelScheduled && (
             <button
               onClick={handleResume}
               disabled={resuming}
@@ -504,7 +541,7 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
 
           {/* Cancelling is offered during the trial too — a trial you can't get
               out of isn't one. */}
-          {subscribed && !cancelsOn && (
+          {subscribed && !cancelScheduled && (
             <button
               onClick={handleCancel}
               disabled={canceling}
@@ -642,7 +679,7 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
                 </ul>
 
                 {isCurrent && !isRenewable ? (
-                  trialing && cancelsOn ? (
+                  cancelScheduled ? (
                     <button
                       onClick={handleResume}
                       disabled={resuming}
@@ -1062,12 +1099,14 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
                 Keep your {currentPlan?.name ?? 'subscription'} plan?
               </h3>
               <p className="text-sm text-gray-500 mt-2">
-                Your card will be charged automatically when the trial ends. You can cancel any time before then with no charge.
+                {trialing
+                  ? 'The cancellation is called off and your card is charged automatically when the trial ends. You can cancel again any time before then with no charge.'
+                  : `The cancellation is called off and your plan renews as normal${cancelsOn ? ` on ${cancelsOn}` : ''}. You can cancel again at any time.`}
               </p>
             </div>
             <div className="px-6 pb-6 flex gap-3">
               <button
-                onClick={doResume}
+                onClick={() => doResume()}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold transition-colors"
               >
                 Yes, keep it

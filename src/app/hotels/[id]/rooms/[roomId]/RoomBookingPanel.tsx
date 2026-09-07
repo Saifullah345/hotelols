@@ -5,12 +5,13 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
   Loader2, LogIn, Plus, Minus, ShoppingBag,
-  Calendar, CheckCircle2, ShieldCheck,
+  Calendar, CheckCircle2, ShieldCheck, Moon, Clock,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/currency'
 import { addDays, todayISO } from '@/lib/date'
 import { createClient, getBrowserUser } from '@/lib/supabase/client'
 import { isProfileComplete, missingProfileFields } from '@/lib/profile'
+import { hourlyProblem, stayHours } from '@/lib/hourly'
 
 export type ExtraService = {
   id: string
@@ -24,6 +25,8 @@ interface Props {
   roomId: string
   hotelId: string
   pricePerNight: number
+  /** Set only when the hotel lets this room by the hour. */
+  ratePerHour?: number | null
   maxAdults: number
   maxChildren: number
   extraServices: ExtraService[]
@@ -34,15 +37,22 @@ interface Props {
   defaultCheckOut?: string
   defaultAdults?: number
   defaultChildren?: number
+  /** Restored after the profile detour, so a short stay comes back as one. */
+  defaultBookingType?: 'nightly' | 'hourly'
+  defaultCheckInTime?: string
+  defaultCheckOutTime?: string
 }
 
 export default function RoomBookingPanel({
-  roomId, hotelId, pricePerNight, maxAdults, maxChildren, extraServices, isLoggedIn,
+  roomId, hotelId, pricePerNight, ratePerHour, maxAdults, maxChildren, extraServices, isLoggedIn,
   currency = 'PKR',
   defaultCheckIn = '',
   defaultCheckOut = '',
   defaultAdults,
   defaultChildren,
+  defaultBookingType,
+  defaultCheckInTime,
+  defaultCheckOutTime,
 }: Props) {
   const fmt = (n: number) => formatCurrency(n, currency)
   const router  = useRouter()
@@ -55,10 +65,16 @@ export default function RoomBookingPanel({
   // A same-day (or reversed) range carried over from the search is zero nights
   // and can't be booked — round it up to one night instead.
   const [checkOut, setCheckOut] = useState(
-    defaultCheckIn && (!defaultCheckOut || defaultCheckOut <= defaultCheckIn)
+    defaultBookingType !== 'hourly'
+      && defaultCheckIn && (!defaultCheckOut || defaultCheckOut <= defaultCheckIn)
       ? addDays(defaultCheckIn, 1)
       : defaultCheckOut,
   )
+  // A short stay runs inside one day, so it carries times instead of a second
+  // date. Defaults are a plausible afternoon slot the guest can move.
+  const [bookingType,  setBookingType]  = useState<'nightly' | 'hourly'>(defaultBookingType ?? 'nightly')
+  const [checkInTime,  setCheckInTime]  = useState(defaultCheckInTime  || '14:00')
+  const [checkOutTime, setCheckOutTime] = useState(defaultCheckOutTime || '18:00')
   const [adults,   setAdults]   = useState(Math.min(Math.max(1, defaultAdults ?? 1), adultLimit))
   const [children, setChildren] = useState(Math.min(Math.max(0, defaultChildren ?? 0), childLimit))
   const [selected, setSelected] = useState<Record<string, boolean>>({})
@@ -69,17 +85,28 @@ export default function RoomBookingPanel({
   const [today, setToday] = useState('')
   useEffect(() => { setToday(todayISO()) }, [])
 
+  // Only offered once the hotel has priced this room by the hour.
+  const offersHourly = ratePerHour != null
+  const isHourly     = offersHourly && bookingType === 'hourly'
+
   const nights = checkIn && checkOut
     ? Math.max(0, Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86_400_000))
     : 0
 
-  const roomTotal = nights * pricePerNight
+  // A short stay starts and ends on the check-in date; the times carry the rest.
+  const stay = { check_in: checkIn, check_out: checkIn, booking_type: 'hourly',
+                 check_in_time: checkInTime, check_out_time: checkOutTime }
+  const hourProblem = isHourly && checkIn ? hourlyProblem(stay) : null
+  const hours = isHourly && checkIn && !hourProblem ? stayHours(stay) : 0
+
+  const roomTotal = isHourly ? hours * (ratePerHour ?? 0) : nights * pricePerNight
 
   const selectedList = extraServices.filter(s => selected[s.id])
 
   const extraAmount = (s: ExtraService) => {
     if (s.per === 'flat')       return s.price
-    if (s.per === 'per_night')  return s.price * Math.max(nights, 1)
+    // A short stay is inside a single day, so a per-night extra is charged once.
+    if (s.per === 'per_night')  return s.price * (isHourly ? 1 : Math.max(nights, 1))
     return s.price * adults   // per_person
   }
 
@@ -96,8 +123,13 @@ export default function RoomBookingPanel({
   }
 
   const handleBook = async () => {
-    if (!checkIn || !checkOut)  { toast.error('Select check-in and check-out dates'); return }
-    if (nights <= 0)            { toast.error('Check-out must be at least one night after check-in'); return }
+    if (isHourly) {
+      if (!checkIn)    { toast.error('Select the day of your stay'); return }
+      if (hourProblem) { toast.error(hourProblem); return }
+    } else {
+      if (!checkIn || !checkOut) { toast.error('Select check-in and check-out dates'); return }
+      if (nights <= 0)           { toast.error('Check-out must be at least one night after check-in'); return }
+    }
     if (adults > adultLimit)    { toast.error(`This room takes up to ${adultLimit} adult${adultLimit === 1 ? '' : 's'}`); return }
     if (children > childLimit)  { toast.error(`This room takes up to ${childLimit} child${childLimit === 1 ? '' : 'ren'}`); return }
 
@@ -110,8 +142,11 @@ export default function RoomBookingPanel({
         .from('profiles').select('full_name, phone').eq('id', user.id).single()
       if (!isProfileComplete(profile)) {
         const back = new URLSearchParams({
-          check_in: checkIn, check_out: checkOut,
+          check_in: checkIn, check_out: isHourly ? checkIn : checkOut,
           adults: String(adults), children: String(children),
+          ...(isHourly
+            ? { booking_type: 'hourly', check_in_time: checkInTime, check_out_time: checkOutTime }
+            : {}),
         })
         toast.info(`Add your ${missingProfileFields(profile).join(' and ')} to finish this booking`)
         router.push(
@@ -128,7 +163,7 @@ export default function RoomBookingPanel({
         const note  = s.per === 'flat'
           ? fmt(total)
           : s.per === 'per_night'
-            ? `${fmt(s.price)}/night × ${nights} = ${fmt(total)}`
+            ? `${fmt(s.price)}/night × ${isHourly ? 1 : nights} = ${fmt(total)}`
             : `${fmt(s.price)}/person × ${adults} = ${fmt(total)}`
         return `• ${s.name}: ${note}`
       }).join('\n')
@@ -143,10 +178,13 @@ export default function RoomBookingPanel({
           hotel_id: hotelId,
           room_id:  roomId,
           check_in:  checkIn,
-          check_out: checkOut,
+          // An hourly stay begins and ends on the same date.
+          check_out: isHourly ? checkIn : checkOut,
           adults,
           children,
           special_requests: specialRequests,
+          booking_type: isHourly ? 'hourly' : 'nightly',
+          ...(isHourly ? { check_in_time: checkInTime, check_out_time: checkOutTime } : {}),
         }),
       })
       const json = await res.json().catch(() => ({}))
@@ -166,6 +204,11 @@ export default function RoomBookingPanel({
         <div>
           <p className="text-3xl font-bold text-gray-900">{fmt(pricePerNight)}</p>
           <p className="text-sm text-gray-500">per night</p>
+          {offersHourly && (
+            <p className="text-sm text-indigo-600 font-medium mt-1">
+              or {fmt(ratePerHour!)} per hour
+            </p>
+          )}
         </div>
         <a
           href={`/login?next=/hotels/${hotelId}/rooms/${roomId}`}
@@ -183,43 +226,108 @@ export default function RoomBookingPanel({
 
       {/* Price header */}
       <div className="p-5">
-        <p className="text-3xl font-bold text-gray-900">{fmt(pricePerNight)}</p>
-        <p className="text-sm text-gray-500">per night</p>
+        <p className="text-3xl font-bold text-gray-900">
+          {isHourly ? fmt(ratePerHour!) : fmt(pricePerNight)}
+        </p>
+        <p className="text-sm text-gray-500">{isHourly ? 'per hour' : 'per night'}</p>
+        {offersHourly && (
+          <div className="flex items-center gap-2 mt-3">
+            {([
+              { value: 'nightly', label: 'Overnight', Icon: Moon },
+              { value: 'hourly',  label: 'By the hour', Icon: Clock },
+            ] as const).map(({ value, label, Icon }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setBookingType(value)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-colors ${
+                  bookingType === value
+                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                    : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" /> {label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Dates */}
       <div className="p-5 space-y-3">
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
-          <Calendar className="h-3.5 w-3.5" /> Select Dates
+          <Calendar className="h-3.5 w-3.5" /> {isHourly ? 'Select Day & Hours' : 'Select Dates'}
         </p>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="label">Check-in</label>
-            <input
-              type="date"
-              min={today || undefined}
-              value={checkIn}
-              onChange={e => onCheckInChange(e.target.value)}
-              className="input text-sm"
-            />
+        {isHourly ? (
+          <>
+            <div>
+              <label className="label">Date</label>
+              <input
+                type="date"
+                min={today || undefined}
+                value={checkIn}
+                onChange={e => onCheckInChange(e.target.value)}
+                className="input text-sm"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="label">From</label>
+                <input
+                  type="time"
+                  value={checkInTime}
+                  onChange={e => setCheckInTime(e.target.value)}
+                  className="input text-sm"
+                />
+              </div>
+              <div>
+                <label className="label">Until</label>
+                <input
+                  type="time"
+                  value={checkOutTime}
+                  onChange={e => setCheckOutTime(e.target.value)}
+                  className="input text-sm"
+                />
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="label">Check-in</label>
+              <input
+                type="date"
+                min={today || undefined}
+                value={checkIn}
+                onChange={e => onCheckInChange(e.target.value)}
+                className="input text-sm"
+              />
+            </div>
+            <div>
+              <label className="label">Check-out</label>
+              <input
+                type="date"
+                min={checkIn ? addDays(checkIn, 1) : (today || undefined)}
+                value={checkOut}
+                onChange={e => setCheckOut(e.target.value)}
+                className="input text-sm"
+              />
+            </div>
           </div>
-          <div>
-            <label className="label">Check-out</label>
-            <input
-              type="date"
-              min={checkIn ? addDays(checkIn, 1) : (today || undefined)}
-              value={checkOut}
-              onChange={e => setCheckOut(e.target.value)}
-              className="input text-sm"
-            />
-          </div>
-        </div>
-        {checkIn && checkOut && nights <= 0 && (
+        )}
+        {isHourly && hourProblem && (
+          <p className="text-xs text-amber-600">{hourProblem}</p>
+        )}
+        {!isHourly && checkIn && checkOut && nights <= 0 && (
           <p className="text-xs text-amber-600">Check-out must be at least one night after check-in.</p>
         )}
-        {nights > 0 && (
+        {(isHourly ? hours > 0 : nights > 0) && (
           <div className="rounded-xl bg-indigo-50 border border-indigo-100 px-4 py-2.5 flex items-center justify-between text-sm">
-            <span className="text-indigo-700 font-medium">{nights} night{nights !== 1 ? 's' : ''}</span>
+            <span className="text-indigo-700 font-medium">
+              {isHourly
+                ? `${hours} hour${hours !== 1 ? 's' : ''}`
+                : `${nights} night${nights !== 1 ? 's' : ''}`}
+            </span>
             <span className="font-bold text-indigo-900">{fmt(roomTotal)}</span>
           </div>
         )}
@@ -312,12 +420,16 @@ export default function RoomBookingPanel({
       )}
 
       {/* Price breakdown */}
-      {nights > 0 && (
+      {(isHourly ? hours > 0 : nights > 0) && (
         <div className="p-5 space-y-2">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Price Breakdown</p>
           <div className="space-y-1.5 text-sm text-gray-600">
             <div className="flex justify-between">
-              <span>{fmt(pricePerNight)} × {nights} night{nights !== 1 ? 's' : ''}</span>
+              <span>
+                {isHourly
+                  ? `${fmt(ratePerHour!)} × ${hours} hour${hours !== 1 ? 's' : ''}`
+                  : `${fmt(pricePerNight)} × ${nights} night${nights !== 1 ? 's' : ''}`}
+              </span>
               <span className="font-medium text-gray-900">{fmt(roomTotal)}</span>
             </div>
             {selectedList.map(s => (
