@@ -18,7 +18,9 @@
 
   html {
     scroll-behavior: smooth;
-    scroll-padding-top: 5rem;
+    /* Clears the floating navbar strip (~5.5rem tall) so an anchored heading
+       does not land underneath it. */
+    scroll-padding-top: 6.5rem;
   }
 
   body {
