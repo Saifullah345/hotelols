@@ -12,12 +12,15 @@ export default function HeroSearchBar({
   // 0 = nothing chosen yet. Guests stay unselected until the user picks a count.
   defaultAdults = 0,
   defaultChildren = 0,
+  targetPath = '/',
 }: {
   defaultCity?: string
   defaultCheckIn?: string
   defaultCheckOut?: string
   defaultAdults?: number
   defaultChildren?: number
+  /** Where to navigate on search. '/' goes to home#results, '/search' goes to the search page. */
+  targetPath?: '/' | '/search'
 }) {
   const router = useRouter()
   const [city,      setCity]      = useState(defaultCity)
@@ -66,8 +69,12 @@ export default function HeroSearchBar({
       p.set('children', String(children))
     }
     const qs = p.toString()
-    // #results jumps past the hero so the guest lands on what they searched for.
-    router.push(qs ? `/?${qs}#results` : '/')
+    if (targetPath === '/search') {
+      router.push(qs ? `/search?${qs}` : '/search')
+    } else {
+      // #results jumps past the hero so the guest lands on what they searched for.
+      router.push(qs ? `/?${qs}#results` : '/')
+    }
   }
 
   const clearGuests = () => {

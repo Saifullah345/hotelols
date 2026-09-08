@@ -1,41 +1,56 @@
-'use client'
-
 import Link from 'next/link'
 import Logo from '@/components/layout/Logo'
-import { MapPin } from 'lucide-react'
-import { activeSocialLinks } from '@/lib/social'
+import { Facebook, Twitter, Youtube, Instagram } from 'lucide-react'
 
 type FooterLink = { label: string; href: string }
 
-const GUEST_LINKS: FooterLink[] = [
-  { label: 'Find Hotels', href: '/' },
-  { label: 'Create Account', href: '/register' },
-  { label: 'Sign In', href: '/login' },
-  { label: 'My Bookings', href: '/customer/bookings' },
+const DESTINATIONS: FooterLink[] = [
+  { label: 'Naran',       href: '/search?city=Naran' },
+  { label: 'Kaghan',      href: '/search?city=Kaghan' },
+  { label: 'Shogran',     href: '/search?city=Shogran' },
+  { label: 'Balakot',     href: '/search?city=Balakot' },
+  { label: 'Babusar Top', href: '/search?city=Babusar Top' },
 ]
 
-const COMPANY_LINKS: FooterLink[] = [
-  { label: 'About BookQayam', href: '/about' },
-  { label: 'Contact Us', href: '/contact' },
-  { label: 'Security', href: '/security' },
-  { label: 'Terms of Service', href: '/terms' },
+const STAYS: FooterLink[] = [
+  { label: 'Hotels',      href: '/search' },
+  { label: 'Resorts',     href: '/search' },
+  { label: 'Cottages',    href: '/search' },
+  { label: 'Guesthouses', href: '/search' },
+  { label: 'Cabins',      href: '/search' },
 ]
 
-const OWNER_LINKS: FooterLink[] = [
-  { label: 'Hotel Management', href: '/hotel-management' },
-  { label: 'Register Your Hotel', href: '/register-hotel' },
-  { label: 'Manage Your Hotel', href: '/login' },
+const HOSTING: FooterLink[] = [
+  { label: 'List Your Property', href: '/register-hotel' },
+  { label: 'Host account',       href: '/hotel-admin/dashboard' },
+  { label: 'Wishlist',           href: '/customer/bookings' },
+  { label: 'Subscription',       href: '/hotel-management#pricing' },
+  { label: 'Booking checkout',   href: '/customer/bookings' },
 ]
 
+const COMPANY: FooterLink[] = [
+  { label: 'About us',      href: '/about' },
+  { label: 'Contact us',    href: '/contact' },
+  { label: 'Travel guide',  href: '/search' },
+  { label: 'Sign in',       href: '/login' },
+  { label: 'Create account',href: '/register' },
+]
+
+const SOCIAL = [
+  { label: 'Facebook',  Icon: Facebook,  href: 'https://facebook.com' },
+  { label: 'Twitter',   Icon: Twitter,   href: 'https://twitter.com' },
+  { label: 'Youtube',   Icon: Youtube,   href: 'https://youtube.com' },
+  { label: 'Instagram', Icon: Instagram, href: 'https://instagram.com' },
+]
 
 function LinkColumn({ heading, links }: { heading: string; links: FooterLink[] }) {
   return (
     <div>
-      <h3 className="text-sm font-semibold text-gray-900">{heading}</h3>
-      <ul className="mt-3 space-y-2 text-sm text-gray-500">
+      <h3 className="text-sm font-bold text-gray-800 mb-4">{heading}</h3>
+      <ul className="space-y-3">
         {links.map(link => (
           <li key={link.label}>
-            <Link href={link.href} className="transition-colors hover:text-gray-900">
+            <Link href={link.href} className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
               {link.label}
             </Link>
           </li>
@@ -46,53 +61,43 @@ function LinkColumn({ heading, links }: { heading: string; links: FooterLink[] }
 }
 
 export default function PublicFooter() {
-  const social = activeSocialLinks()
-
   return (
     <footer className="border-t border-gray-200 bg-white">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr_1fr] lg:gap-10">
-          {/* Brand */}
-          <div className="max-w-xs">
-            <Logo size="sm" />
-            <p className="mt-3 text-sm text-gray-500">
-             Discover and book trusted hotels across Pakistan with ease. Find the right stay, compare optionsand book with confidence.
-            </p>
+      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr]">
 
-            {social.length > 0 && (
-              <div className="mt-5 flex items-center gap-2">
-                {social.map(({ label, icon: Icon, url }) => (
+          {/* Brand + social */}
+          <div>
+            <Logo size="sm" />
+            <ul className="mt-6 space-y-3">
+              {SOCIAL.map(({ label, Icon, href }) => (
+                <li key={label}>
                   <a
-                    key={label}
-                    href={url}
+                    href={href}
                     target="_blank"
                     rel="noreferrer noopener"
-                    aria-label={label}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-400 transition-colors hover:border-gray-300 hover:text-gray-900"
+                    className="flex items-center gap-2.5 text-sm text-gray-500 hover:text-gray-900 transition-colors"
                   >
-                    <Icon className="h-4 w-4" aria-hidden="true" />
+                    <Icon className="h-4 w-4 shrink-0" />
+                    {label}
                   </a>
-                ))}
-              </div>
-            )}
+                </li>
+              ))}
+            </ul>
           </div>
 
-          <LinkColumn heading="For Guests" links={GUEST_LINKS} />
-          <LinkColumn heading="Company" links={COMPANY_LINKS} />
-          <LinkColumn heading="For Hotel Owners" links={OWNER_LINKS} />
+          <LinkColumn heading="Destinations" links={DESTINATIONS} />
+          <LinkColumn heading="Stays"        links={STAYS} />
+          <LinkColumn heading="Hosting"      links={HOSTING} />
+          <LinkColumn heading="BookQayam"    links={COMPANY} />
         </div>
 
-        <div className="mt-8 flex flex-col items-center gap-3 border-t border-gray-100 pt-6 text-xs text-gray-400 sm:flex-row sm:justify-between">
-          <p>&copy; {new Date().getFullYear()} BookQayam. All rights reserved.</p>
-
-          <p className="inline-flex items-center gap-1.5">
-            <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
-            N6 Solution SMC PVT LTD, Pakistan
-          </p>
-
+        <div className="mt-12 flex flex-col items-center gap-3 border-t border-gray-100 pt-6 text-xs text-gray-400 sm:flex-row sm:justify-between">
+          <p>&copy; {new Date().getFullYear()} BookQayam · N6 Solution SMC PVT LTD, Pakistan</p>
           <div className="flex gap-4">
-            <Link href="/privacy" className="transition-colors hover:text-gray-600">Privacy</Link>
-            <Link href="/terms" className="transition-colors hover:text-gray-600">Terms</Link>
+            <Link href="/privacy" className="hover:text-gray-600 transition-colors">Privacy</Link>
+            <Link href="/terms"   className="hover:text-gray-600 transition-colors">Terms</Link>
+            <Link href="/security" className="hover:text-gray-600 transition-colors">Security</Link>
           </div>
         </div>
       </div>
