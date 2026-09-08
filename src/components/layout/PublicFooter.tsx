@@ -1,3 +1,5 @@
+'use client'
+
 import Link from 'next/link'
 import Logo from '@/components/layout/Logo'
 import NewsletterSignup from '@/components/layout/NewsletterSignup'
@@ -54,6 +56,8 @@ function LinkColumn({ heading, links }: { heading: string; links: FooterLink[] }
 }
 
 export default function PublicFooter() {
+  const social = activeSocialLinks()
+
   return (
     <footer className="border-t border-gray-100 bg-gradient-to-b from-white via-indigo-50/30 to-indigo-50/60">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
@@ -116,12 +120,11 @@ export default function PublicFooter() {
                     aria-label={label}
                     className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-colors hover:bg-indigo-600 hover:text-white"
                   >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    {label}
+                    <Icon className="h-4 w-4" aria-hidden="true" />
                   </a>
-                </li>
-              ))}
-            </ul>
+                ))}
+              </div>
+            )}
           </div>
 
           <LinkColumn heading="For Guests"       links={GUEST_LINKS} />
