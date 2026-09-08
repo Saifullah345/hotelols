@@ -12,6 +12,7 @@ import PublicNavbar from '@/components/layout/PublicNavbar'
 import PublicFooter from '@/components/layout/PublicFooter'
 import StepsCarousel from './StepsCarousel'
 import OwnerCtaArt from './OwnerCtaArt'
+import HeroDashboardSVG from './HeroDashboardSVG'
 import { pageMetadata } from '@/lib/seo'
 import { createAdminClient } from '@/lib/supabase/server'
 
@@ -371,18 +372,13 @@ export default async function HotelManagementPage() {
             </p>
           </div>
 
-          {/* Dashboard shot — the product, not a stock laptop */}
-          <div className="relative lg:justify-self-end">
-            <div className="overflow-hidden rounded-2xl border border-white/10 bg-gray-900 shadow-2xl">
-              <Image
-                src="/screenshots/dashboard.png"
-                alt="The BookQayam dashboard showing bookings, occupancy and revenue"
-                width={1920}
-                height={1033}
-                sizes="(min-width: 1024px) 560px, 100vw"
-                className="h-auto w-full"
-              />
+          {/* Dashboard SVG — inline mockup of the actual admin panel */}
+          <div className="relative lg:justify-self-end w-full">
+            <div className="overflow-hidden rounded-2xl border border-white/10 shadow-2xl ring-1 ring-white/5">
+              <HeroDashboardSVG className="w-full h-auto" />
             </div>
+            {/* Glow behind the card */}
+            <div className="pointer-events-none absolute -inset-4 -z-10 rounded-3xl bg-indigo-500/10 blur-2xl" />
           </div>
         </div>
       </section>

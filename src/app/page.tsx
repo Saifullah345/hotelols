@@ -412,7 +412,7 @@ export default async function LandingPage({
 
           <div className="mt-8 text-center">
             <Link
-              href="/?city="
+              href="/search"
               className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-full hover:bg-indigo-100 transition-colors"
             >
               View all stays <ChevronRight className="h-4 w-4" />

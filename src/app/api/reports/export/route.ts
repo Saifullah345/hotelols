@@ -2,18 +2,11 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getAuthContext } from '@/lib/auth'
 import ExcelJS from 'exceljs'
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { getPlanFeatures, type PlanDbData } from '@/lib/plan-features'
 import {
   resolveWindow, summarise, windowLabel, inWindow,
   type PaymentRow, type BookingRow, type RoomRow, type ReviewRow,
 } from '@/lib/reports'
-
-const PRIMARY = rgb(79 / 255, 70 / 255, 229 / 255)   // indigo-600
-const DARK    = rgb(15 / 255, 23 / 255, 42 / 255)
-const MUTED   = rgb(100 / 255, 116 / 255, 139 / 255)
-const LINE    = rgb(226 / 255, 232 / 255, 240 / 255)
-const ACCENT  = rgb(16 / 255, 185 / 255, 129 / 255)   // emerald-500
 
 const money = (n: number, currency: string) =>
   `${currency} ${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -273,6 +266,12 @@ export async function GET(request: Request) {
   }
 
   // ── PDF ───────────────────────────────────────────────────────────
+  const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib')
+  const PRIMARY = rgb(79 / 255, 70 / 255, 229 / 255)
+  const DARK    = rgb(15 / 255, 23 / 255, 42 / 255)
+  const MUTED   = rgb(100 / 255, 116 / 255, 139 / 255)
+  const LINE    = rgb(226 / 255, 232 / 255, 240 / 255)
+  const ACCENT  = rgb(16 / 255, 185 / 255, 129 / 255)
   const pdf  = await PDFDocument.create()
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold)
   const body = await pdf.embedFont(StandardFonts.Helvetica)
