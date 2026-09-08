@@ -1,5 +1,3 @@
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
-
 export interface InvoiceRoom {
   roomNumber?: string
   roomType?: string
@@ -22,13 +20,13 @@ export interface InvoiceData {
   issuedAt: string
 }
 
-const PRIMARY = rgb(2 / 255, 132 / 255, 199 / 255) // #0284c7
-const DARK = rgb(15 / 255, 23 / 255, 42 / 255) // #0f172a
-const MUTED = rgb(100 / 255, 116 / 255, 139 / 255) // #64748b
-const LINE = rgb(226 / 255, 232 / 255, 240 / 255) // #e2e8f0
-
 /** Generates a clean one-page A4 PDF invoice and returns the raw bytes. */
 export async function generateInvoicePdf(data: InvoiceData): Promise<Uint8Array> {
+  const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib')
+  const PRIMARY = rgb(2 / 255, 132 / 255, 199 / 255)
+  const DARK = rgb(15 / 255, 23 / 255, 42 / 255)
+  const MUTED = rgb(100 / 255, 116 / 255, 139 / 255)
+  const LINE = rgb(226 / 255, 232 / 255, 240 / 255)
   const pdf = await PDFDocument.create()
   const page = pdf.addPage([595.28, 841.89]) // A4 in points
   const { width, height } = page.getSize()
