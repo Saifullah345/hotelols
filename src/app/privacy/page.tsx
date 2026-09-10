@@ -5,7 +5,7 @@ import { LogoMark } from '@/components/layout/Logo'
 import { pageMetadata } from '@/lib/seo'
 
 export const metadata = pageMetadata({
-  title: 'Privacy Policy — BookQayam',
+  title: 'Privacy Policy | BookQayam',
   description:
     'Learn how BookQayam collects, uses and protects your personal information when you search for and book hotels across Pakistan.',
   path: '/privacy',

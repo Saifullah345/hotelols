@@ -5,7 +5,7 @@ import { LogoMark } from '@/components/layout/Logo'
 import { pageMetadata } from '@/lib/seo'
 
 export const metadata = pageMetadata({
-  title: 'Terms & Conditions — BookQayam',
+  title: 'Terms & Conditions | BookQayam',
   description:
     'Read the terms and conditions that govern your use of BookQayam, including booking rules, cancellation policies and hotel partner obligations.',
   path: '/terms',
