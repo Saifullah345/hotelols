@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import Script from 'next/script'
 import './globals.css'
 import { Toaster } from 'sonner'
 import { NavigationLoader } from '@/components/NavigationLoader'
@@ -98,6 +99,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   // measuring how far a long page can actually scroll.
   return (
     <html lang="en" data-scroll-behavior="smooth">
+      <head>
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-NG8E9LG9FS"
+          strategy="afterInteractive"
+        />
+        <Script id="gtag-init" strategy="afterInteractive">{`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-NG8E9LG9FS');
+        `}</Script>
+      </head>
       <body className="min-h-screen bg-gray-50">
         <JsonLd data={[organizationSchema, websiteSchema]} />
         <NavigationLoader />
