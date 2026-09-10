@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^4.0.65",
+    "@ai-sdk/react": "^4.0.100",
     "@hookform/resolvers": "^3.9.1",
     "@paddle/paddle-js": "^1.6.4",
     "@react-google-maps/api": "^2.20.8",
@@ -18,6 +20,7 @@
     "@supabase/supabase-js": "^2.47.0",
     "@tanstack/react-query": "^5.62.0",
     "@types/leaflet": "^1.9.22",
+    "ai": "^7.0.97",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "country-state-city": "^3.2.1",

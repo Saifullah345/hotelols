@@ -7,6 +7,7 @@ import SmoothScroll from '@/components/SmoothScroll'
 import SessionTimeout from '@/components/auth/SessionTimeout'
 import PaddleProvider from '@/components/paddle/PaddleProvider'
 import JsonLd from '@/components/seo/JsonLd'
+import ChatWidget from '@/components/chat/ChatWidget'
 import { SITE_URL, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION, absoluteUrl } from '@/lib/seo'
 
 export const metadata: Metadata = {
@@ -118,6 +119,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <PaddleProvider />
         <SessionTimeout />
         {children}
+        <ChatWidget />
         <Toaster richColors position="top-right" />
       </body>
     </html>
