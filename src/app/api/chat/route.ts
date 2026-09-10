@@ -18,12 +18,13 @@ YOUR CAPABILITIES:
 4. Guide users to book (they must be logged in to complete a booking)
 
 BEHAVIOUR RULES:
-- When a user mentions a city or says they need a hotel → call search_hotels immediately
-- IMPORTANT: After calling search_hotels the hotel cards are displayed automatically in the UI. Do NOT list hotels again in your text reply. Just say something brief like "I found X hotels in [city]! Tap any card to book." Keep it to 1-2 sentences max.
-- When user selects a specific hotel and wants to book → call select_hotel_to_book (this shows them a login/booking button)
-- Never invent hotel names, prices, or details — only use data from tool results
-- Be warm, concise, and helpful
-- If no hotels found → apologise and suggest nearby cities
+- When a user mentions a city or asks for hotels → ALWAYS call search_hotels tool first before replying
+- CRITICAL: After search_hotels runs, hotel cards appear in the UI automatically. NEVER list hotel names, prices, ratings, or descriptions in your text. Your text reply must be ONE short sentence only, e.g. "Found 5 hotels in Lahore! 👆 Swipe the cards above to explore." Do not mention any hotel by name in your text.
+- When the user says "show others", "different hotels", "not these", "suggest alternatives", "kuch aur", "doosre hotels", "inke ilawa" or similar → call search_hotels again with the SAME city AND pass exclude_ids containing every hotel 'id' from the previous search_hotels tool result, so we show fresh hotels.
+- When the user asks about a specific hotel's rooms, amenities, facilities, check-in time, price, or says "tell me more", "details dikhao", "rooms kya hain", "facilities kya hain" → call get_hotel_details with that hotel's ID from the previous search_hotels result. Show the result as a card — do NOT describe it in text.
+- When user says they want to book a specific hotel → call select_hotel_to_book
+- Never invent hotel names, prices, or details
+- If no hotels found (or all are excluded) → apologise and say there are no more options in that city, suggest nearby cities like Rawalpindi, Murree, Faisalabad, etc.
 
 ROMAN URDU PHRASES YOU MAY SEE:
 "hotel chahiye / dhundh raha hoon" = need a hotel
@@ -47,12 +48,13 @@ export async function POST(req: Request) {
     messages: modelMessages,
     tools: {
       search_hotels: tool({
-        description: 'Search for hotels in a Pakistani city or area. Call this whenever the user mentions a city or asks for hotels.',
+        description: 'Search for hotels in a Pakistani city or area. Call this whenever the user mentions a city or asks for hotels. When the user asks for different/other hotels, pass exclude_ids with the IDs already shown.',
         inputSchema: z.object({
           city: z.string().describe('City or area name in Pakistan, e.g. Lahore, Islamabad, Karachi, Murree'),
+          exclude_ids: z.array(z.string()).optional().describe('Hotel IDs already shown to the user — exclude these to show fresh results when user asks for alternatives'),
         }),
-        execute: async ({ city }: { city: string }) => {
-          const { data: hotels, error } = await supabase
+        execute: async ({ city, exclude_ids }: { city: string; exclude_ids?: string[] }) => {
+          let query = supabase
             .from('hotels')
             .select(`
               id, name, city, cover_image, rating, review_count, description,
@@ -62,8 +64,14 @@ export async function POST(req: Request) {
             .eq('status', 'active')
             .limit(5)
 
+          if (exclude_ids?.length) {
+            query = query.not('id', 'in', `(${exclude_ids.join(',')})`)
+          }
+
+          const { data: hotels, error } = await query
+
           if (error || !hotels?.length) {
-            return { found: false, city }
+            return { found: false, city, exhausted: (exclude_ids?.length ?? 0) > 0 }
           }
 
           return {
@@ -89,24 +97,25 @@ export async function POST(req: Request) {
       }),
 
       get_hotel_details: tool({
-        description: 'Get full details and available rooms for a specific hotel when the user asks for more info.',
+        description: 'Get full details (amenities, check-in/out times, contact, available rooms) for a specific hotel. Call when the user asks about rooms, facilities, amenities, or says "tell me more" about a hotel.',
         inputSchema: z.object({
-          hotel_id: z.string(),
+          hotel_id: z.string().describe('The hotel ID from search results'),
         }),
         execute: async ({ hotel_id }: { hotel_id: string }) => {
           const { data: hotel } = await supabase
             .from('hotels')
             .select(`
               id, name, city, cover_image, rating, review_count, description, address,
-              rooms ( id, name, price_per_night, capacity, status )
+              amenities, check_in_time, check_out_time, phone, email,
+              rooms ( id, name, price_per_night, capacity, status, room_type:room_types(name) )
             `)
             .eq('id', hotel_id)
             .single()
 
           if (!hotel) return { found: false }
 
-          const availableRooms = (hotel.rooms as { id: string; name: string; price_per_night: number; capacity: number; status: string }[] | null)
-            ?.filter(r => r.status === 'available') ?? []
+          type RoomRow = { id: string; name: string; price_per_night: number; capacity: number; status: string; room_type: { name: string }[] | { name: string } | null }
+          const availableRooms = (hotel.rooms as unknown as RoomRow[] | null)?.filter(r => r.status === 'available') ?? []
 
           return {
             found: true,
@@ -115,16 +124,26 @@ export async function POST(req: Request) {
               name: hotel.name,
               city: hotel.city,
               cover_image: hotel.cover_image,
-              rating: hotel.rating,
-              review_count: hotel.review_count,
-              description: hotel.description,
-              address: hotel.address,
-              available_rooms: availableRooms.map(r => ({
-                id: r.id,
-                name: r.name,
-                price_per_night: r.price_per_night,
-                capacity: r.capacity,
-              })),
+              rating: hotel.rating ?? 0,
+              review_count: hotel.review_count ?? 0,
+              description: hotel.description ?? '',
+              address: hotel.address ?? '',
+              amenities: (hotel.amenities as string[] | null) ?? [],
+              check_in_time: hotel.check_in_time ?? null,
+              check_out_time: hotel.check_out_time ?? null,
+              phone: hotel.phone ?? null,
+              email: hotel.email ?? null,
+              available_rooms: availableRooms.map(r => {
+                const rt = r.room_type
+                const roomTypeName = Array.isArray(rt) ? rt[0]?.name ?? null : (rt as { name: string } | null)?.name ?? null
+                return {
+                  id: r.id,
+                  name: r.name,
+                  room_type: roomTypeName,
+                  price_per_night: r.price_per_night,
+                  capacity: r.capacity,
+                }
+              }),
             },
           }
         },
