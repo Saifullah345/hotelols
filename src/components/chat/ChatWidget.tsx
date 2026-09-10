@@ -30,6 +30,8 @@ interface SearchResult {
   city?: string
   hotels?: ChatHotel[]
   exhausted?: boolean
+  no_match?: boolean
+  nearby?: NearbyCity[]
 }
 
 interface BookingPrompt {
@@ -92,6 +94,30 @@ interface BookingsResult {
   action?: 'require_login'
   found?: boolean
   bookings?: MyBooking[]
+}
+
+interface NearbyCity { city: string; km: number }
+
+interface CompareHotel {
+  id: string; name: string; city: string; cover_image?: string | null
+  rating: number; review_count: number; description: string
+  amenities: string[]; min_price: number | null
+}
+
+interface CompareResult { found: boolean; hotels?: CompareHotel[] }
+
+interface BookingRoom {
+  id: string; name: string; room_type?: string | null
+  price_per_night: number; capacity: number
+}
+
+interface InChatBookingResult {
+  action?: 'require_login'
+  found?: boolean
+  hotel?: { id: string; name: string; city: string; cover_image?: string | null }
+  available_rooms?: BookingRoom[]
+  hotel_id?: string
+  hotel_name?: string
 }
 
 // ── Amenity icon helper ───────────────────────────────────────────────────────
@@ -366,6 +392,249 @@ function HotelSlider({ hotels, onSelect, onClose }: { hotels: ChatHotel[]; onSel
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Nearby cities fallback ────────────────────────────────────────────────────
+
+function NearbyCitiesCard({ city, nearby, onSearch }: {
+  city: string
+  nearby: NearbyCity[]
+  onSearch: (c: string) => void
+}) {
+  return (
+    <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 w-full space-y-3">
+      <div className="flex items-center gap-2">
+        <span className="text-xl">📍</span>
+        <div>
+          <p className="text-sm font-bold text-amber-900">No hotels found in {city}</p>
+          {nearby.length > 0 && <p className="text-xs text-amber-700">Try a nearby city:</p>}
+        </div>
+      </div>
+      {nearby.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {nearby.map(n => (
+            <button
+              key={n.city}
+              onClick={() => onSearch(n.city)}
+              className="flex items-center gap-1.5 rounded-full bg-white border border-amber-200 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 active:scale-95 transition-all"
+            >
+              {n.city}
+              <span className="text-amber-400 font-normal">{n.km} km</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Hotel compare card ────────────────────────────────────────────────────────
+
+function CompareCard({ hotels, onSelect, onClose }: {
+  hotels: CompareHotel[]
+  onSelect: (h: CompareHotel) => void
+  onClose: () => void
+}) {
+  const [a, b] = hotels
+  if (!a || !b) return null
+
+  // Compute verdict
+  let aScore = 0, bScore = 0
+  if ((a.rating ?? 0) > (b.rating ?? 0)) aScore++; else if ((b.rating ?? 0) > (a.rating ?? 0)) bScore++
+  if (a.min_price !== null && b.min_price !== null) {
+    if (a.min_price < b.min_price) aScore++; else if (b.min_price < a.min_price) bScore++
+  }
+  if (a.amenities.length > b.amenities.length) aScore++; else if (b.amenities.length > a.amenities.length) bScore++
+  const winner = aScore > bScore ? a : bScore > aScore ? b : null
+
+  return (
+    <div className="w-full space-y-2">
+      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Side-by-side comparison</p>
+      <div className="flex gap-2">
+        {[a, b].map((h, i) => (
+          <div key={h.id} className={`flex-1 rounded-2xl overflow-hidden border shadow-sm bg-white ${winner?.id === h.id ? 'border-indigo-400 ring-2 ring-indigo-200' : 'border-gray-100'}`}>
+            {winner?.id === h.id && (
+              <div className="bg-indigo-600 text-white text-[10px] font-bold text-center py-1 tracking-wide">⭐ BETTER PICK</div>
+            )}
+            <div className="relative h-24">
+              {h.cover_image ? (
+                <Image src={h.cover_image} alt={h.name} fill className="object-cover" sizes="200px" />
+              ) : (
+                <div className="flex h-full items-center justify-center bg-indigo-50 text-3xl">🏨</div>
+              )}
+            </div>
+            <div className="p-2.5 space-y-1.5">
+              <p className="text-xs font-bold text-gray-900 line-clamp-1">{h.name}</p>
+              <p className="text-[10px] text-gray-400">{h.city}</p>
+              <div className="flex items-center gap-1">
+                <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                <span className="text-xs font-semibold text-gray-700">{h.rating.toFixed(1)}</span>
+              </div>
+              {h.min_price && (
+                <p className="text-xs font-bold text-indigo-700">Rs {h.min_price.toLocaleString()}<span className="text-[10px] font-normal text-gray-400">/night</span></p>
+              )}
+              <p className="text-[10px] text-gray-400">{h.amenities.length} amenities</p>
+              <div className="flex gap-1.5 pt-1">
+                <Link href={`/hotels/${h.id}`} onClick={onClose} className="flex-1 rounded-lg border border-indigo-200 bg-indigo-50 py-1.5 text-[10px] font-semibold text-indigo-700 text-center hover:bg-indigo-100 transition-colors">
+                  View
+                </Link>
+                <button onClick={() => onSelect(h)} className="flex-1 rounded-lg bg-indigo-600 py-1.5 text-[10px] font-semibold text-white hover:bg-indigo-700 transition-colors">
+                  Book
+                </button>
+              </div>
+            </div>
+            {i < hotels.length - 1 && <div />}
+          </div>
+        ))}
+      </div>
+      {winner ? (
+        <p className="text-xs text-center text-gray-500">
+          <span className="font-semibold text-indigo-700">{winner.name}</span> wins on rating{aScore > bScore && (a.min_price ?? 0) < (b.min_price ?? 0) ? ', price' : ''}{winner.amenities.length > (winner.id === a.id ? b : a).amenities.length ? ' & amenities' : ''}.
+        </p>
+      ) : (
+        <p className="text-xs text-center text-gray-400">Both hotels are equally matched — choose by location!</p>
+      )}
+    </div>
+  )
+}
+
+// ── In-chat booking wizard ────────────────────────────────────────────────────
+
+function BookingFlowCard({ result, onClose }: { result: InChatBookingResult; onClose: () => void }) {
+  const [selectedRoom, setSelectedRoom] = useState<BookingRoom | null>(null)
+  const [checkIn, setCheckIn] = useState('')
+  const [checkOut, setCheckOut] = useState('')
+  const [guests, setGuests] = useState(1)
+
+  if (result.action === 'require_login') {
+    return (
+      <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-white w-full p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">🔒</span>
+          <p className="text-sm font-bold text-indigo-900">Login to book</p>
+        </div>
+        <p className="text-xs text-indigo-700">Please log in to book <span className="font-semibold">{result.hotel_name}</span>.</p>
+        <div className="flex gap-2">
+          <Link href="/login" onClick={onClose} className="flex-1 min-h-[44px] flex items-center justify-center rounded-xl bg-indigo-600 text-xs font-semibold text-white gap-1.5"><LogIn className="w-3.5 h-3.5" /> Log in</Link>
+          <Link href="/register" onClick={onClose} className="flex-1 min-h-[44px] flex items-center justify-center rounded-xl border border-indigo-200 bg-white text-xs font-semibold text-indigo-700">Sign up</Link>
+        </div>
+      </div>
+    )
+  }
+
+  if (!result.found || !result.hotel) return null
+
+  const { hotel, available_rooms = [] } = result
+
+  const nights = checkIn && checkOut
+    ? Math.max(0, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000))
+    : 0
+  const total = selectedRoom ? selectedRoom.price_per_night * (nights || 1) : 0
+
+  const today = new Date().toISOString().slice(0, 10)
+
+  const handleProceed = () => {
+    if (!selectedRoom || !checkIn || !checkOut) return
+    const url = `/hotels/${hotel.id}/rooms/${selectedRoom.id}?check_in=${checkIn}&check_out=${checkOut}&adults=${guests}`
+    onClose()
+    window.location.href = url
+  }
+
+  return (
+    <div className="rounded-2xl overflow-hidden border border-gray-100 bg-white shadow-md w-full">
+      {/* Header */}
+      <div className="flex items-center gap-3 p-3 bg-indigo-600">
+        {hotel.cover_image && (
+          <div className="relative h-10 w-10 rounded-xl overflow-hidden shrink-0">
+            <Image src={hotel.cover_image} alt={hotel.name} fill className="object-cover" sizes="40px" />
+          </div>
+        )}
+        <div>
+          <p className="text-sm font-bold text-white line-clamp-1">{hotel.name}</p>
+          <p className="text-[10px] text-indigo-200">{hotel.city}</p>
+        </div>
+      </div>
+
+      <div className="p-3 space-y-4">
+        {/* Step 1: Pick room */}
+        <div>
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">1. Select room</p>
+          {available_rooms.length === 0 ? (
+            <p className="text-xs text-gray-400">No rooms available.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {available_rooms.map(room => (
+                <button
+                  key={room.id}
+                  onClick={() => setSelectedRoom(room)}
+                  className={`w-full flex items-center justify-between rounded-xl border px-3 py-2.5 text-left transition-all ${selectedRoom?.id === room.id ? 'border-indigo-400 bg-indigo-50' : 'border-gray-100 bg-gray-50 hover:border-indigo-200'}`}
+                >
+                  <div>
+                    <p className="text-xs font-semibold text-gray-800">{room.name}</p>
+                    <p className="text-[10px] text-gray-400">
+                      {room.room_type ? `${room.room_type} · ` : ''}<Users className="w-2.5 h-2.5 inline" /> {room.capacity}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-bold text-indigo-700">Rs {room.price_per_night.toLocaleString()}</p>
+                    <p className="text-[10px] text-gray-400">/night</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Step 2: Pick dates */}
+        <div>
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">2. Dates</p>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className="text-[10px] text-gray-400 mb-1 block">Check-in</label>
+              <input type="date" value={checkIn} min={today} onChange={e => setCheckIn(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-800 outline-none focus:border-indigo-400" />
+            </div>
+            <div className="flex-1">
+              <label className="text-[10px] text-gray-400 mb-1 block">Check-out</label>
+              <input type="date" value={checkOut} min={checkIn || today} onChange={e => setCheckOut(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-800 outline-none focus:border-indigo-400" />
+            </div>
+          </div>
+        </div>
+
+        {/* Step 3: Guests */}
+        <div>
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">3. Guests</p>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setGuests(g => Math.max(1, g - 1))} className="h-8 w-8 rounded-full border border-gray-200 text-gray-600 font-bold hover:bg-gray-100 transition-colors">−</button>
+            <span className="text-sm font-semibold text-gray-800 w-6 text-center">{guests}</span>
+            <button onClick={() => setGuests(g => Math.min(selectedRoom?.capacity ?? 10, g + 1))} className="h-8 w-8 rounded-full border border-gray-200 text-gray-600 font-bold hover:bg-gray-100 transition-colors">+</button>
+            <span className="text-xs text-gray-400">guest{guests !== 1 ? 's' : ''}</span>
+          </div>
+        </div>
+
+        {/* Summary + proceed */}
+        {selectedRoom && checkIn && checkOut && nights > 0 && (
+          <div className="rounded-xl bg-indigo-50 border border-indigo-100 px-3 py-2.5 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-indigo-900">{nights} night{nights !== 1 ? 's' : ''}</p>
+              <p className="text-[10px] text-indigo-600">Rs {selectedRoom.price_per_night.toLocaleString()} × {nights}</p>
+            </div>
+            <p className="text-base font-bold text-indigo-700">Rs {total.toLocaleString()}</p>
+          </div>
+        )}
+
+        <button
+          onClick={handleProceed}
+          disabled={!selectedRoom || !checkIn || !checkOut || nights <= 0}
+          className="w-full min-h-[44px] rounded-xl bg-indigo-600 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 flex items-center justify-center gap-2"
+        >
+          <BedDouble className="w-4 h-4" />
+          {!selectedRoom ? 'Select a room first' : (!checkIn || !checkOut || nights <= 0) ? 'Pick dates' : 'Proceed to checkout →'}
+        </button>
+      </div>
     </div>
   )
 }
@@ -735,11 +1004,12 @@ export default function ChatWidget() {
                         const result = toolPart.output as SearchResult
                         if (!result.found || !result.hotels?.length) {
                           return (
-                            <div key={key} className="rounded-2xl rounded-bl-sm bg-white text-gray-500 shadow-sm border border-gray-100 px-4 py-3 text-sm">
-                              {result.exhausted
-                                ? `No more hotels available in ${result.city ?? 'that city'}. Try a nearby city!`
-                                : `No hotels found in that area. Try a nearby city!`}
-                            </div>
+                            <NearbyCitiesCard
+                              key={key}
+                              city={result.city ?? 'that area'}
+                              nearby={result.nearby ?? []}
+                              onSearch={city => sendMessage({ text: `Hotels in ${city}` })}
+                            />
                           )
                         }
                         return <HotelSlider key={key} hotels={result.hotels} onSelect={handleHotelSelect} onClose={() => setOpen(false)} />
@@ -774,6 +1044,24 @@ export default function ChatWidget() {
                             />
                           </div>
                         )
+                      }
+
+                      if (toolName === 'compare_hotels') {
+                        const result = toolPart.output as CompareResult
+                        if (!result.found || !result.hotels?.length) return null
+                        return (
+                          <CompareCard
+                            key={key}
+                            hotels={result.hotels}
+                            onSelect={h => sendMessage({ text: `I want to book ${h.name}` })}
+                            onClose={() => setOpen(false)}
+                          />
+                        )
+                      }
+
+                      if (toolName === 'start_in_chat_booking') {
+                        const result = toolPart.output as InChatBookingResult
+                        return <BookingFlowCard key={key} result={result} onClose={() => setOpen(false)} />
                       }
 
                       if (toolName === 'save_hotel') {
