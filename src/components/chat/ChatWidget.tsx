@@ -65,7 +65,33 @@ interface HotelDetail {
 
 interface DetailResult {
   found: boolean
+  check_in_date?: string | null
+  check_out_date?: string | null
   hotel?: HotelDetail
+}
+
+interface SaveResult {
+  action?: 'require_login'
+  success?: boolean
+  hotel_id?: string
+  hotel_name?: string
+}
+
+interface MyBooking {
+  id: string
+  check_in: string
+  check_out: string
+  guests: number
+  status: string
+  total_amount: number
+  hotel: { id: string; name: string; city: string; cover_image?: string | null }
+  room: { name: string; price_per_night: number } | null
+}
+
+interface BookingsResult {
+  action?: 'require_login'
+  found?: boolean
+  bookings?: MyBooking[]
 }
 
 // ── Amenity icon helper ───────────────────────────────────────────────────────
@@ -344,6 +370,142 @@ function HotelSlider({ hotels, onSelect, onClose }: { hotels: ChatHotel[]; onSel
   )
 }
 
+// ── Save result card ─────────────────────────────────────────────────────────
+
+function SaveResultCard({ result }: { result: SaveResult }) {
+  if (result.action === 'require_login') {
+    return (
+      <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-white w-full p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">🔒</span>
+          <p className="text-sm font-bold text-indigo-900">Login required to save hotels</p>
+        </div>
+        <p className="text-xs text-indigo-700">Log in to save <span className="font-semibold">{result.hotel_name}</span> to your wishlist.</p>
+        <div className="flex gap-2">
+          <Link href="/login" className="flex-1 min-h-[44px] flex items-center justify-center rounded-xl bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700 transition-colors gap-1.5">
+            <LogIn className="w-3.5 h-3.5" /> Log in
+          </Link>
+          <Link href="/register" className="flex-1 min-h-[44px] flex items-center justify-center rounded-xl border border-indigo-200 bg-white text-xs font-semibold text-indigo-700 hover:bg-indigo-50 transition-colors">
+            Sign up free
+          </Link>
+        </div>
+      </div>
+    )
+  }
+  if (result.success) {
+    return (
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-center gap-3 w-full">
+        <span className="text-2xl">❤️</span>
+        <div>
+          <p className="text-sm font-bold text-emerald-800">Hotel saved!</p>
+          <p className="text-xs text-emerald-700"><span className="font-semibold">{result.hotel_name}</span> has been added to your wishlist.</p>
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700 w-full">
+      Could not save hotel. Please try again.
+    </div>
+  )
+}
+
+// ── Booking history card ──────────────────────────────────────────────────────
+
+const STATUS_STYLE: Record<string, string> = {
+  confirmed:   'bg-emerald-100 text-emerald-700',
+  pending:     'bg-amber-100 text-amber-700',
+  checked_in:  'bg-blue-100 text-blue-700',
+  checked_out: 'bg-gray-100 text-gray-600',
+  cancelled:   'bg-red-100 text-red-600',
+}
+
+function BookingHistoryCard({ result, onClose }: { result: BookingsResult; onClose: () => void }) {
+  if (result.action === 'require_login') {
+    return (
+      <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-white w-full p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">🔒</span>
+          <p className="text-sm font-bold text-indigo-900">Login required</p>
+        </div>
+        <p className="text-xs text-indigo-700">Log in to view your booking history.</p>
+        <div className="flex gap-2">
+          <Link href="/login" className="flex-1 min-h-[44px] flex items-center justify-center rounded-xl bg-indigo-600 text-xs font-semibold text-white hover:bg-indigo-700 transition-colors gap-1.5">
+            <LogIn className="w-3.5 h-3.5" /> Log in
+          </Link>
+          <Link href="/register" className="flex-1 min-h-[44px] flex items-center justify-center rounded-xl border border-indigo-200 bg-white text-xs font-semibold text-indigo-700 hover:bg-indigo-50 transition-colors">
+            Sign up free
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  if (!result.found || !result.bookings?.length) {
+    return (
+      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm px-4 py-5 text-center w-full">
+        <p className="text-2xl mb-1">🗓️</p>
+        <p className="text-sm font-semibold text-gray-700">No bookings yet</p>
+        <p className="text-xs text-gray-400 mt-0.5">Your reservations will appear here.</p>
+      </div>
+    )
+  }
+
+  function nightsBetween(a: string, b: string) {
+    return Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86400000)
+  }
+
+  return (
+    <div className="w-full space-y-2">
+      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Your recent bookings</p>
+      {result.bookings.map(b => {
+        const nights = nightsBetween(b.check_in, b.check_out)
+        const statusLabel = b.status.replace('_', ' ')
+        return (
+          <Link
+            key={b.id}
+            href={`/bookings/${b.id}`}
+            onClick={onClose}
+            className="flex gap-3 rounded-2xl border border-gray-100 bg-white shadow-sm p-3 hover:border-indigo-200 hover:bg-indigo-50/30 transition-colors"
+          >
+            {/* Hotel thumbnail */}
+            <div className="relative h-16 w-16 shrink-0 rounded-xl overflow-hidden bg-indigo-50">
+              {b.hotel?.cover_image ? (
+                <Image src={b.hotel.cover_image} alt={b.hotel.name ?? ''} fill className="object-cover" sizes="64px" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-2xl">🏨</div>
+              )}
+            </div>
+            {/* Details */}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-gray-900 truncate">{b.hotel?.name}</p>
+              <p className="text-[10px] text-gray-400 truncate">{b.room?.name ?? 'Room'}</p>
+              <p className="text-[10px] text-gray-500 mt-0.5">
+                {new Date(b.check_in).toLocaleDateString('en', { day: 'numeric', month: 'short' })} →{' '}
+                {new Date(b.check_out).toLocaleDateString('en', { day: 'numeric', month: 'short' })}
+                <span className="text-gray-400"> · {nights} night{nights !== 1 ? 's' : ''}</span>
+              </p>
+              <div className="flex items-center justify-between mt-1">
+                <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize ${STATUS_STYLE[b.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                  {statusLabel}
+                </span>
+                <span className="text-[10px] font-bold text-indigo-700">Rs {b.total_amount?.toLocaleString()}</span>
+              </div>
+            </div>
+          </Link>
+        )
+      })}
+      <Link
+        href="/bookings"
+        onClick={onClose}
+        className="block text-center text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors py-1"
+      >
+        View all bookings →
+      </Link>
+    </div>
+  )
+}
+
 // ── Login prompt ──────────────────────────────────────────────────────────────
 
 function BookingPromptCard({ hotel_name }: { hotel_id: string; hotel_name: string }) {
@@ -593,13 +755,35 @@ export default function ChatWidget() {
                           )
                         }
                         return (
-                          <HotelDetailCard
-                            key={key}
-                            hotel={result.hotel}
-                            onBook={(_id, name) => sendMessage({ text: `I want to book ${name}` })}
-                            onClose={() => setOpen(false)}
-                          />
+                          <div key={key} className="w-full space-y-2">
+                            {result.check_in_date && result.check_out_date && (
+                              <div className="flex items-center gap-2 rounded-xl bg-indigo-50 border border-indigo-100 px-3 py-2">
+                                <Clock className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                <p className="text-xs text-indigo-700 font-medium">
+                                  Availability for{' '}
+                                  {new Date(result.check_in_date).toLocaleDateString('en', { day: 'numeric', month: 'short' })}
+                                  {' → '}
+                                  {new Date(result.check_out_date).toLocaleDateString('en', { day: 'numeric', month: 'short' })}
+                                </p>
+                              </div>
+                            )}
+                            <HotelDetailCard
+                              hotel={result.hotel}
+                              onBook={(_id, name) => sendMessage({ text: `I want to book ${name}` })}
+                              onClose={() => setOpen(false)}
+                            />
+                          </div>
                         )
+                      }
+
+                      if (toolName === 'save_hotel') {
+                        const result = toolPart.output as SaveResult
+                        return <SaveResultCard key={key} result={result} />
+                      }
+
+                      if (toolName === 'get_my_bookings') {
+                        const result = toolPart.output as BookingsResult
+                        return <BookingHistoryCard key={key} result={result} onClose={() => setOpen(false)} />
                       }
 
                       if (toolName === 'select_hotel_to_book') {
