@@ -17,6 +17,7 @@ interface ChatHotel {
   id: string
   name: string
   city: string
+  address?: string
   cover_image?: string | null
   rating?: number
   review_count?: number
@@ -114,10 +115,15 @@ function HotelDetailCard({ hotel, onBook, onClose }: { hotel: HotelDetail; onBoo
         <div>
           <p className="font-bold text-gray-900 text-base leading-snug">{hotel.name}</p>
           {hotel.address && (
-            <div className="flex items-start gap-1 mt-0.5">
-              <MapPin className="w-3 h-3 text-indigo-400 shrink-0 mt-0.5" />
-              <span className="text-xs text-gray-500">{hotel.address}, {hotel.city}</span>
-            </div>
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([hotel.name, hotel.address, hotel.city].filter(Boolean).join(', '))}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-start gap-1 mt-0.5 w-fit group/map"
+            >
+              <MapPin className="w-3 h-3 text-indigo-400 shrink-0 mt-0.5 group-hover/map:text-indigo-600" />
+              <span className="text-xs text-gray-500 group-hover/map:text-indigo-600 group-hover/map:underline">{hotel.address}, {hotel.city}</span>
+            </a>
           )}
         </div>
 
@@ -262,10 +268,17 @@ function HotelCard({ hotel, onSelect, onClose }: { hotel: ChatHotel; onSelect: (
       {/* Info */}
       <div className="p-3">
         <p className="font-bold text-gray-900 text-sm leading-snug line-clamp-1">{hotel.name}</p>
-        <div className="flex items-center gap-1 mt-0.5 mb-2">
-          <MapPin className="w-3 h-3 text-indigo-400 shrink-0" />
-          <span className="text-xs text-gray-500">{hotel.city}</span>
-        </div>
+        <a
+          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([hotel.name, hotel.address, hotel.city].filter(Boolean).join(', '))}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 mt-0.5 mb-2 w-fit group/map"
+        >
+          <MapPin className="w-3 h-3 text-indigo-400 shrink-0 group-hover/map:text-indigo-600" />
+          <span className="text-xs text-gray-500 group-hover/map:text-indigo-600 group-hover/map:underline">
+            {hotel.address ? `${hotel.address}, ${hotel.city}` : hotel.city}
+          </span>
+        </a>
         {hotel.description && (
           <p className="text-[11px] text-gray-400 line-clamp-2 leading-relaxed mb-3">{hotel.description}</p>
         )}
@@ -619,7 +632,7 @@ export default function ChatWidget() {
             <div className="bg-white border-t border-gray-100 px-3 pt-2.5 pb-2 shrink-0">
               <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Quick searches</p>
               <div className="quick-scroll flex gap-2 overflow-x-auto pb-0.5">
-                {['Hotels in Lahore', 'Islamabad hotel chahiye', 'Karachi hotels', 'Murree mein hotel', 'Budget hotel Rawalpindi'].map(
+                {['Hotels in Lahore', 'Karachi 4 star hotel', 'Murree mein sasta hotel', '2 log ke liye Islamabad', 'Rawalpindi 3000 se kam'].map(
                   prompt => (
                     <button
                       key={prompt}

@@ -12,29 +12,29 @@ LANGUAGE: Detect the user's language and always reply in the same language:
 - If they write in Roman Urdu (Urdu written in English letters like "hotel chahiye", "book karna hai", "Lahore mein hotel") → reply in Roman Urdu
 
 YOUR CAPABILITIES:
-1. Search hotels by city or area in Pakistan
-2. Show hotel details and room prices
+1. Search hotels by city, budget, rating, and guest count
+2. Show hotel details, amenities, and room availability
 3. Help users pick the right hotel
 4. Guide users to book (they must be logged in to complete a booking)
 
 BEHAVIOUR RULES:
-- When a user mentions a city or asks for hotels → ALWAYS call search_hotels tool first before replying
-- CRITICAL: After search_hotels runs, hotel cards appear in the UI automatically. NEVER list hotel names, prices, ratings, or descriptions in your text. Your text reply must be ONE short sentence only, e.g. "Found 5 hotels in Lahore! 👆 Swipe the cards above to explore." Do not mention any hotel by name in your text.
-- When the user says "show others", "different hotels", "not these", "suggest alternatives", "kuch aur", "doosre hotels", "inke ilawa" or similar → call search_hotels again with the SAME city AND pass exclude_ids containing every hotel 'id' from the previous search_hotels tool result, so we show fresh hotels.
-- When the user asks about a specific hotel's rooms, amenities, facilities, check-in time, price, or says "tell me more", "details dikhao", "rooms kya hain", "facilities kya hain" → call get_hotel_details with that hotel's ID from the previous search_hotels result. Show the result as a card — do NOT describe it in text.
-- When user says they want to book a specific hotel → call select_hotel_to_book
-- Never invent hotel names, prices, or details
-- If no hotels found (or all are excluded) → apologise and say there are no more options in that city, suggest nearby cities like Rawalpindi, Murree, Faisalabad, etc.
+- When a user mentions a city or asks for hotels → ALWAYS call search_hotels first
+- CRITICAL: After search_hotels runs, hotel cards appear in the UI automatically. NEVER list hotel names, prices, ratings, or descriptions in your text. Reply with ONE short sentence only, e.g. "Found 4 hotels in Lahore under Rs 3,000! 👆 Swipe to explore." Do not mention any hotel by name.
+- When user says "show others", "different hotels", "kuch aur", "doosre dikhao", "inke ilawa" → call search_hotels again with the SAME city and the same filters, AND pass exclude_ids with every hotel 'id' from the previous result.
+- When user asks about a hotel's rooms, amenities, facilities, or says "tell me more / details dikhao / rooms kya hain" → call get_hotel_details with that hotel's ID.
+- When user wants to book a specific hotel → call select_hotel_to_book.
+- Never invent hotel names, prices, or details.
+- If no hotels found → apologise and suggest nearby cities.
 
-ROMAN URDU PHRASES YOU MAY SEE:
-"hotel chahiye / dhundh raha hoon" = need a hotel
-"book karna hai / booking chahiye" = want to book
-"kitna kiraya / price kya hai" = what is the price
-"mehman / log" = guests
-"kamra / room" = room
-"check in / check out" = check in / check out dates
-"yahan / wahan" = here / there
-"shukriya / theek hai" = thank you / okay`
+FILTER RULES — extract from user message and pass to search_hotels:
+- Budget / max price: "3000 se kam", "budget hotel", "cheap", "Rs 5000 se neeche", "affordable" → pass max_price (number in PKR, e.g. 3000)
+- Rating: "4 star", "top rated", "best hotel", "4 se upar", "highly rated" → pass min_rating (e.g. 4)
+- Guests / capacity: "2 log hain", "family of 4", "couple", "3 guests", "3 log" → pass min_capacity (number of people, e.g. 2)
+- Filters combine: "Lahore mein 2 logon ke liye 5000 se kam hotel" → city=Lahore, max_price=5000, min_capacity=2
+- When re-searching (exclude_ids), keep the same filters as before.
+
+ROMAN URDU PHRASES:
+"hotel chahiye" = need a hotel | "kitna kiraya" = what is the price | "log / mehman" = guests | "sasta" = cheap/budget | "star wala" = rated hotel | "aur dikhao" = show more`
 
 export async function POST(req: Request) {
   const { messages } = await req.json()
@@ -48,25 +48,38 @@ export async function POST(req: Request) {
     messages: modelMessages,
     tools: {
       search_hotels: tool({
-        description: 'Search for hotels in a Pakistani city or area. Call this whenever the user mentions a city or asks for hotels. When the user asks for different/other hotels, pass exclude_ids with the IDs already shown.',
+        description: 'Search hotels in a Pakistani city with optional budget, rating, and guest filters.',
         inputSchema: z.object({
-          city: z.string().describe('City or area name in Pakistan, e.g. Lahore, Islamabad, Karachi, Murree'),
-          exclude_ids: z.array(z.string()).optional().describe('Hotel IDs already shown to the user — exclude these to show fresh results when user asks for alternatives'),
+          city: z.string().describe('City or area in Pakistan, e.g. Lahore, Islamabad, Karachi, Murree'),
+          exclude_ids: z.array(z.string()).optional().describe('Hotel IDs already shown — exclude when user asks for alternatives'),
+          max_price: z.number().optional().describe('Maximum price per night in PKR (e.g. 3000)'),
+          min_rating: z.number().min(1).max(5).optional().describe('Minimum hotel rating, e.g. 4 for 4-star+'),
+          min_capacity: z.number().optional().describe('Minimum guests a room must accommodate, e.g. 2 for a couple'),
         }),
-        execute: async ({ city, exclude_ids }: { city: string; exclude_ids?: string[] }) => {
+        execute: async ({
+          city,
+          exclude_ids,
+          max_price,
+          min_rating,
+          min_capacity,
+        }: {
+          city: string
+          exclude_ids?: string[]
+          max_price?: number
+          min_rating?: number
+          min_capacity?: number
+        }) => {
+          type RoomBasic = { price_per_night: number; capacity: number }
+
           let query = supabase
             .from('hotels')
-            .select(`
-              id, name, city, cover_image, rating, review_count, description,
-              rooms ( price_per_night )
-            `)
+            .select(`id, name, city, address, cover_image, rating, review_count, description, rooms(price_per_night, capacity)`)
             .or(`city.ilike.%${city}%,name.ilike.%${city}%,address.ilike.%${city}%`)
             .eq('status', 'active')
-            .limit(5)
+            .limit(15) // fetch extra so JS filtering still returns enough
 
-          if (exclude_ids?.length) {
-            query = query.not('id', 'in', `(${exclude_ids.join(',')})`)
-          }
+          if (exclude_ids?.length) query = query.not('id', 'in', `(${exclude_ids.join(',')})`)
+          if (min_rating) query = query.gte('rating', min_rating)
 
           const { data: hotels, error } = await query
 
@@ -74,17 +87,36 @@ export async function POST(req: Request) {
             return { found: false, city, exhausted: (exclude_ids?.length ?? 0) > 0 }
           }
 
+          // JS-side filters for price and capacity (based on what rooms are available)
+          let filtered = hotels.filter(h => {
+            const rooms = (h.rooms as RoomBasic[] | null) ?? []
+            if (!rooms.length) return false
+            const qualifying = rooms.filter(r =>
+              (!max_price || r.price_per_night <= max_price) &&
+              (!min_capacity || r.capacity >= min_capacity)
+            )
+            return qualifying.length > 0
+          })
+
+          if (!filtered.length) {
+            return { found: false, city, no_match: true, exhausted: (exclude_ids?.length ?? 0) > 0 }
+          }
+
           return {
             found: true,
             city,
-            hotels: hotels.map(h => {
-              const prices = (h.rooms as { price_per_night: number }[] | null)
-                ?.map(r => r.price_per_night)
-                .filter(Boolean) ?? []
+            hotels: filtered.slice(0, 5).map(h => {
+              const rooms = (h.rooms as RoomBasic[] | null) ?? []
+              const qualifying = rooms.filter(r =>
+                (!max_price || r.price_per_night <= max_price) &&
+                (!min_capacity || r.capacity >= min_capacity)
+              )
+              const prices = qualifying.map(r => r.price_per_night).filter(Boolean)
               return {
                 id: h.id,
                 name: h.name,
                 city: h.city,
+                address: h.address ?? '',
                 cover_image: h.cover_image,
                 rating: h.rating ?? 0,
                 review_count: h.review_count ?? 0,
@@ -97,7 +129,7 @@ export async function POST(req: Request) {
       }),
 
       get_hotel_details: tool({
-        description: 'Get full details (amenities, check-in/out times, contact, available rooms) for a specific hotel. Call when the user asks about rooms, facilities, amenities, or says "tell me more" about a hotel.',
+        description: 'Get full details (amenities, check-in/out times, contact, available rooms) for a specific hotel.',
         inputSchema: z.object({
           hotel_id: z.string().describe('The hotel ID from search results'),
         }),
@@ -150,10 +182,10 @@ export async function POST(req: Request) {
       }),
 
       select_hotel_to_book: tool({
-        description: 'Call this when the user wants to book a specific hotel. It shows a login/booking button in the chat.',
+        description: 'Call this when the user wants to book a specific hotel.',
         inputSchema: z.object({
           hotel_id: z.string().describe('The hotel ID from search results'),
-          hotel_name: z.string().describe('The hotel name to show in the prompt'),
+          hotel_name: z.string().describe('The hotel name to show in the booking prompt'),
         }),
         execute: async ({ hotel_id, hotel_name }: { hotel_id: string; hotel_name: string }) => {
           return { action: 'require_login', hotel_id, hotel_name }
