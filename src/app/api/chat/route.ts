@@ -157,7 +157,7 @@ export async function POST(req: Request) {
           const filterRoom = (r: RoomBasic) => {
             const rtName = Array.isArray(r.room_type) ? r.room_type[0]?.name ?? '' : (r.room_type as { name: string } | null)?.name ?? ''
             return (
-              r.status === 'available' &&
+              r.status !== 'maintenance' &&
               (!max_price || r.price_per_night <= max_price) &&
               (!min_capacity || r.capacity >= min_capacity) &&
               (!room_type || rtName.toLowerCase().includes(room_type.toLowerCase()))

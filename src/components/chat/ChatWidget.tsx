@@ -926,7 +926,7 @@ export default function ChatWidget() {
               </div>
               <div>
                 <p className="text-base font-bold text-white">BookQayam AI</p>
-                <p className="text-xs text-indigo-200">● Online</p>
+                <p className="text-xs text-indigo-200">Online</p>
               </div>
             </div>
             {/* Close — large tap target */}
