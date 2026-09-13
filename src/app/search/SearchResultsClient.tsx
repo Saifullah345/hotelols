@@ -277,7 +277,7 @@ export default function SearchResultsClient({ hotels, hasDates, checkIn, checkOu
   const start = (page - 1) * PER_PAGE
   const pageHotels = filtered.slice(start, start + PER_PAGE)
 
-  const mapHotels: MapHotel[] = enrichWithCoords(
+  const mapHotels: MapHotel[] = useMemo(() => enrichWithCoords(
     filtered.map(h => ({
       id: h.id,
       name: h.name,
@@ -289,7 +289,8 @@ export default function SearchResultsClient({ hotels, hasDates, checkIn, checkOu
       review_count: h.review_count,
       beds: h.beds,
     }))
-  )
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ), [filtered])
 
   const handleMapClick = useCallback((id: string) => {
     setActiveId(id)

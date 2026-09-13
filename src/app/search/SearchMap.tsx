@@ -120,12 +120,15 @@ export default function SearchMap({ hotels, activeId, onHotelClick }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<LeafletMap | null>(null)
   const markersRef = useRef<Map<string, L.Marker>>(new Map())
+  // Cached Leaflet module — avoids re-importing on every hover
+  const leafletRef = useRef<typeof import('leaflet') | null>(null)
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
 
     // Dynamic import to avoid SSR issues
     import('leaflet').then(L => {
+      leafletRef.current = L
       // Fix default marker icon paths broken by webpack
       // @ts-expect-error leaflet internals
       delete L.Icon.Default.prototype._getIconUrl
@@ -195,22 +198,33 @@ export default function SearchMap({ hotels, activeId, onHotelClick }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Update marker styles when activeId changes
+  // Update only the two markers that actually change (prev → inactive, next → active).
+  // Avoids O(n) icon replacements and a repeated leaflet import on every hover.
+  const prevActiveId = useRef<string | null>(null)
   useEffect(() => {
-    import('leaflet').then(L => {
-      markersRef.current.forEach((marker, id) => {
-        const isActive = id === activeId
-        const hotel = hotels.find(h => h.id === id)
-        if (!hotel) return
-        const icon = L.divIcon({
-          className: '',
-          html: `<div class="map-price-pin${isActive ? ' active' : ''}">${formatPrice(hotel.price, hotel.currency)}</div>`,
-          iconSize: [80, 30],
-          iconAnchor: [40, 15],
-        })
-        marker.setIcon(icon)
+    const L = leafletRef.current
+    if (!L) return
+
+    const makeIcon = (id: string, active: boolean) => {
+      const hotel = hotels.find(h => h.id === id)
+      if (!hotel) return null
+      return L.divIcon({
+        className: '',
+        html: `<div class="map-price-pin${active ? ' active' : ''}">${formatPrice(hotel.price, hotel.currency)}</div>`,
+        iconSize: [80, 30],
+        iconAnchor: [40, 15],
       })
-    })
+    }
+
+    if (prevActiveId.current) {
+      const icon = makeIcon(prevActiveId.current, false)
+      if (icon) markersRef.current.get(prevActiveId.current)?.setIcon(icon)
+    }
+    if (activeId) {
+      const icon = makeIcon(activeId, true)
+      if (icon) markersRef.current.get(activeId)?.setIcon(icon)
+    }
+    prevActiveId.current = activeId
   }, [activeId, hotels])
 
   return (

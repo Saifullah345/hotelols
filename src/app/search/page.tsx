@@ -31,6 +31,7 @@ export default async function SearchPage({
     .select('id, name, city, country, address, currency, rating, review_count, cover_image, images, amenities')
     .eq('status', 'active')
     .order('rating', { ascending: false })
+    .limit(60)
 
   const tokens = tokenize(city ?? '')
   if (tokens.length) hotelQuery = hotelQuery.or(buildOrFilter(tokens))
@@ -49,17 +50,14 @@ export default async function SearchPage({
   const bedsByHotel      = new Map<string, number>()
 
   if (hotelIds.length) {
-    const hotelIdSet = new Set(hotelIds)
-
-    // Fetch all available rooms without a hotel_id filter — avoids URL-length
-    // limits when the matched hotel list is large (364+ IDs → GET query too long).
+    // Hotels are now bounded to 60 so we can filter by hotel_id directly.
     const { data: rooms } = await supabase
       .from('rooms')
       .select('id, hotel_id, price_per_night, capacity, max_adults, max_children')
       .eq('status', 'available')
+      .in('hotel_id', hotelIds)
 
-    // Only consider rooms that belong to hotels in our matched set.
-    const relevantRooms = (rooms ?? []).filter(r => hotelIdSet.has(r.hotel_id))
+    const relevantRooms = rooms ?? []
     const relevantHotelIds = [...new Set(relevantRooms.map(r => r.hotel_id))]
 
     const bookedRoomIds = hasDates && relevantHotelIds.length

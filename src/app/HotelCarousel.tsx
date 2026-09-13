@@ -66,29 +66,43 @@ export default function HotelCarousel({
   }
 
   // ── Autoplay: nudge scrollLeft every frame, snapping back by exactly one copy
-  //    when it passes it. Since every copy is identical the jump is invisible. ──
+  //    when it passes it. Since every copy is identical the jump is invisible.
+  //    The RAF loop is stopped entirely while the carousel is off-screen so it
+  //    does not compete with scroll rendering on every page. ──
   const paused = useRef(false)
+  const visible = useRef(false)
   useEffect(() => {
     const track = trackRef.current
     if (!track || !autoplay) return
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => { visible.current = entry.isIntersecting },
+      { threshold: 0 },
+    )
+    observer.observe(track)
 
     let frame = 0
     let previous = performance.now()
     const SPEED = 0.035 // px per ms — a slow drift, not a slideshow
 
     const step = (now: number) => {
+      frame = requestAnimationFrame(step)
+      if (!visible.current || paused.current) {
+        previous = now
+        return
+      }
       const elapsed = now - previous
       previous = now
-      if (!paused.current) {
-        const copyWidth = track.scrollWidth / repeats
-        track.scrollLeft += elapsed * SPEED
-        if (track.scrollLeft >= copyWidth) track.scrollLeft -= copyWidth
-      }
-      frame = requestAnimationFrame(step)
+      const copyWidth = track.scrollWidth / repeats
+      track.scrollLeft += elapsed * SPEED
+      if (track.scrollLeft >= copyWidth) track.scrollLeft -= copyWidth
     }
     frame = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(frame)
+    return () => {
+      cancelAnimationFrame(frame)
+      observer.disconnect()
+    }
   }, [autoplay, repeats, hotels.length])
 
   return (
@@ -150,7 +164,6 @@ export default function HotelCarousel({
                   ? '(max-width: 640px) 45vw, (max-width: 1024px) 33vw, 17vw'
                   : '(max-width: 640px) 78vw, (max-width: 1024px) 50vw, 25vw'}
                 className="object-cover transition-transform duration-500 group-hover:scale-105"
-                unoptimized
               />
               {/* Reaches high enough for the name to stay readable over a bright photo. */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
