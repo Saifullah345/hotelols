@@ -618,6 +618,8 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {plans.map(plan => {
             const isCurrent   = plan.id === hotel?.plan_id && !neverSubscribed
+            // plan_id was set (at signup or by admin) but no Paddle subscription exists yet
+            const isSelectedByAdmin = plan.id === hotel?.plan_id && neverSubscribed
             // isCurrent but subscription is canceled/paused/expired → user needs to re-subscribe
             const isRenewable = isCurrent && !['active', 'trialing'].includes(hotel?.subscription_status ?? '')
             const price       = billing === 'monthly' ? plan.price_monthly : plan.price_yearly
@@ -637,19 +639,20 @@ export default function BillingClient({ hotel, currentPlan, plans }: Props) {
               <div
                 key={plan.id}
                 className={`relative bg-white rounded-2xl border-2 p-5 shadow-sm transition-all ${
-                  isRenewable   ? 'border-amber-400 ring-2 ring-amber-100'
-                  : isCurrent   ? 'border-primary-400 ring-2 ring-primary-100'
-                  : blocked     ? 'border-gray-200 opacity-60'
+                  isRenewable        ? 'border-amber-400 ring-2 ring-amber-100'
+                  : isCurrent        ? 'border-primary-400 ring-2 ring-primary-100'
+                  : isSelectedByAdmin ? 'border-gray-300 ring-2 ring-gray-100'
+                  : blocked          ? 'border-gray-200 opacity-60'
                   : 'border-gray-200'
                 }`}
               >
-                {isCurrent && (
+                {(isCurrent || isSelectedByAdmin) && (
                   <div className="absolute -top-3 left-4">
                     <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide text-white ${
-                      isRenewable ? 'bg-amber-500' : 'bg-primary-600'
+                      isSelectedByAdmin ? 'bg-gray-400' : isRenewable ? 'bg-amber-500' : 'bg-primary-600'
                     }`}>
                       <Zap className="h-3 w-3" />
-                      {trialing ? 'On trial' : isRenewable ? 'Renew' : 'Current'}
+                      {isSelectedByAdmin ? 'Selected' : trialing ? 'On trial' : isRenewable ? 'Renew' : 'Current'}
                     </span>
                   </div>
                 )}
