@@ -70,16 +70,16 @@ function HotelCard({ hotel, href, showDiscount }: { hotel: SearchHotel; href: st
         )}
         <button
           onClick={e => { e.preventDefault(); setSaved(s => !s) }}
-          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/80 backdrop-blur transition hover:bg-white"
+          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 transition-colors hover:bg-white shadow-sm"
         >
           <Heart className={`h-4 w-4 ${saved ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} />
         </button>
         {allImages.length > 1 && (
           <>
-            <button onClick={prev} className="absolute left-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-white/80 backdrop-blur opacity-0 group-hover:opacity-100 transition">
+            <button onClick={prev} className="absolute left-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
               <ChevronLeft className="h-4 w-4 text-gray-700" />
             </button>
-            <button onClick={next} className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-white/80 backdrop-blur opacity-0 group-hover:opacity-100 transition">
+            <button onClick={next} className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
               <ChevronRight className="h-4 w-4 text-gray-700" />
             </button>
           </>

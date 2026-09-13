@@ -203,6 +203,16 @@
   .animate-float-alt   { animation: none; }
 }
 
+/* ── Below-the-fold sections: skip rendering until visible ───────────────
+   content-visibility:auto tells the browser it can skip paint+layout for
+   this section entirely until it scrolls into view. contain-intrinsic-size
+   gives the browser an approximate height to reserve so the page length
+   doesn't jump when the section is eventually rendered. */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 500px;
+}
+
 /* ── Skeleton shimmer ─────────────────────────────────────────────────── */
 @keyframes shimmer {
   0%   { background-position: -400px 0; }

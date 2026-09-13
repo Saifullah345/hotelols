@@ -324,14 +324,14 @@ export default async function LandingPage({
                         src={hotel.cover_image || '/hotel-placeholder.svg'}
                         alt={hotel.name}
                         fill
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                         className="object-cover group-hover:scale-105 transition-transform duration-500"
-                        unoptimized
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
 
                       {/* Rating — top left */}
                       {hotel.rating ? (
-                        <div className="absolute top-3 left-3 flex items-center gap-1 bg-white/95 backdrop-blur px-2.5 py-1 rounded-full text-xs font-bold text-gray-900 shadow">
+                        <div className="absolute top-3 left-3 flex items-center gap-1 bg-white px-2.5 py-1 rounded-full text-xs font-bold text-gray-900 shadow">
                           <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
                           {Number(hotel.rating).toFixed(1)}
                           {hotel.review_count ? <span className="font-normal text-gray-400 ml-0.5">({hotel.review_count})</span> : null}
@@ -402,7 +402,7 @@ export default async function LandingPage({
       {/* ── Unique stays ─────────────────────────────────────────────── */}
       {/* Every listed property, not just the four the section above features. */}
       {!hasFilter && hotelList.length > 0 && (
-        <section className="mx-auto max-w-[1400px] px-4 sm:px-6 pb-12">
+        <section className="cv-auto mx-auto max-w-[1400px] px-4 sm:px-6 pb-12">
           <div className="mb-7">
             <h2 className="text-2xl font-extrabold text-gray-900">Unique stays</h2>
             <p className="text-sm text-gray-400 mt-1">Every property on BookQayam</p>
@@ -422,7 +422,7 @@ export default async function LandingPage({
       )}
 
       {/* ── Guest reviews ────────────────────────────────────────────── */}
-      {!hasFilter && <GuestReviews />}
+      {!hasFilter && <div className="cv-auto"><GuestReviews /></div>}
 
       {/* ── For hotel owners banner ──────────────────────────────────── */}
       {/* The collage runs on real listing covers, so it fills in on its own as

@@ -41,9 +41,12 @@ export default function HotelCarousel({
   // whole track by -50% (= one copy width), then the browser loops seamlessly.
   // We control play/pause by writing directly to the element's style so there
   // is zero React re-render on hover.
+  // Limit the autoplay pool so the DOM stays small (visible ~4 cards at a time).
+  // 10 distinct cards × 2 copies = 20 nodes, which is plenty for a seamless loop.
+  const autoplayHotels = autoplay ? hotels.slice(0, 10) : hotels
   const cardWidth  = compact ? 215 : 305  // px per card (approx, for duration calc)
   const gap        = 16
-  const totalPx    = hotels.length * (cardWidth + gap)
+  const totalPx    = autoplayHotels.length * (cardWidth + gap)
   // Target speed: ~55 px/s feels like a slow drift. Clamp to [20s, 60s].
   const durationS  = Math.min(60, Math.max(20, Math.round(totalPx / 55)))
 
@@ -75,7 +78,7 @@ export default function HotelCarousel({
   if (autoplay) {
     // Two copies = one seamless loop. The outer div clips overflow so only one
     // copy is ever visible; no scrollbar appears.
-    const loop = [...hotels, ...hotels]
+    const loop = [...autoplayHotels, ...autoplayHotels]
 
     return (
       <div
@@ -111,7 +114,7 @@ export default function HotelCarousel({
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
 
                 {!compact && (
-                  <div className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-xs font-bold text-gray-900 shadow backdrop-blur">
+                  <div className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-bold text-gray-900 shadow">
                     <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
                     {hotel.rating ? Number(hotel.rating).toFixed(1) : 'New'}
                     {hotel.review_count ? (
@@ -164,7 +167,7 @@ export default function HotelCarousel({
         <button
           onClick={() => scroll('prev')}
           aria-label="Previous stays"
-          className="hidden lg:flex absolute left-2 top-1/2 z-20 -translate-y-1/2 h-10 w-10 items-center justify-center rounded-full bg-white/90 text-gray-700 shadow-lg backdrop-blur hover:bg-white transition-colors"
+          className="hidden lg:flex absolute left-2 top-1/2 z-20 -translate-y-1/2 h-10 w-10 items-center justify-center rounded-full bg-white text-gray-700 shadow-lg hover:bg-gray-50 transition-colors"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
@@ -173,7 +176,7 @@ export default function HotelCarousel({
         <button
           onClick={() => scroll('next')}
           aria-label="More stays"
-          className="hidden lg:flex absolute right-2 top-1/2 z-20 -translate-y-1/2 h-10 w-10 items-center justify-center rounded-full bg-white/90 text-gray-700 shadow-lg backdrop-blur hover:bg-white transition-colors"
+          className="hidden lg:flex absolute right-2 top-1/2 z-20 -translate-y-1/2 h-10 w-10 items-center justify-center rounded-full bg-white text-gray-700 shadow-lg hover:bg-gray-50 transition-colors"
         >
           <ChevronRight className="h-5 w-5" />
         </button>

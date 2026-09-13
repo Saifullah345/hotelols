@@ -95,7 +95,7 @@ export default function HotelSlider({ hotels, checkIn, checkOut, adults, childre
                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
 
                 {hotel.rating ? (
-                  <div className="absolute top-3 right-3 flex items-center gap-1 bg-white/95 backdrop-blur px-2.5 py-1 rounded-full text-xs font-bold text-gray-900 shadow">
+                  <div className="absolute top-3 right-3 flex items-center gap-1 bg-white px-2.5 py-1 rounded-full text-xs font-bold text-gray-900 shadow">
                     <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
                     {Number(hotel.rating).toFixed(1)}
                     {hotel.review_count ? (
