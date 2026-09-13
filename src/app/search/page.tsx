@@ -7,6 +7,8 @@ import { pageMetadata } from '@/lib/seo'
 import { tokenize, buildOrFilter, relevance, hasValidRange, nightsBetween, getBookedRoomIds } from '@/lib/search'
 import SearchResultsClient, { type SearchHotel } from './SearchResultsClient'
 
+const INITIAL_PAGE_SIZE = 12
+
 export const metadata = pageMetadata({
   title: 'Search Hotels — Find Verified Stays by City & Date',
   description:
@@ -31,7 +33,7 @@ export default async function SearchPage({
     .select('id, name, city, country, address, currency, rating, review_count, cover_image, images, amenities')
     .eq('status', 'active')
     .order('rating', { ascending: false })
-    .limit(60)
+    .range(0, INITIAL_PAGE_SIZE - 1)
 
   const tokens = tokenize(city ?? '')
   if (tokens.length) hotelQuery = hotelQuery.or(buildOrFilter(tokens))
@@ -94,6 +96,7 @@ export default async function SearchPage({
     }))
 
   const nights = hasDates ? nightsBetween(check_in!, check_out!) : 0
+  const hasMore = rawHotels.length === INITIAL_PAGE_SIZE
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
@@ -117,7 +120,7 @@ export default async function SearchPage({
           </h1>
           <p className="mx-auto max-w-xl text-indigo-200 text-sm sm:text-base mb-8">
             {results.length > 0
-              ? `${results.length} propert${results.length === 1 ? 'y' : 'ies'} available`
+              ? 'Verified stays with live pricing'
               : 'Search verified hotels across Pakistan'}
           </p>
 
@@ -137,6 +140,7 @@ export default async function SearchPage({
       <div className="flex flex-1">
         <SearchResultsClient
           hotels={results}
+          hasMore={hasMore}
           hasDates={hasDates}
           checkIn={check_in}
           checkOut={check_out}

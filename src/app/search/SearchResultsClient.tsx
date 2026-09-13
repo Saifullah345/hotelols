@@ -26,6 +26,7 @@ export type SearchHotel = {
 
 interface Props {
   hotels: SearchHotel[]
+  hasMore: boolean
   hasDates: boolean
   checkIn?: string
   checkOut?: string
@@ -33,8 +34,6 @@ interface Props {
   city?: string
   nights: number
 }
-
-const PER_PAGE = 12
 
 // ─── Hotel card ───────────────────────────────────────────────────────────────
 function HotelCard({ hotel, href, showDiscount }: { hotel: SearchHotel; href: string; showDiscount: boolean }) {
@@ -166,66 +165,19 @@ function Dropdown({ open, onClose, children }: { open: boolean; onClose: () => v
 // ─── Amenity options ───────────────────────────────────────────────────────────
 const AMENITY_OPTIONS = ['WiFi', 'Parking', 'Pool', 'Gym', 'Restaurant', 'Air conditioning', 'Room service', 'Spa']
 
-// ─── Pagination ───────────────────────────────────────────────────────────────
-function Pagination({ page, totalPages, onChange }: { page: number; totalPages: number; onChange: (p: number) => void }) {
-  const pages: (number | '…')[] = []
-
-  if (totalPages <= 7) {
-    for (let i = 1; i <= totalPages; i++) pages.push(i)
-  } else {
-    pages.push(1)
-    if (page > 3) pages.push('…')
-    for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i)
-    if (page < totalPages - 2) pages.push('…')
-    pages.push(totalPages)
-  }
-
-  return (
-    <div className="flex items-center justify-center gap-1 pb-8 pt-2">
-      <button
-        onClick={() => onChange(page - 1)}
-        disabled={page === 1}
-        className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 disabled:opacity-30 transition"
-      >
-        <ChevronLeft className="h-4 w-4" />
-      </button>
-
-      {pages.map((p, i) =>
-        p === '…' ? (
-          <span key={`ellipsis-${i}`} className="flex h-9 w-9 items-center justify-center text-sm text-gray-400">…</span>
-        ) : (
-          <button
-            key={p}
-            onClick={() => onChange(p)}
-            className={`h-9 w-9 rounded-full text-sm font-semibold transition ${
-              p === page ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            {p}
-          </button>
-        )
-      )}
-
-      <button
-        onClick={() => onChange(page + 1)}
-        disabled={page === totalPages}
-        className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 disabled:opacity-30 transition"
-      >
-        <ChevronRight className="h-4 w-4" />
-      </button>
-    </div>
-  )
-}
-
 // ─── Main component ────────────────────────────────────────────────────────────
-export default function SearchResultsClient({ hotels, hasDates, checkIn, checkOut, guests, city, nights }: Props) {
-  const [page, setPage] = useState(1)
+export default function SearchResultsClient({ hotels, hasMore: initialHasMore, hasDates, checkIn, checkOut, guests, city, nights }: Props) {
+  const [moreHotels, setMoreHotels] = useState<SearchHotel[]>([])
+  const [canLoadMore, setCanLoadMore] = useState(initialHasMore)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [mobileMapOpen, setMobileMapOpen] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
 
+  const allHotels = useMemo(() => [...hotels, ...moreHotels], [hotels, moreHotels])
+
   // Filter state
-  const prices = useMemo(() => hotels.map(h => h.price), [hotels])
+  const prices = useMemo(() => allHotels.map(h => h.price), [allHotels])
   const globalMin = useMemo(() => Math.floor(Math.min(...prices, 0)), [prices])
   const globalMax = useMemo(() => Math.ceil(Math.max(...prices, 100000)), [prices])
 
@@ -257,7 +209,7 @@ export default function SearchResultsClient({ hotels, hasDates, checkIn, checkOu
 
   // Filtered hotels
   const filtered = useMemo(() => {
-    return hotels.filter(h => {
+    return allHotels.filter(h => {
       if (h.price < priceMin || h.price > priceMax) return false
       if (bedsActive && (h.beds ?? 0) < minBeds) return false
       if (typeActive && placeType !== 'Entire hotel') return false
@@ -268,14 +220,30 @@ export default function SearchResultsClient({ hotels, hasDates, checkIn, checkOu
       }
       return true
     })
-  }, [hotels, priceMin, priceMax, bedsActive, minBeds, typeActive, placeType, minRating, amenities])
+  }, [allHotels, priceMin, priceMax, bedsActive, minBeds, typeActive, placeType, minRating, amenities])
 
-  // Reset page when filters change
-  useEffect(() => { setPage(1) }, [priceMin, priceMax, minBeds, placeType, minRating, amenities])
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE))
-  const start = (page - 1) * PER_PAGE
-  const pageHotels = filtered.slice(start, start + PER_PAGE)
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !canLoadMore) return
+    setLoadingMore(true)
+    try {
+      const params = new URLSearchParams({
+        offset: String(hotels.length + moreHotels.length),
+        ...(city ? { city } : {}),
+        ...(checkIn ? { check_in: checkIn } : {}),
+        ...(checkOut ? { check_out: checkOut } : {}),
+        guests: String(guests),
+      })
+      const res = await fetch(`/api/search/hotels?${params}`)
+      if (!res.ok) return
+      const data = await res.json() as { hotels: SearchHotel[]; hasMore: boolean }
+      setMoreHotels(prev => [...prev, ...data.hotels])
+      setCanLoadMore(data.hasMore)
+    } catch {
+      // silent — user can retry
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [loadingMore, canLoadMore, hotels.length, moreHotels.length, city, checkIn, checkOut, guests])
 
   const mapHotels: MapHotel[] = useMemo(() => enrichWithCoords(
     filtered.map(h => ({
@@ -522,7 +490,7 @@ export default function SearchResultsClient({ hotels, hasDates, checkIn, checkOu
           </div>
 
           {/* No results after filtering */}
-          {filtered.length === 0 && hotels.length > 0 && (
+          {filtered.length === 0 && allHotels.length > 0 && (
             <div className="mt-8 text-center">
               <p className="text-gray-500 text-sm">No stays match your filters.</p>
               <button type="button" onClick={resetAll} className="mt-2 text-sm font-semibold text-indigo-600 hover:underline">
@@ -534,21 +502,37 @@ export default function SearchResultsClient({ hotels, hasDates, checkIn, checkOu
 
         {/* Grid */}
         <div className="grid grid-cols-2 gap-3 px-4 pb-6 sm:gap-5 sm:px-6 lg:grid-cols-2 xl:grid-cols-3">
-          {pageHotels.map((hotel, i) => (
+          {filtered.map((hotel, i) => (
             <div
               key={hotel.id}
               data-hotel={hotel.id}
               onMouseEnter={() => setActiveId(hotel.id)}
               onMouseLeave={() => setActiveId(null)}
             >
-              <HotelCard hotel={hotel} href={`/hotels/${hotel.id}${dateQuery}`} showDiscount={(start + i) % 5 === 0} />
+              <HotelCard hotel={hotel} href={`/hotels/${hotel.id}${dateQuery}`} showDiscount={i % 5 === 0} />
             </div>
           ))}
         </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <Pagination page={page} totalPages={totalPages} onChange={p => { setPage(p); window.scrollTo({ top: (listRef.current?.offsetTop ?? 0) - 64, behavior: 'smooth' }) }} />
+        {/* Load More */}
+        {canLoadMore && (
+          <div className="flex justify-center pb-10 pt-2">
+            <button
+              type="button"
+              onClick={loadMore}
+              disabled={loadingMore}
+              className="flex items-center gap-2 rounded-full border border-gray-300 bg-white px-6 py-3 text-sm font-semibold text-gray-700 shadow-sm hover:border-gray-400 hover:bg-gray-50 disabled:opacity-50 transition"
+            >
+              {loadingMore ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
+                  Loading…
+                </>
+              ) : (
+                'Load more stays'
+              )}
+            </button>
+          </div>
         )}
       </div>
 
