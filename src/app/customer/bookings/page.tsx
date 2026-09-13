@@ -865,6 +865,7 @@ export default function CustomerBookingsPage() {
       .select('*, hotel:hotels(name, city, country, currency), room:rooms(room_number, room_type:room_types(name)), payment:payments(status, amount, payment_method), review:reviews(id, rating, comment)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
+      .limit(50)
 
     const list = (data ?? []) as Booking[]
     setBookings(list)

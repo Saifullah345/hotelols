@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
@@ -57,6 +57,11 @@ export default function RoomBookingPanel({
   const fmt = (n: number) => formatCurrency(n, currency)
   const router  = useRouter()
 
+  // Pre-fetch profile once on mount so handleBook doesn't block on a network
+  // round-trip every time the button is clicked.
+  type ProfileSnap = { full_name: string | null; phone: string | null } | null
+  const profileRef = useRef<ProfileSnap>(undefined as unknown as ProfileSnap)
+
   // Occupancy is whatever the hotel set for this room — never a generic default.
   const adultLimit = Math.max(1, maxAdults || 1)
   const childLimit = Math.max(0, maxChildren || 0)
@@ -84,6 +89,16 @@ export default function RoomBookingPanel({
   // rendering it during SSR would make the markup disagree on hydration.
   const [today, setToday] = useState('')
   useEffect(() => { setToday(todayISO()) }, [])
+
+  useEffect(() => {
+    if (!isLoggedIn) return
+    const supabase = createClient()
+    getBrowserUser(supabase).then(user => {
+      if (!user) return
+      supabase.from('profiles').select('full_name, phone').eq('id', user.id).single()
+        .then(({ data }) => { profileRef.current = data })
+    })
+  }, [isLoggedIn])
 
   // Only offered once the hotel has priced this room by the hour.
   const offersHourly = ratePerHour != null
@@ -135,11 +150,9 @@ export default function RoomBookingPanel({
 
     // The hotel needs a name and phone to confirm the stay. Send the guest to
     // fill those in, then straight back here with the dates still filled in.
-    const supabase = createClient()
-    const user = await getBrowserUser(supabase)
-    if (user) {
-      const { data: profile } = await supabase
-        .from('profiles').select('full_name, phone').eq('id', user.id).single()
+    // Profile was pre-fetched on mount — no extra round-trip here.
+    const profile = profileRef.current
+    if (isLoggedIn && profile !== undefined) {
       if (!isProfileComplete(profile)) {
         const back = new URLSearchParams({
           check_in: checkIn, check_out: isHourly ? checkIn : checkOut,

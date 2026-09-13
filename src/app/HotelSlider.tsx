@@ -84,8 +84,8 @@ export default function HotelSlider({ hotels, checkIn, checkOut, adults, childre
                     src={hotel.cover_image}
                     alt={hotel.name}
                     fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     className="object-cover group-hover:scale-105 transition-transform duration-500"
-                    unoptimized
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600">

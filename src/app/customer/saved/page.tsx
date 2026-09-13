@@ -40,6 +40,7 @@ export default async function SavedHotelsPage() {
     `)
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
+    .limit(48)
 
   // Supabase returns hotel as an array for joined rows; normalise to single object
   const hotels = (rows ?? [])
@@ -128,8 +129,8 @@ export default async function SavedHotelsPage() {
                         src={hotel.cover_image}
                         alt={hotel.name}
                         fill
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                         className="object-cover group-hover:scale-105 transition-transform duration-500"
-                        unoptimized
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600">

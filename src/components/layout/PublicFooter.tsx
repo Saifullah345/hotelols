@@ -1,5 +1,3 @@
-'use client'
-
 import Link from 'next/link'
 import Logo from '@/components/layout/Logo'
 import NewsletterSignup from '@/components/layout/NewsletterSignup'

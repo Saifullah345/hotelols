@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { ChevronLeft, ChevronRight, BedDouble, Expand } from 'lucide-react'
 
 interface Props {
@@ -33,11 +34,13 @@ export default function RoomGallery({ images, roomName }: Props) {
       <div className="rounded-2xl overflow-hidden bg-white border border-gray-200 shadow-sm">
         {/* Main image */}
         <div className="relative h-64 sm:h-[420px] group cursor-pointer" onClick={() => setLightbox(true)}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src={images[active]}
             alt={`${roomName} — photo ${active + 1}`}
-            className="w-full h-full object-cover transition-opacity duration-300"
+            fill
+            priority={active === 0}
+            sizes="(max-width: 768px) 100vw, 60vw"
+            className="object-cover transition-opacity duration-300"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
 
@@ -89,8 +92,14 @@ export default function RoomGallery({ images, roomName }: Props) {
                     : 'border-gray-200 opacity-60 hover:opacity-90 hover:border-gray-300'
                 }`}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt={`thumb ${i + 1}`} className="w-full h-full object-cover" />
+                <Image
+                  src={src}
+                  alt={`thumb ${i + 1}`}
+                  fill
+                  loading="lazy"
+                  sizes="96px"
+                  className="object-cover"
+                />
               </button>
             ))}
           </div>
@@ -113,13 +122,16 @@ export default function RoomGallery({ images, roomName }: Props) {
               </button>
             </>
           )}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={images[active]}
-            alt={`${roomName} photo ${active + 1}`}
-            className="max-h-[85vh] max-w-full object-contain rounded-xl"
-            onClick={e => e.stopPropagation()}
-          />
+          <div className="relative max-h-[85vh] w-full max-w-4xl" onClick={e => e.stopPropagation()}>
+            <Image
+              src={images[active]}
+              alt={`${roomName} photo ${active + 1}`}
+              width={1200}
+              height={800}
+              sizes="100vw"
+              className="max-h-[85vh] w-full object-contain rounded-xl"
+            />
+          </div>
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/60 text-sm">
             {active + 1} / {images.length}
           </div>

@@ -84,5 +84,7 @@ export async function GET(request: Request) {
     if (cities.length >= MAX_CITIES) break
   }
 
-  return NextResponse.json({ hotels, cities })
+  return NextResponse.json({ hotels, cities }, {
+    headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=300' },
+  })
 }

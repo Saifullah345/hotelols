@@ -101,7 +101,7 @@ export default async function RoomDetailPage({
   const [{ data: room }, { data: hotel }] = await Promise.all([
     supabase
       .from('rooms')
-      .select('*, room_type:room_types(name, description, amenities)')
+      .select('id, name, description, price_per_night, rate_per_hour, capacity, max_adults, max_children, status, images, amenities, sort_order, room_type:room_types(name, description, amenities)')
       .eq('id', roomId)
       .eq('hotel_id', hotelId)
       .single(),
@@ -113,6 +113,7 @@ export default async function RoomDetailPage({
   ])
 
   if (!room || !hotel || hotel.status !== 'active') notFound()
+  if (room.status === 'maintenance' || room.status === 'inactive') notFound()
 
   const images        = (room.images        as string[] | null) ?? []
   const roomAmenities = (room.amenities     as string[] | null) ?? []
