@@ -150,7 +150,11 @@ export async function POST(req: Request) {
 
           const nearby = getNearbyCities(city)
 
-          if (error || !hotels?.length) {
+          if (error) {
+            console.error('[chat/search_hotels] Supabase error:', error.message, { city })
+            return { found: false, city, nearby, exhausted: (exclude_ids?.length ?? 0) > 0 }
+          }
+          if (!hotels?.length) {
             return { found: false, city, nearby, exhausted: (exclude_ids?.length ?? 0) > 0 }
           }
 
