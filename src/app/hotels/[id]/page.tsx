@@ -52,7 +52,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
   if (!hotel) {
     return pageMetadata({
-      title: 'Hotel Not Found — Browse Other Verified Stays',
+      title: 'Hotel Not Found | Browse Other Verified Stays',
       description: 'This hotel is no longer listed on BookQayam. Browse other verified hotels and book your next stay in minutes.',
       path: `/hotels/${id}`,
       noIndex: true,
@@ -60,7 +60,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   }
 
   const place = [hotel.city, hotel.country].filter(Boolean).join(', ')
-  const title = truncate(place ? `${hotel.name}, ${place} — Book Rooms & Rates` : `${hotel.name} — Book Rooms & Rates`, 60)
+  const title = truncate(place ? `${hotel.name}, ${place} | Book Rooms & Rates` : `${hotel.name} | Book Rooms & Rates`, 60)
 
   const description = hotel.description
     ? truncate(hotel.description)

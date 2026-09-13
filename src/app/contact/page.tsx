@@ -7,7 +7,7 @@ import { activeSocialLinks } from '@/lib/social'
 import { pageMetadata } from '@/lib/seo'
 
 export const metadata = pageMetadata({
-  title: 'Contact BookQayam — Sales, Support & Hotel Onboarding Help',
+  title: 'Contact BookQayam | Sales, Support & Hotel Onboarding Help',
   description:
     'Talk to the BookQayam team about listing your hotel, pricing, demos or booking support. Reach us by phone, WhatsApp or email — we reply the same day.',
   path: '/contact',

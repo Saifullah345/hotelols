@@ -5,7 +5,7 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.bookqa
 
 export const SITE_NAME = 'BookQayam'
 
-export const SITE_TITLE = 'BookQayam — Book Verified Hotels Across Pakistan Online'
+export const SITE_TITLE = 'BookQayam | Book Verified Hotels Across Pakistan Online'
 
 export const SITE_DESCRIPTION =
   'Browse verified hotels across Pakistan, compare live prices and real guest reviews, then book your stay in minutes — no sign-up needed to explore.'

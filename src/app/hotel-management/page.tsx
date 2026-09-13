@@ -17,7 +17,7 @@ import { pageMetadata } from '@/lib/seo'
 import { createAdminClient } from '@/lib/supabase/server'
 
 export const metadata = pageMetadata({
-  title: 'Hotel Management Software — Bookings, Rooms & Payments',
+  title: 'Hotel Management Software | Bookings, Rooms & Payments',
   description:
     'Run your entire property from one dashboard: bookings, room inventory, payments, staff roles and live reports. 14-day free trial, no credit card required.',
   path: '/hotel-management',

@@ -5,7 +5,7 @@ import { ArrowRight, Globe, Users, Star, Building2, ShieldCheck, Zap, HeartHands
 import { pageMetadata } from '@/lib/seo'
 
 export const metadata = pageMetadata({
-  title: 'About BookQayam — Our Mission, Values & Hotel Platform Story',
+  title: 'About BookQayam | Our Mission, Values & Hotel Platform Story',
   description:
     'Learn how BookQayam helps guests find verified hotels and gives hotel owners a fast, secure platform to manage bookings, rooms, payments and staff.',
   path: '/about',

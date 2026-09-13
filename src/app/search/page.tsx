@@ -10,7 +10,7 @@ import SearchResultsClient, { type SearchHotel } from './SearchResultsClient'
 const INITIAL_PAGE_SIZE = 12
 
 export const metadata = pageMetadata({
-  title: 'Search Hotels — Find Verified Stays by City & Date',
+  title: 'Search Hotels | Find Verified Stays by City & Date',
   description:
     'Search verified hotels by city, check-in and check-out dates and guest count. Compare live prices, ratings and amenities, then book in a few clicks.',
   path: '/search',

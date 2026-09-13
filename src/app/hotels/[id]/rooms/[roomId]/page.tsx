@@ -67,7 +67,7 @@ export async function generateMetadata({
   // The join types `room_type` as an array; the row itself is a single object,
   // which is what the label helper reads.
   const rName = roomLabel(room as LabelledRoom | null)
-  const title = hotel?.name ? `${rName}${type ? ` (${type})` : ''} — ${hotel.name}` : rName
+  const title = hotel?.name ? `${rName}${type ? ` (${type})` : ''} | ${hotel.name}` : rName
 
   return {
     title,
