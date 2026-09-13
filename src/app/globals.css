@@ -17,9 +17,8 @@
   }
 
   html {
-    scroll-behavior: smooth;
-    /* Clears the floating navbar strip (~5.5rem tall) so an anchored heading
-       does not land underneath it. */
+    /* scroll-behavior: smooth intentionally omitted — Lenis provides smooth
+       scroll and the two fight each other when both are active. */
     scroll-padding-top: 6.5rem;
   }
 
@@ -199,6 +198,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .animate-review-swap { animation: none; }
+  .animate-marquee     { animation: none; }
+  .animate-float       { animation: none; }
+  .animate-float-alt   { animation: none; }
 }
 
 /* ── Skeleton shimmer ─────────────────────────────────────────────────── */

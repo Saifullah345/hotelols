@@ -315,7 +315,7 @@ export default async function LandingPage({
               const href = `/hotels/${hotel.id}${hp.toString() ? `?${hp.toString()}` : ''}`
               return (
                 // Wrapper div — heart button is a sibling of Link so clicks never bubble into Link
-                <div key={hotel.id} className="group relative flex flex-col rounded-2xl overflow-hidden bg-white border border-gray-100 shadow-sm hover:shadow-xl hover:border-indigo-100 transition-all duration-300 hover:-translate-y-1">
+                <div key={hotel.id} className="group relative flex flex-col rounded-2xl overflow-hidden bg-white border border-gray-100 shadow-sm hover:shadow-xl hover:border-indigo-100 hover:-translate-y-1 transition-[box-shadow,border-color,transform] duration-300">
                   <Link href={href} className="flex flex-col flex-1">
                     <div className="relative aspect-[4/3] bg-indigo-100 overflow-hidden flex-shrink-0">
                       {/* No cover yet: a house illustration reads as "photo pending",

@@ -75,7 +75,7 @@ export default function HotelSlider({ hotels, checkIn, checkOut, adults, childre
             <Link
               key={hotel.id}
               href={href}
-              className="group flex-none w-full sm:w-[calc(50%-10px)] lg:w-[calc(33.333%-14px)] snap-start flex flex-col rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+              className="group flex-none w-full sm:w-[calc(50%-10px)] lg:w-[calc(33.333%-14px)] snap-start flex flex-col rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-xl hover:-translate-y-1 transition-[box-shadow,transform] duration-300"
             >
               {/* Image */}
               <div className="relative aspect-[4/3] bg-indigo-100 overflow-hidden flex-shrink-0">
