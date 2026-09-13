@@ -22,7 +22,7 @@ export async function GET(request: Request) {
 
   const { data: rawTasks, error } = await supabase
     .from('housekeeping_tasks')
-    .select('*, room:rooms(room_number, name)')
+    .select('id, hotel_id, room_id, task, priority, assignee, due_date, status, notes, room:rooms(room_number, name)')
     .eq('hotel_id', hotelId)
     .order('due_date')
     .order('created_at')

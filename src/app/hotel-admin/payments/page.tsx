@@ -13,7 +13,7 @@ export default async function PaymentsPage() {
   const supabase = await createClient()
   const { tenantId } = await requireTenant()
 
-  const [{ data: payments }, { data: hotelInfo }, { data: completedData }, { data: statsData }] = await Promise.all([
+  const [{ data: payments }, { data: hotelInfo }, { count: totalCount }, { count: pendingCount }, { data: completedData }] = await Promise.all([
     supabase
       .from('payments')
       .select(`
@@ -29,18 +29,15 @@ export default async function PaymentsPage() {
       .order('created_at', { ascending: false })
       .range(0, INITIAL_SIZE - 1),
     supabase.from('hotels').select('currency').eq('id', tenantId).single(),
-    // Lightweight aggregate queries — only fetch the columns needed for stats,
-    // avoiding the full join cost of fetching the entire payment list.
+    supabase.from('payments').select('*', { count: 'exact', head: true }).eq('hotel_id', tenantId),
+    supabase.from('payments').select('*', { count: 'exact', head: true }).eq('hotel_id', tenantId).eq('status', 'pending'),
     supabase.from('payments').select('amount').eq('hotel_id', tenantId).eq('status', 'completed'),
-    supabase.from('payments').select('status').eq('hotel_id', tenantId),
   ])
   const currency = (hotelInfo as { currency?: string } | null)?.currency ?? 'USD'
 
   const paymentList = (payments ?? []) as unknown as PaymentRow[]
   const hasMore = paymentList.length === INITIAL_SIZE
-  const completedTotal = (completedData ?? []).reduce((s: number, p: { amount: number }) => s + Number(p.amount), 0)
-  const pendingCount = (statsData ?? []).filter((p: { status: string }) => p.status === 'pending').length
-  const totalCount = (statsData ?? []).length
+  const collectedTotal = (completedData ?? []).reduce((s: number, p: { amount: number }) => s + (p.amount || 0), 0)
 
   return (
     <div className="space-y-6">
@@ -66,7 +63,7 @@ export default async function PaymentsPage() {
             <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3.5 py-2 rounded-xl text-sm">
               <CheckCircle2 className="h-4 w-4 text-emerald-400" />
               <div>
-                <p className="text-white font-bold leading-none">{formatCurrency(completedTotal, currency)}</p>
+                <p className="text-white font-bold leading-none">{formatCurrency(collectedTotal, currency)}</p>
                 <p className="text-primary-300 text-xs leading-none mt-0.5">Collected</p>
               </div>
             </div>
@@ -89,6 +86,9 @@ export default async function PaymentsPage() {
         hasMore={hasMore}
         currency={currency}
         today={new Date().toISOString().split('T')[0]}
+        totalPayments={totalCount ?? 0}
+        pendingPayments={pendingCount ?? 0}
+        collectedTotal={collectedTotal}
       />
     </div>
   )

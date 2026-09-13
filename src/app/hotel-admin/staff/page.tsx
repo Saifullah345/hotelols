@@ -23,6 +23,8 @@ export default async function StaffPage({
   const planMaxStaff = (hotelPlan?.plan as { max_staff?: number } | null)?.max_staff ?? -1
   const planName     = (hotelPlan?.plan as { name?: string }      | null)?.name ?? ''
 
+  const INITIAL_SIZE = 10
+
   let query = supabase
     .from('staff')
     .select('id, user_id, name, email, phone, department, position, is_active, status, shift, salary, user:profiles(full_name, email, phone)')
@@ -36,6 +38,7 @@ export default async function StaffPage({
   if (status === 'on_leave') query = query.eq('status', 'on_leave')
   if (status === 'inactive') query = query.eq('status', 'inactive')
 
+  query = query.range(0, INITIAL_SIZE - 1)
   const { data: staff } = await query
 
   const filtered = q
@@ -142,6 +145,7 @@ export default async function StaffPage({
 
       <StaffClient
         staff={(filtered ?? []) as unknown as StaffMember[]}
+        hasMore={(filtered ?? []).length === INITIAL_SIZE}
         planMaxStaff={planMaxStaff}
         planName={planName}
         totalActiveStaff={activeCount}

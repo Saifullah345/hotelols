@@ -71,7 +71,8 @@ export default async function CheckInPage() {
       .select(SELECT)
       .eq('hotel_id', tenantId)
       .eq('status', 'checked_in')
-      .order('check_out'),
+      .order('check_out')
+      .limit(50),
     supabase.from('bookings')
       .select(SELECT)
       .eq('hotel_id', tenantId)

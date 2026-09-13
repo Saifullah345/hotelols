@@ -40,15 +40,15 @@ function hasMeaningfulContent(value: string) {
 
 // ── Badge styles ──────────────────────────────────────────────────────────
 const PRIORITY_CLS: Record<string, string> = {
-  normal: 'bg-blue-50  text-blue-600  border border-blue-200',
-  high:   'bg-orange-50 text-orange-600 border border-orange-200',
-  urgent: 'bg-pink-50  text-pink-600  border border-pink-200',
+  normal: 'badge-gray',
+  high:   'badge-orange',
+  urgent: 'badge-red',
 }
 
 const STATUS_CLS: Record<string, string> = {
-  dirty:       'bg-pink-50  text-pink-600  border border-pink-200',
-  in_progress: 'bg-amber-50 text-amber-700 border border-amber-200',
-  clean:       'bg-teal-50  text-teal-600  border border-teal-200',
+  dirty:       'badge-yellow',
+  in_progress: 'badge-blue',
+  clean:       'badge-green',
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -442,7 +442,7 @@ export default function HousekeepingClient({ initialTasks, hasMore: initialHasMo
                 ) : paged.map(task => {
                   const busy = busyId === task.id
                   return (
-                    <tr key={task.id} className="hover:bg-gray-50/50 transition-colors">
+                    <tr key={task.id} className="hover:bg-gray-50/60 transition-colors">
 
                       {/* Room */}
                       <td className="px-5 py-3.5">
@@ -727,7 +727,7 @@ export default function HousekeepingClient({ initialTasks, hasMore: initialHasMo
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
               <button
                 onClick={() => setModal(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 rounded-xl hover:bg-gray-50 transition-colors"
+                className="btn-secondary"
               >
                 Cancel
               </button>
@@ -845,7 +845,7 @@ export default function HousekeepingClient({ initialTasks, hasMore: initialHasMo
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
               <button
                 onClick={() => { setEditModal(false); setEditTarget(null) }}
-                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 rounded-xl hover:bg-gray-50 transition-colors"
+                className="btn-secondary"
               >
                 Cancel
               </button>

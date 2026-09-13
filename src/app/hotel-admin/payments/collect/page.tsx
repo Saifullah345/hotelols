@@ -105,7 +105,8 @@ export default function CollectPaymentPage() {
         `)
         .eq('hotel_id', profile.tenant_id)
         .in('status', ['pending', 'confirmed', 'checked_in'])
-        .order('created_at', { ascending: false }),
+        .order('created_at', { ascending: false })
+        .limit(100),
     ])
 
     if ((hotel as { currency?: string } | null)?.currency) {

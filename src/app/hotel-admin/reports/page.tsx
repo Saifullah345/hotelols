@@ -10,6 +10,11 @@ export default async function ReportsPage() {
   const supabase = await createClient()
   const { tenantId } = await requireTenant()
 
+  const now = new Date()
+  const oneYearAgo = new Date(now)
+  oneYearAgo.setFullYear(now.getFullYear() - 1)
+  const since = oneYearAgo.toISOString().split('T')[0] // 'YYYY-MM-DD'
+
   // `bookings` and `rooms` used to be read twice each here — once for the
   // report windows and once for the room-type/top-guest roll-ups — which meant
   // two full scans of the hotel's biggest table per page load. One read per
@@ -22,10 +27,10 @@ export default async function ReportsPage() {
     { data: hotelInfo },
     { data: allRoomTypes },
   ] = await Promise.all([
-    supabase.from('payments').select('amount, created_at, status, payment_method').eq('hotel_id', tenantId),
-    supabase.from('bookings').select('created_at, check_in, check_out, status, total_amount, source, room_id, user_id').eq('hotel_id', tenantId),
+    supabase.from('payments').select('amount, created_at, status, payment_method').eq('hotel_id', tenantId).gte('created_at', since),
+    supabase.from('bookings').select('created_at, check_in, check_out, status, total_amount, source, room_id, user_id').eq('hotel_id', tenantId).gte('created_at', since),
     supabase.from('rooms').select('id, status, room_type_id').eq('hotel_id', tenantId),
-    supabase.from('reviews').select('rating, created_at').eq('hotel_id', tenantId),
+    supabase.from('reviews').select('rating, created_at').eq('hotel_id', tenantId).gte('created_at', since),
     supabase.from('hotels').select('currency, plan:plans(feature_advanced_reports, feature_housekeeping, feature_reviews, feature_online_booking, feature_listing, feature_api_access, feature_multi_property)').eq('id', tenantId).single(),
     supabase.from('room_types').select('id, name').eq('hotel_id', tenantId),
   ])

@@ -50,7 +50,9 @@ export default async function GuestsPage() {
         user_id, status, check_in, special_requests,
         profile:profiles(id, full_name, email, phone, country, avatar_url)
       `)
-      .eq('hotel_id', tenantId),
+      .eq('hotel_id', tenantId)
+      .order('created_at', { ascending: false })
+      .limit(500),
     supabase
       .from('hotel_guests')
       .select('id, hotel_id, user_id, name, email, phone, country, passport_id, notes, is_vip')

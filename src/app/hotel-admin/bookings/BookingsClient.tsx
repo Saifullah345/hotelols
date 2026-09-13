@@ -378,11 +378,11 @@ function EditBookingModal({ stay, currency, rooms, allBookings, onClose, onSaved
 
         {/* Footer */}
         <div className="flex gap-3 px-6 pb-6 pt-4 border-t border-gray-100 shrink-0">
-          <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
+          <button onClick={onClose} className="btn-secondary flex-1">
             Cancel
           </button>
           <button onClick={save} disabled={saving}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors disabled:opacity-60">
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold transition-colors disabled:opacity-60">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {saving ? 'Saving…' : 'Save Changes'}
           </button>
@@ -446,7 +446,7 @@ function DeleteConfirmModal({ stay, onClose, onDeleted }: {
         </p>
         <div className="flex gap-3">
           <button onClick={onClose} disabled={deleting}
-            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
+            className="btn-secondary flex-1">
             Cancel
           </button>
           <button onClick={del} disabled={deleting}
@@ -859,7 +859,7 @@ export default function BookingsClient({
                     <tr
                       key={stay.key}
                       onClick={() => router.push(`/hotel-admin/bookings/${b.id}`)}
-                      className={`cursor-pointer transition-colors ${isOverdue ? 'bg-red-50/50 hover:bg-red-50/80' : 'hover:bg-blue-50/30'}`}
+                      className={`cursor-pointer transition-colors ${isOverdue ? 'bg-red-50/50 hover:bg-red-50/80' : 'hover:bg-gray-50/60'}`}
                     >
 
                       {/* Guest */}
@@ -907,7 +907,7 @@ export default function BookingsClient({
                       {/* Booked on */}
                       <td className="table-cell">
                         {bookedToday ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <span className="badge-green">
                             Today
                           </span>
                         ) : (

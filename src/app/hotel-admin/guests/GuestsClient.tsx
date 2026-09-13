@@ -110,8 +110,6 @@ function initials(name: string) {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?'
 }
 
-const fi = 'w-full px-3.5 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-transparent transition-shadow'
-const lbl = 'block text-xs font-semibold text-gray-500 mb-1.5'
 
 export default function GuestsClient({ initialGuests, tenantId }: Props) {
   const router = useRouter()
@@ -119,6 +117,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
   const [search, setSearch]         = useState('')
   const [vipOnly, setVipOnly]       = useState(false)
   const [filterCountry, setFilterCountry]     = useState('')
+  const [filterCountryCode, setFilterCountryCode] = useState('')
   const [filterStayType, setFilterStayType]   = useState('')   // '' | 'short' | 'long'
   const [filterDateRange, setFilterDateRange] = useState('')   // '' | '7d' | 'month'
   const [modal, setModal]       = useState<'add' | 'edit' | 'delete' | null>(null)
@@ -381,19 +380,14 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
         </div>
 
         {/* Country filter */}
-        <div className="relative">
-          <select
-            value={filterCountry}
-            onChange={e => setFilterCountry(e.target.value)}
-            className={`appearance-none pl-3 pr-8 py-2.5 text-sm border rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-300 transition-colors cursor-pointer ${
-              filterCountry ? 'border-primary-300 text-primary-700 bg-primary-50' : 'border-gray-200 text-gray-600'
-            }`}
-          >
-            <option value="">All Countries</option>
-            {uniqueCountries.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
-        </div>
+        <CountrySelect
+          value={filterCountryCode}
+          onChange={(isoCode, name) => {
+            setFilterCountryCode(isoCode)
+            setFilterCountry(name)
+          }}
+          className="min-w-[160px]"
+        />
 
         {/* Stay Type filter */}
         <div className="relative">
@@ -443,7 +437,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
         {/* Clear all filters */}
         {(filterCountry || filterStayType || filterDateRange || vipOnly || search) && (
           <button
-            onClick={() => { setSearch(''); setFilterCountry(''); setFilterStayType(''); setFilterDateRange(''); setVipOnly(false) }}
+            onClick={() => { setSearch(''); setFilterCountry(''); setFilterCountryCode(''); setFilterStayType(''); setFilterDateRange(''); setVipOnly(false) }}
             className="text-xs text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors"
           >
             Clear filters
@@ -484,7 +478,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
                 </tr>
               ) : (
                 paged.map(guest => (
-                  <tr key={guest.id} className="hover:bg-gray-50/50 transition-colors">
+                  <tr key={guest.id} className="hover:bg-gray-50/60 transition-colors">
 
                     {/* GUEST */}
                     <td className="px-5 py-3.5">
@@ -632,30 +626,30 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
             <div className="px-6 py-5 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
-                  <label className={lbl}>Full Name *</label>
+                  <label className="label">Full Name *</label>
                   <input
                     value={form.name}
                     onChange={e => { setField('name', sanitizeName(e.target.value)); setFormErrors(p => ({ ...p, name: undefined })) }}
                     readOnly={modal === 'edit' && !editing?.is_manual}
                     maxLength={50}
-                    className={`${fi} ${modal === 'edit' && !editing?.is_manual ? 'bg-gray-50 text-gray-500 cursor-default' : formErrors.name ? 'border-red-300 focus:ring-red-300' : ''}`}
+                    className={`input ${modal === 'edit' && !editing?.is_manual ? 'bg-gray-50 text-gray-500 cursor-default' : formErrors.name ? 'border-red-300 focus:ring-primary-500' : ''}`}
                     placeholder="Olivia Bennett"
                   />
                   {formErrors.name && <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>}
                 </div>
                 <div>
-                  <label className={lbl}>Email *</label>
+                  <label className="label">Email *</label>
                   <input
                     value={form.email}
                     onChange={e => { setField('email', sanitizeEmail(e.target.value)); setFormErrors(p => ({ ...p, email: undefined })) }}
                     readOnly={modal === 'edit' && !editing?.is_manual}
-                    className={`${fi} ${modal === 'edit' && !editing?.is_manual ? 'bg-gray-50 text-gray-500 cursor-default' : formErrors.email ? 'border-red-300 focus:ring-red-300' : ''}`}
+                    className={`input ${modal === 'edit' && !editing?.is_manual ? 'bg-gray-50 text-gray-500 cursor-default' : formErrors.email ? 'border-red-300 focus:ring-primary-500' : ''}`}
                     placeholder="guest@email.com"
                   />
                   {formErrors.email && <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>}
                 </div>
                 <div>
-                  <label className={lbl}>Phone *</label>
+                  <label className="label">Phone *</label>
                   {modal === 'edit' && !editing?.is_manual ? (
                     <div className="flex items-center px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-500 cursor-default select-none">
                       {form.phone || '—'}
@@ -672,7 +666,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
                   {formErrors.phone && <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>}
                 </div>
                 <div>
-                  <label className={lbl}>Country *</label>
+                  <label className="label">Country *</label>
                   {(modal === 'add' || editing?.is_manual) ? (
                     <div className={formErrors.country ? 'ring-2 ring-red-300 rounded-xl' : ''}>
                       <CountrySelect
@@ -688,32 +682,32 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
                       />
                     </div>
                   ) : (
-                    <div className={`${fi} bg-gray-50 text-gray-500 cursor-default`}>
+                    <div className="input bg-gray-50 text-gray-500 cursor-default">
                       {form.country || '—'}
                     </div>
                   )}
                   {formErrors.country && <p className="text-red-500 text-xs mt-1">{formErrors.country}</p>}
                 </div>
                 <div>
-                  <label className={lbl}>Passport / ID</label>
+                  <label className="label">Passport / ID</label>
                   <input
                     value={form.passport_id}
                     onChange={e => setField('passport_id', sanitizeId(e.target.value))}
                     maxLength={50}
-                    className={`${fi} font-mono`}
+                    className="input font-mono"
                     placeholder="US-1234-5678"
                   />
                 </div>
               </div>
 
               <div>
-                <label className={lbl}>Notes</label>
+                <label className="label">Notes</label>
                 <textarea
                   value={form.notes}
                   onChange={e => setField('notes', sanitizeNotes(e.target.value))}
                   rows={2}
                   maxLength={500}
-                  className={`${fi} resize-none`}
+                  className="input resize-none"
                   placeholder="Special requests, preferences…"
                 />
               </div>

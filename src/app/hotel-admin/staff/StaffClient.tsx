@@ -1,14 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import {
   Pencil, Trash2, Loader2, X, AlertTriangle,
   LayoutList, LayoutGrid, Mail, Phone, Plus,
-  ChevronLeft, ChevronRight,
 } from 'lucide-react'
+import Pagination from '@/components/admin/Pagination'
 import { DEPARTMENTS, SHIFTS, type StaffStatus } from '@/lib/staff-constants'
 import { isValidEmail } from '@/lib/validation'
 import PhoneInput from '@/components/ui/PhoneInput'
@@ -55,7 +55,7 @@ function avatarColor(id: string) {
 
 function StatusBadge({ status }: { status: StaffStatus }) {
   if (status === 'active')   return <span className="badge-green">Active</span>
-  if (status === 'on_leave') return <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">On Leave</span>
+  if (status === 'on_leave') return <span className="badge-yellow">On Leave</span>
   return <span className="badge-red">Inactive</span>
 }
 
@@ -447,15 +447,18 @@ function StaffCard({ member, onEdit, onDelete }: {
 }
 
 const PER_PAGE = 10
+const FILL_SIZE = 50
 
 // ── Main component ────────────────────────────────────────────────────
 export default function StaffClient({
   staff,
+  hasMore = false,
   planMaxStaff = -1,
   planName = '',
   totalActiveStaff = 0,
 }: {
   staff: StaffMember[]
+  hasMore?: boolean
   planMaxStaff?: number
   planName?: string
   totalActiveStaff?: number
@@ -477,15 +480,43 @@ export default function StaffClient({
   const [editing,  setEditing]  = useState<StaffMember | null>(null)
   const [deleting, setDeleting] = useState<StaffMember | null>(null)
   const [page,     setPage]     = useState(1)
+  const [items,    setItems]    = useState(staff)
+  const [perPage,  setPerPage]  = useState(PER_PAGE)
+
+  const offsetRef   = useRef(staff.length)
+  const fetchingRef = useRef(false)
+  const [loadingMore, setLoadingMore] = useState(hasMore)
+  const [fills,       setFills]       = useState(0)
+
+  const loadMore = useCallback(async () => {
+    if (fetchingRef.current) return
+    fetchingRef.current = true
+    const from = offsetRef.current
+    try {
+      const res = await fetch(`/api/hotel-admin/staff?offset=${from}`)
+      if (!res.ok) return
+      const { items: more, hasMore: moreLeft } = await res.json()
+      setItems(prev => [...prev, ...more])
+      offsetRef.current = from + more.length
+      setLoadingMore(moreLeft)
+    } finally {
+      fetchingRef.current = false
+      setFills(n => n + 1)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (loadingMore && !fetchingRef.current) loadMore()
+  }, [loadingMore, fills, loadMore])
 
   const refresh = () => router.refresh()
 
-  // Reset to page 1 whenever the staff list changes (filter applied)
-  useEffect(() => { setPage(1) }, [staff])
+  // Reset to page 1 and items whenever the staff prop changes (filter navigation)
+  useEffect(() => { setPage(1); setItems(staff) }, [staff])
 
-  const totalPages = Math.max(1, Math.ceil(staff.length / PER_PAGE))
+  const totalPages = Math.max(1, Math.ceil(items.length / perPage))
   const safePage   = Math.min(page, totalPages)
-  const paged      = staff.slice((safePage - 1) * PER_PAGE, safePage * PER_PAGE)
+  const paged      = items.slice((safePage - 1) * perPage, safePage * perPage)
 
   return (
     <>
@@ -552,7 +583,7 @@ export default function StaffClient({
 
       {/* Grid view */}
       {view === 'grid' ? (
-        staff.length === 0 ? (
+        items.length === 0 ? (
           <div className="card p-12 text-center text-gray-500">No staff found. Add your first team member above.</div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -633,7 +664,7 @@ export default function StaffClient({
                     </tr>
                   )
                 })}
-                {!staff.length && (
+                {!items.length && (
                   <tr>
                     <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
                       No staff members yet. Click <span className="font-medium text-primary-600">Add Staff Member</span> above.
@@ -646,43 +677,22 @@ export default function StaffClient({
         </div>
       )}
 
-      {/* Pagination */}
-      {staff.length > PER_PAGE && (
-        <div className="flex items-center justify-between px-1">
-          <p className="text-sm text-gray-500">
-            Showing {(safePage - 1) * PER_PAGE + 1}–{Math.min(safePage * PER_PAGE, staff.length)} of {staff.length} staff
-          </p>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={safePage === 1}
-              className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-              <button
-                key={p}
-                onClick={() => setPage(p)}
-                className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
-                  p === safePage
-                    ? 'bg-primary-600 text-white'
-                    : 'border border-gray-200 text-gray-500 hover:bg-gray-50'
-                }`}
-              >
-                {p}
-              </button>
-            ))}
-            <button
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={safePage === totalPages}
-              className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
+      {/* Background fill progress indicator */}
+      {loadingMore && (
+        <div className="flex justify-center py-4">
+          <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
         </div>
       )}
+
+      {/* Pagination */}
+      <Pagination
+        page={safePage}
+        onPage={setPage}
+        perPage={perPage}
+        onPerPage={n => { setPerPage(n); setPage(1) }}
+        total={items.length}
+        noun="staff member"
+      />
 
       {adding && (
         <AddStaffModal

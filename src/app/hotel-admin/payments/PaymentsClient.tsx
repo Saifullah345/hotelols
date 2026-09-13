@@ -101,11 +101,17 @@ export default function PaymentsClient({
   hasMore: initialHasMore,
   currency,
   today: serverToday,
+  totalPayments,
+  pendingPayments,
+  collectedTotal,
 }: {
   payments: PaymentRow[]
   hasMore: boolean
   currency: string
   today: string
+  totalPayments: number
+  pendingPayments: number
+  collectedTotal: number
 }) {
   const [payments, setPayments] = useState(initial)
 
@@ -230,9 +236,6 @@ export default function PaymentsClient({
     })
   }, [payments, q, status, method, paidWindow])
 
-  // Stats from full dataset
-  const totalRevenue   = payments.filter(p => p.status === 'completed').reduce((s, p) => s + p.amount, 0)
-  const pendingAmount  = payments.filter(p => p.status === 'pending').reduce((s, p) => s + p.amount, 0)
   const hasFilter = !!(q || status || method || dateRange !== 'all')
 
   // ── Pagination ────────────────────────────────────────────────────
@@ -249,15 +252,15 @@ export default function PaymentsClient({
       <div className="grid grid-cols-3 gap-4">
         <div className="card p-5">
           <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Total Revenue</p>
-          <p className="text-2xl font-bold text-green-700 mt-1">{formatCurrency(totalRevenue, currency)}</p>
+          <p className="text-2xl font-bold text-green-700 mt-1">{formatCurrency(collectedTotal, currency)}</p>
         </div>
         <div className="card p-5">
           <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Pending</p>
-          <p className="text-2xl font-bold text-orange-600 mt-1">{formatCurrency(pendingAmount, currency)}</p>
+          <p className="text-2xl font-bold text-orange-600 mt-1">{pendingPayments}</p>
         </div>
         <div className="card p-5">
           <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Transactions</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{payments.length}</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{totalPayments}</p>
         </div>
       </div>
 
@@ -566,7 +569,7 @@ export default function PaymentsClient({
                 type="button"
                 onClick={handleDelete}
                 disabled={deleting}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-sm transition-colors disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-colors disabled:opacity-50"
               >
                 {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                 {deleting ? 'Deleting…' : 'Yes, delete'}
