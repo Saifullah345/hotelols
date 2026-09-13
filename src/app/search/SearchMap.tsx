@@ -198,6 +198,43 @@ export default function SearchMap({ hotels, activeId, onHotelClick }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Add markers for hotels that arrive after the initial mount (load-more).
+  // The mount effect only sees the first batch because its deps are []; this
+  // effect watches the hotels array and inserts any id not yet in markersRef.
+  useEffect(() => {
+    const L = leafletRef.current
+    const map = mapRef.current
+    if (!L || !map) return // map not initialised yet — mount effect handles first batch
+
+    hotels.forEach(hotel => {
+      if (markersRef.current.has(hotel.id)) return // already plotted
+
+      const icon = L.divIcon({
+        className: '',
+        html: `<div class="map-price-pin">${formatPrice(hotel.price, hotel.currency)}</div>`,
+        iconSize: [80, 30],
+        iconAnchor: [40, 15],
+      })
+
+      const popup = L.popup({
+        className: 'map-card-popup',
+        maxWidth: 252,
+        minWidth: 240,
+        offset: [0, -18],
+        closeButton: false,
+        autoClose: true,
+        closeOnClick: false,
+      }).setContent(buildCardHTML(hotel))
+
+      const marker = L.marker([hotel.lat, hotel.lng], { icon })
+        .addTo(map)
+        .bindPopup(popup)
+        .on('click', () => { onHotelClick(hotel.id) })
+
+      markersRef.current.set(hotel.id, marker)
+    })
+  }, [hotels, onHotelClick])
+
   // Update only the two markers that actually change (prev → inactive, next → active).
   // Avoids O(n) icon replacements and a repeated leaflet import on every hover.
   const prevActiveId = useRef<string | null>(null)
