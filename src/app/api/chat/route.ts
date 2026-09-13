@@ -164,7 +164,13 @@ export async function POST(req: Request) {
             )
           }
 
-          const filtered = hotels.filter(h => ((h.rooms as RoomBasic[] | null) ?? []).some(filterRoom))
+          // Only gate hotels on room filters when the user actually specified them.
+          // Without this, hotels with no rooms yet (or all-maintenance rooms) would
+          // silently vanish from city searches.
+          const hasRoomFilters = !!(max_price || min_capacity || room_type)
+          const filtered = hasRoomFilters
+            ? hotels.filter(h => ((h.rooms as RoomBasic[] | null) ?? []).some(filterRoom))
+            : hotels
 
           if (!filtered.length) return { found: false, city, nearby, no_match: true, exhausted: (exclude_ids?.length ?? 0) > 0 }
 
