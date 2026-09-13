@@ -122,11 +122,11 @@ function HotelCard({ hotel, href, showDiscount }: { hotel: SearchHotel; href: st
 // ─── Filter chip button ────────────────────────────────────────────────────────
 function Chip({
   label, active, onClear, onClick,
-}: { label: string; active: boolean; onClear?: () => void; onClick: () => void }) {
+}: { label: string; active: boolean; onClear?: () => void; onClick: (el: HTMLButtonElement) => void }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={e => onClick(e.currentTarget as HTMLButtonElement)}
       className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition ${
         active
           ? 'border-gray-900 bg-gray-900 text-white'
@@ -150,12 +150,22 @@ function Chip({
 }
 
 // ─── Dropdown wrapper ──────────────────────────────────────────────────────────
-function Dropdown({ open, onClose, children }: { open: boolean; onClose: () => void; children: React.ReactNode }) {
+// Uses position:fixed so it escapes overflow-x:auto clipping on the chips row.
+function Dropdown({ open, onClose, anchor, children }: {
+  open: boolean; onClose: () => void; anchor: HTMLElement | null; children: React.ReactNode
+}) {
+  const [style, setStyle] = useState<React.CSSProperties>({})
+  useEffect(() => {
+    if (!open || !anchor) return
+    const r = anchor.getBoundingClientRect()
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - 296))
+    setStyle({ top: r.bottom + 8, left })
+  }, [open, anchor])
   if (!open) return null
   return (
     <>
       <div className="fixed inset-0 z-20" onClick={onClose} />
-      <div className="absolute left-0 top-full z-30 mt-2 min-w-[280px] rounded-2xl border border-gray-100 bg-white p-5 shadow-2xl">
+      <div className="fixed z-30 min-w-[280px] rounded-2xl border border-gray-100 bg-white p-5 shadow-2xl" style={style}>
         {children}
       </div>
     </>
@@ -191,9 +201,14 @@ export default function SearchResultsClient({ hotels, hasMore: initialHasMore, h
   // Sync price bounds when hotel list changes (e.g. new search)
   useEffect(() => { setPriceMin(globalMin); setPriceMax(globalMax) }, [globalMin, globalMax])
 
-  // Dropdown open state
-  const [openFilter, setOpenFilter] = useState<'type' | 'price' | 'beds' | 'more' | null>(null)
-  const toggle = (f: typeof openFilter) => setOpenFilter(v => (v === f ? null : f))
+  // Dropdown open state + anchor element for fixed positioning
+  const [openFilter, setOpenFilter] = useState<string | null>(null)
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
+  const toggle = (f: string, el: HTMLElement) => {
+    if (openFilter === f) { setOpenFilter(null); setAnchorEl(null) }
+    else { setOpenFilter(f); setAnchorEl(el) }
+  }
+  const closeFilter = () => { setOpenFilter(null); setAnchorEl(null) }
 
   // Derived active states
   const priceActive = priceMin > globalMin || priceMax < globalMax
@@ -300,14 +315,14 @@ export default function SearchResultsClient({ hotels, hasMore: initialHasMore, h
           <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
 
             {/* Type of place */}
-            <div className="relative shrink-0">
+            <div className="shrink-0">
               <Chip
                 label={typeActive ? placeType : 'Type of place'}
                 active={typeActive}
                 onClear={() => setPlaceType('')}
-                onClick={() => toggle('type')}
+                onClick={el => toggle('type', el)}
               />
-              <Dropdown open={openFilter === 'type'} onClose={() => setOpenFilter(null)}>
+              <Dropdown open={openFilter === 'type'} anchor={anchorEl} onClose={closeFilter}>
                 <p className="mb-3 text-sm font-semibold text-gray-900">Type of place</p>
                 <div className="space-y-2">
                   {['Any type', 'Entire hotel', 'Guest house', 'Resort', 'Boutique hotel'].map(t => (
@@ -316,7 +331,7 @@ export default function SearchResultsClient({ hotels, hasMore: initialHasMore, h
                         type="radio"
                         name="place-type"
                         checked={t === 'Any type' ? placeType === '' : placeType === t}
-                        onChange={() => { setPlaceType(t === 'Any type' ? '' : t); setOpenFilter(null) }}
+                        onChange={() => { setPlaceType(t === 'Any type' ? '' : t); closeFilter() }}
                         className="accent-indigo-600"
                       />
                       <span className="text-sm text-gray-700">{t}</span>
@@ -327,14 +342,14 @@ export default function SearchResultsClient({ hotels, hasMore: initialHasMore, h
             </div>
 
             {/* Price range */}
-            <div className="relative shrink-0">
+            <div className="shrink-0">
               <Chip
                 label={priceActive ? `PKR ${(priceMin / 1000).toFixed(0)}k – PKR ${(priceMax / 1000).toFixed(0)}k` : 'Price range'}
                 active={priceActive}
                 onClear={() => { setPriceMin(globalMin); setPriceMax(globalMax) }}
-                onClick={() => toggle('price')}
+                onClick={el => toggle('price', el)}
               />
-              <Dropdown open={openFilter === 'price'} onClose={() => setOpenFilter(null)}>
+              <Dropdown open={openFilter === 'price'} anchor={anchorEl} onClose={closeFilter}>
                 <p className="mb-3 text-sm font-semibold text-gray-900">Price per night</p>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="flex-1">
@@ -384,21 +399,21 @@ export default function SearchResultsClient({ hotels, hasMore: initialHasMore, h
             </div>
 
             {/* Beds */}
-            <div className="relative shrink-0">
+            <div className="shrink-0">
               <Chip
                 label={bedsActive ? `${minBeds}+ bed${minBeds !== 1 ? 's' : ''}` : 'Beds'}
                 active={bedsActive}
                 onClear={() => setMinBeds(0)}
-                onClick={() => toggle('beds')}
+                onClick={el => toggle('beds', el)}
               />
-              <Dropdown open={openFilter === 'beds'} onClose={() => setOpenFilter(null)}>
+              <Dropdown open={openFilter === 'beds'} anchor={anchorEl} onClose={closeFilter}>
                 <p className="mb-3 text-sm font-semibold text-gray-900">Number of beds</p>
                 <div className="flex gap-2 flex-wrap">
                   {[0, 1, 2, 3, 4, 5].map(n => (
                     <button
                       key={n}
                       type="button"
-                      onClick={() => { setMinBeds(n); setOpenFilter(null) }}
+                      onClick={() => { setMinBeds(n); closeFilter() }}
                       className={`h-10 w-12 rounded-xl border text-sm font-semibold transition ${
                         minBeds === n
                           ? 'border-gray-900 bg-gray-900 text-white'
@@ -413,10 +428,10 @@ export default function SearchResultsClient({ hotels, hasMore: initialHasMore, h
             </div>
 
             {/* More filters */}
-            <div className="relative shrink-0">
+            <div className="shrink-0">
               <button
                 type="button"
-                onClick={() => toggle('more')}
+                onClick={e => toggle('more', e.currentTarget as HTMLButtonElement)}
                 className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition ${
                   moreActive
                     ? 'border-gray-900 bg-gray-900 text-white'
@@ -437,7 +452,7 @@ export default function SearchResultsClient({ hotels, hasMore: initialHasMore, h
                   <ChevronDown className="h-3.5 w-3.5 opacity-60" />
                 )}
               </button>
-              <Dropdown open={openFilter === 'more'} onClose={() => setOpenFilter(null)}>
+              <Dropdown open={openFilter === 'more'} anchor={anchorEl} onClose={closeFilter}>
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-sm font-semibold text-gray-900">More filters</p>
                   <button type="button" onClick={resetAll} className="text-xs text-indigo-600 hover:underline font-medium">Reset all</button>
@@ -480,7 +495,7 @@ export default function SearchResultsClient({ hotels, hasMore: initialHasMore, h
 
                 <button
                   type="button"
-                  onClick={() => setOpenFilter(null)}
+                  onClick={closeFilter}
                   className="mt-5 w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition"
                 >
                   Show {filtered.length} stay{filtered.length !== 1 ? 's' : ''}
