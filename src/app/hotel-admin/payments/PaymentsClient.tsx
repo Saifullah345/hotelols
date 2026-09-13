@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import {
   Search, CreditCard, CheckCircle, Clock, Receipt,
@@ -98,14 +98,44 @@ function guestSub(p: PaymentRow) {
 
 export default function PaymentsClient({
   payments: initial,
+  hasMore: initialHasMore,
   currency,
   today: serverToday,
 }: {
   payments: PaymentRow[]
+  hasMore: boolean
   currency: string
   today: string
 }) {
   const [payments, setPayments] = useState(initial)
+
+  // Background fill — stream remaining payments after first paint
+  const FILL_SIZE = 50
+  const offsetRef   = useRef(initial.length)
+  const fetchingRef = useRef(false)
+  const [loadingMore, setLoadingMore] = useState(initialHasMore)
+  const [fills, setFills] = useState(0)
+
+  const loadMore = useCallback(async () => {
+    if (fetchingRef.current) return
+    fetchingRef.current = true
+    const from = offsetRef.current
+    try {
+      const res = await fetch(`/api/hotel-admin/payments?offset=${from}`)
+      if (!res.ok) return
+      const { payments: more, hasMore: moreLeft } = (await res.json()) as { payments: PaymentRow[]; hasMore: boolean }
+      setPayments(prev => [...prev, ...more])
+      offsetRef.current = from + more.length
+      setLoadingMore(moreLeft)
+    } finally {
+      fetchingRef.current = false
+      setFills(n => n + 1)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (loadingMore && !fetchingRef.current) loadMore()
+  }, [loadingMore, fills, loadMore])
   const [q,        setQ]        = useState('')
   const [status,   setStatus]   = useState('')
   const [method,   setMethod]   = useState('')
@@ -439,6 +469,12 @@ export default function PaymentsClient({
           total={filtered.length}
           noun="payment"
         />
+        {loadingMore && (
+          <div className="flex items-center justify-center gap-2 py-3 border-t border-gray-100 text-xs text-gray-400">
+            <Loader2 className="h-4 w-4 animate-spin text-primary-400" />
+            Loading more payments…
+          </div>
+        )}
       </div>
 
       {/* Refund modal */}

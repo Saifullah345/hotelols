@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -517,11 +517,13 @@ function exportToCSV(stays: Stay[], currency: string) {
 // ── Main Component ─────────────────────────────────────────────────
 export default function BookingsClient({
   bookings: initial,
+  hasMore: initialHasMore,
   currency,
   rooms,
   today: serverToday,
 }: {
   bookings: Booking[]
+  hasMore: boolean
   currency: string
   rooms: RoomOption[]
   today: string
@@ -534,6 +536,35 @@ export default function BookingsClient({
   useEffect(() => { setToday(todayISO()) }, [])
 
   const [bookings, setBookings] = useState(initial)
+
+  // Background fill — stream remaining bookings after first paint
+  const FILL_SIZE = 50
+  const offsetRef   = useRef(initial.length)
+  const fetchingRef = useRef(false)
+  const [loadingMore, setLoadingMore] = useState(initialHasMore)
+  const [fills, setFills] = useState(0)
+
+  const loadMore = useCallback(async () => {
+    if (fetchingRef.current) return
+    fetchingRef.current = true
+    const from = offsetRef.current
+    try {
+      const res = await fetch(`/api/hotel-admin/bookings?offset=${from}`)
+      if (!res.ok) return
+      const { bookings: more, hasMore: moreLeft } = (await res.json()) as { bookings: Booking[]; hasMore: boolean }
+      setBookings(prev => [...prev, ...more])
+      offsetRef.current = from + more.length
+      setLoadingMore(moreLeft)
+    } finally {
+      fetchingRef.current = false
+      setFills(n => n + 1)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (loadingMore && !fetchingRef.current) loadMore()
+  }, [loadingMore, fills, loadMore])
+
   const [statusTab, setStatusTab] = useState('all')
   // Today's arrivals are what staff need first thing; older bookings are one
   // click away on the range chips.
@@ -995,6 +1026,12 @@ export default function BookingsClient({
             total={stays.length}
             noun="booking"
           />
+          {loadingMore && (
+            <div className="flex items-center justify-center gap-2 py-3 border-t border-gray-100 text-xs text-gray-400">
+              <Loader2 className="h-4 w-4 animate-spin text-primary-400" />
+              Loading more bookings…
+            </div>
+          )}
         </div>
       </div>
 

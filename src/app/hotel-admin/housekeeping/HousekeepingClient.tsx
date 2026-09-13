@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
@@ -78,6 +78,7 @@ const EMPTY: TaskForm = {
 
 interface Props {
   initialTasks: HKTask[]
+  hasMore: boolean
   rooms: RoomOption[]
   staff: StaffOption[]
   tenantId: string
@@ -89,9 +90,37 @@ function fmtDate(d: string) {
   })
 }
 
-export default function HousekeepingClient({ initialTasks, rooms, staff, tenantId }: Props) {
+export default function HousekeepingClient({ initialTasks, hasMore: initialHasMore, rooms, staff, tenantId }: Props) {
   const router = useRouter()
   const [tasks, setTasks]       = useState<HKTask[]>(initialTasks)
+
+  // Background fill — stream remaining tasks after first paint
+  const FILL_SIZE = 50
+  const offsetRef   = useRef(initialTasks.length)
+  const fetchingRef = useRef(false)
+  const [loadingMore, setLoadingMore] = useState(initialHasMore)
+  const [fills, setFills] = useState(0)
+
+  const loadMore = useCallback(async () => {
+    if (fetchingRef.current) return
+    fetchingRef.current = true
+    const from = offsetRef.current
+    try {
+      const res = await fetch(`/api/hotel-admin/housekeeping?offset=${from}`)
+      if (!res.ok) return
+      const { tasks: more, hasMore: moreLeft } = (await res.json()) as { tasks: HKTask[]; hasMore: boolean }
+      setTasks(prev => [...prev, ...more])
+      offsetRef.current = from + more.length
+      setLoadingMore(moreLeft)
+    } finally {
+      fetchingRef.current = false
+      setFills(n => n + 1)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (loadingMore && !fetchingRef.current) loadMore()
+  }, [loadingMore, fills, loadMore])
   const [view, setView]         = useState<'list' | 'grid'>('list')
   const [modal, setModal]       = useState(false)
   const [form, setForm]         = useState<TaskForm>(EMPTY)
@@ -493,6 +522,12 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
             total={tasks.length}
             noun="task"
           />
+          {loadingMore && (
+            <div className="flex items-center justify-center gap-2 py-3 border-t border-gray-100 text-xs text-gray-400">
+              <Loader2 className="h-4 w-4 animate-spin text-primary-400" />
+              Loading more tasks…
+            </div>
+          )}
         </div>
       )}
 
@@ -580,6 +615,12 @@ export default function HousekeepingClient({ initialTasks, rooms, staff, tenantI
               total={tasks.length}
               noun="task"
             />
+            {loadingMore && (
+              <div className="flex items-center justify-center gap-2 py-3 border-t border-gray-100 text-xs text-gray-400">
+                <Loader2 className="h-4 w-4 animate-spin text-primary-400" />
+                Loading more tasks…
+              </div>
+            )}
           </div>
         </div>
       )}

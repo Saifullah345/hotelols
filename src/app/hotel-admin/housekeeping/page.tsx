@@ -57,12 +57,14 @@ export default async function HousekeepingPage() {
     )
   }
 
+  const INITIAL_SIZE = 10
   const [{ data: rawTasks }, { data: rooms }, { data: staffRows }] = await Promise.all([
     supabase.from('housekeeping_tasks')
       .select('*, room:rooms(room_number, name)')
       .eq('hotel_id', tenantId)
       .order('due_date')
-      .order('created_at'),
+      .order('created_at')
+      .range(0, INITIAL_SIZE - 1),
     supabase.from('rooms')
       .select('id, room_number, name')
       .eq('hotel_id', tenantId)
@@ -103,9 +105,12 @@ export default async function HousekeepingPage() {
       name: s.name as string,
     }))
 
+  const hasMore = (rawTasks ?? []).length === INITIAL_SIZE
+
   return (
     <HousekeepingClient
       initialTasks={tasks}
+      hasMore={hasMore}
       rooms={roomOptions}
       staff={staffOptions}
       tenantId={tenantId}

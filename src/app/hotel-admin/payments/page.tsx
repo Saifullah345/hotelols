@@ -7,11 +7,13 @@ import { formatCurrency } from '@/lib/currency'
 
 export const metadata = { title: 'Payments' }
 
+const INITIAL_SIZE = 10
+
 export default async function PaymentsPage() {
   const supabase = await createClient()
   const { tenantId } = await requireTenant()
 
-  const [{ data: payments }, { data: hotelInfo }] = await Promise.all([
+  const [{ data: payments }, { data: hotelInfo }, { data: completedData }, { data: statsData }] = await Promise.all([
     supabase
       .from('payments')
       .select(`
@@ -24,14 +26,21 @@ export default async function PaymentsPage() {
         )
       `)
       .eq('hotel_id', tenantId)
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .range(0, INITIAL_SIZE - 1),
     supabase.from('hotels').select('currency').eq('id', tenantId).single(),
+    // Lightweight aggregate queries — only fetch the columns needed for stats,
+    // avoiding the full join cost of fetching the entire payment list.
+    supabase.from('payments').select('amount').eq('hotel_id', tenantId).eq('status', 'completed'),
+    supabase.from('payments').select('status').eq('hotel_id', tenantId),
   ])
   const currency = (hotelInfo as { currency?: string } | null)?.currency ?? 'USD'
 
   const paymentList = (payments ?? []) as unknown as PaymentRow[]
-  const completedTotal = paymentList.filter(p => p.status === 'completed').reduce((s, p) => s + Number(p.amount), 0)
-  const pendingCount = paymentList.filter(p => p.status === 'pending').length
+  const hasMore = paymentList.length === INITIAL_SIZE
+  const completedTotal = (completedData ?? []).reduce((s: number, p: { amount: number }) => s + Number(p.amount), 0)
+  const pendingCount = (statsData ?? []).filter((p: { status: string }) => p.status === 'pending').length
+  const totalCount = (statsData ?? []).length
 
   return (
     <div className="space-y-6">
@@ -50,7 +59,7 @@ export default async function PaymentsPage() {
             <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3.5 py-2 rounded-xl text-sm">
               <CreditCard className="h-4 w-4 text-primary-300" />
               <div>
-                <p className="text-white font-bold leading-none">{paymentList.length}</p>
+                <p className="text-white font-bold leading-none">{totalCount}</p>
                 <p className="text-primary-300 text-xs leading-none mt-0.5">Total</p>
               </div>
             </div>
@@ -77,6 +86,7 @@ export default async function PaymentsPage() {
 
       <PaymentsClient
         payments={paymentList}
+        hasMore={hasMore}
         currency={currency}
         today={new Date().toISOString().split('T')[0]}
       />

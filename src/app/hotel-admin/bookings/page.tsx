@@ -5,6 +5,8 @@ import { markExpiredBookings } from '@/lib/bookings'
 
 export const metadata = { title: 'Bookings' }
 
+const INITIAL_SIZE = 10
+
 export default async function BookingsPage() {
   const supabase = await createClient()
   const { tenantId } = await requireTenant()
@@ -30,7 +32,8 @@ export default async function BookingsPage() {
         room:rooms(id, room_number, name, price_per_night, capacity, room_type:room_types(name))
       `)
       .eq('hotel_id', tenantId)
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .range(0, INITIAL_SIZE - 1),
     supabase.from('hotels').select('currency').eq('id', tenantId).single(),
     supabase
       .from('rooms')
@@ -47,9 +50,12 @@ export default async function BookingsPage() {
   // server render and the client hydration when the two are in different zones.
   const today = new Date().toISOString().split('T')[0]
 
+  const hasMore = (bookings ?? []).length === INITIAL_SIZE
+
   return (
     <BookingsClient
       bookings={(bookings ?? []) as unknown as Booking[]}
+      hasMore={hasMore}
       currency={currency}
       rooms={(rooms ?? []) as RoomOption[]}
       today={today}
