@@ -25,7 +25,7 @@ export default async function CustomerLayout({ children }: { children: React.Rea
       .eq('role', 'customer')
       .is('tenant_id', null)
       .maybeSingle(),
-    supabase.from('profiles').select('full_name, role, avatar_url, phone, email, city, country').eq('id', user.id).single(),
+    supabase.from('profiles').select('id, full_name, role, avatar_url, phone, email, city, country, tenant_id, created_at, updated_at').eq('id', user.id).single(),
   ])
 
   if (!roleResult.data) redirect('/select-role')

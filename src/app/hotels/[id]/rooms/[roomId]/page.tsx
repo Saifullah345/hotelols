@@ -101,7 +101,7 @@ export default async function RoomDetailPage({
   const [{ data: room }, { data: hotel }] = await Promise.all([
     supabase
       .from('rooms')
-      .select('id, name, description, price_per_night, rate_per_hour, capacity, max_adults, max_children, status, images, amenities, sort_order, room_type:room_types(name, description, amenities)')
+      .select('id, name, room_number, floor, description, price_per_night, rate_per_hour, capacity, max_adults, max_children, status, images, amenities, sort_order, room_type:room_types(name, description, amenities)')
       .eq('id', roomId)
       .eq('hotel_id', hotelId)
       .single(),
@@ -148,7 +148,7 @@ export default async function RoomDetailPage({
         </Link>
 
         {/* Gallery */}
-        <RoomGallery images={images} roomName={roomLabel(room)} />
+        <RoomGallery images={images} roomName={roomLabel({ name: room.name, room_number: room.room_number, room_type: roomType })} />
 
         {/* Content grid */}
         {/* Stretched columns (no `items-start`) so the sticky booking panel has
@@ -166,7 +166,7 @@ export default async function RoomDetailPage({
                 </span>
               )}
               <h1 className="text-2xl font-bold text-gray-900 leading-tight">
-                {roomLabel(room)}
+                {roomLabel({ name: room.name, room_number: room.room_number, room_type: roomType })}
               </h1>
 
               <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-gray-500">
