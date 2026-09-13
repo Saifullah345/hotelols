@@ -16,6 +16,8 @@ import HeroDashboardSVG from './HeroDashboardSVG'
 import { pageMetadata } from '@/lib/seo'
 import { createAdminClient } from '@/lib/supabase/server'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata = pageMetadata({
   title: 'Hotel Management Software | Bookings, Rooms & Payments',
   description:

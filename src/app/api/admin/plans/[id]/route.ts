@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { updatePlanInPaddle, deactivatePlanInPaddle } from '@/lib/paddle-plans'
 import { requireSuperAdmin } from '@/lib/api-auth'
 import { parsePlanLimit, parseTierRank, parseTrialDays } from '@/lib/plan-limits'
@@ -96,6 +97,8 @@ export async function PATCH(request: Request, { params }: Ctx) {
   const { data: plan, error } = await admin.from('plans').update(updates).eq('id', id).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
+  revalidatePath('/hotel-management')
+
   const warning = [sync.warning, archiveWarning].filter(Boolean).join(' ')
   return NextResponse.json({ plan, warning: warning || undefined })
 }
@@ -119,6 +122,7 @@ export async function DELETE(_request: Request, { params }: Ctx) {
   const { error } = await admin.from('plans').update({ is_active: false }).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
+  revalidatePath('/hotel-management')
   return NextResponse.json({
     success: true,
     retired: true,

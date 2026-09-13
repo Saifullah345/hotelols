@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { createPlanInPaddle } from '@/lib/paddle-plans'
 import { requireSuperAdmin } from '@/lib/api-auth'
 
@@ -87,5 +88,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 400 })
   }
 
+  revalidatePath('/hotel-management')
   return NextResponse.json({ plan, warning: sync.warning }, { status: 201 })
 }
