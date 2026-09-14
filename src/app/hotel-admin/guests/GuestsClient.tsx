@@ -293,6 +293,17 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
     } finally { setSaving(false) }
   }
 
+  /**
+   * A manually-added guest is a row this hotel owns, so Remove deletes it.
+   *
+   * A guest who is in the directory because they booked here is not: they are
+   * built from their bookings every time the page loads. Deleting the hotel's
+   * annotation row (or, when there wasn't one, nothing at all) left the guest
+   * to be rebuilt on the next load — a Remove that visibly undid itself. What
+   * Remove means for them is "stop listing them", so it writes an archived
+   * marker the directory filters on instead. Their bookings are untouched,
+   * which is what the confirmation already promises.
+   */
   async function handleDelete() {
     if (!editing) return
     setSaving(true)
@@ -308,9 +319,20 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
           .eq('hotel_id', tenantId)
           .eq('user_id', editing.user_id!)
           .maybeSingle()
-        if (existing) {
-          await supabase.from('hotel_guests').delete().eq('id', (existing as { id: string }).id)
-        }
+
+        const archivedAt = new Date().toISOString()
+        const { error } = existing
+          ? await supabase
+              .from('hotel_guests')
+              .update({ archived_at: archivedAt })
+              .eq('id', (existing as { id: string }).id)
+          : await supabase.from('hotel_guests').insert({
+              hotel_id: tenantId,
+              user_id: editing.user_id,
+              name: editing.name,
+              archived_at: archivedAt,
+            })
+        if (error) { toast.error(error.message); return }
       }
       setGuests(prev => prev.filter(g => g.id !== editing.id))
       toast.success('Guest removed')
@@ -761,7 +783,7 @@ export default function GuestsClient({ initialGuests, tenantId }: Props) {
             <h3 className="font-bold text-gray-900 text-lg">Remove Guest?</h3>
             <p className="text-sm text-gray-500 mt-1.5">
               This will remove <strong>{editing.name}</strong> from your guest directory.
-              {!editing.is_manual && ' Their booking history remains intact.'}
+              {!editing.is_manual && ' Their booking history remains intact, and they return to the directory if they book again.'}
             </p>
             <div className="flex gap-3 mt-6">
               <button

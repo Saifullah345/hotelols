@@ -1,3 +1,18 @@
+/**
+ * How long the Supabase auth cookie is allowed to live in the browser.
+ *
+ * @supabase/ssr defaults this to 400 days, but the number it uses is a library
+ * default rather than a decision this app has made — and the session the app
+ * promises is 30 days (see src/components/auth/SessionTimeout.tsx). Stating it
+ * here means the cookie can't quietly become the reason a user is signed out,
+ * and means there is one place to change it.
+ *
+ * This is only the cookie. The session's real ceiling is the refresh token's
+ * lifetime, configured on the Supabase (GoTrue) instance — if that is shorter
+ * than 30 days the server ends the session first, whatever the cookie says.
+ */
+export const AUTH_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
+
 export function getSupabaseUrl() {
   const value = process.env.NEXT_PUBLIC_SUPABASE_URL
 

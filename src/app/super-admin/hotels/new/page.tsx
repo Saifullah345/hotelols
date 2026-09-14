@@ -16,6 +16,7 @@ import { CURRENCIES } from '@/lib/currency'
 import { nameSchema, validateHotelName, phoneSchema } from '@/lib/validation'
 import PhoneInput from '@/components/ui/PhoneInput'
 import { CountrySelect, CitySelect } from '@/components/ui/CountryCitySelect'
+import TimeField from '@/components/ui/TimeField'
 
 const schema = z.object({
   name: z.string().superRefine((v, ctx) => {
@@ -218,11 +219,19 @@ export default function NewHotelPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="label">Check-in Time</label>
-              <input {...register('check_in_time')} type="time" className="input" />
+              <TimeField
+                value={(watch('check_in_time') as string) ?? ''}
+                onChange={v => setValue('check_in_time', v, { shouldDirty: true })}
+                aria-label="Hotel check-in time"
+              />
             </div>
             <div>
               <label className="label">Check-out Time</label>
-              <input {...register('check_out_time')} type="time" className="input" />
+              <TimeField
+                value={(watch('check_out_time') as string) ?? ''}
+                onChange={v => setValue('check_out_time', v, { shouldDirty: true })}
+                aria-label="Hotel check-out time"
+              />
             </div>
             <div>
               <label className="label">Currency <span className="text-red-500">*</span></label>

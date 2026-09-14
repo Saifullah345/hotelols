@@ -1,7 +1,12 @@
 import { cache } from 'react'
 import { createServerClient } from '@supabase/ssr'
 import { cookies, headers } from 'next/headers'
-import { getSupabaseAnonKey, getSupabaseServiceRoleKey, getSupabaseUrl } from './env'
+import {
+  AUTH_COOKIE_MAX_AGE_SECONDS,
+  getSupabaseAnonKey,
+  getSupabaseServiceRoleKey,
+  getSupabaseUrl,
+} from './env'
 
 // The hotel-saas-mobile native app has no browser cookie jar, so it can't carry
 // the @supabase/ssr session cookie every API route relies on. Instead it sends
@@ -42,6 +47,7 @@ export const createClient = cache(async () => {
     getSupabaseUrl(),
     getSupabaseAnonKey(),
     {
+      cookieOptions: { maxAge: AUTH_COOKIE_MAX_AGE_SECONDS },
       cookies: {
         getAll() {
           return cookieStore.getAll()

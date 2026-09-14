@@ -17,6 +17,7 @@ type BookingRow = {
   user_id: string
   status: string
   check_in: string
+  created_at: string
   special_requests: string | null
   /** Embedded, so the guest's profile arrives with the booking. */
   profile: ProfileRow | null
@@ -33,6 +34,10 @@ type HotelGuestRow = {
   passport_id: string | null
   notes: string | null
   is_vip: boolean
+  /** Set when the hotel removed this guest from its directory — see
+   * migration 039. A booking-derived guest can't be deleted (their bookings
+   * are what build them), so "Remove" leaves one of these behind instead. */
+  archived_at: string | null
 }
 
 export default async function GuestsPage() {
@@ -47,7 +52,7 @@ export default async function GuestsPage() {
       // bookings had landed, so it was a strictly serial round-trip — and this
       // page has to wait for the layout's queries before it even starts.
       .select(`
-        user_id, status, check_in, special_requests,
+        user_id, status, check_in, created_at, special_requests,
         profile:profiles(id, full_name, email, phone, country, avatar_url)
       `)
       .eq('hotel_id', tenantId)
@@ -55,7 +60,7 @@ export default async function GuestsPage() {
       .limit(500),
     supabase
       .from('hotel_guests')
-      .select('id, hotel_id, user_id, name, email, phone, country, passport_id, notes, is_vip')
+      .select('id, hotel_id, user_id, name, email, phone, country, passport_id, notes, is_vip, archived_at')
       .eq('hotel_id', tenantId),
   ])
 
@@ -79,6 +84,10 @@ export default async function GuestsPage() {
   const lastNotes      = new Map<string, string>()
   const lastStatusMap  = new Map<string, 'checked_in' | 'checked_out'>()
   const lastCheckInMap = new Map<string, string>()
+  // When the guest's most recent booking was made — a removed guest who books
+  // again comes back into the directory rather than staying invisible to the
+  // desk that now has to house them.
+  const lastBookedAt   = new Map<string, string>()
 
   for (const b of bookingRows) {
     if (!b.user_id) continue
@@ -95,19 +104,33 @@ export default async function GuestsPage() {
     if (b.check_in && (!prev || b.check_in > prev)) {
       lastCheckInMap.set(b.user_id, b.check_in)
     }
+    const prevBooked = lastBookedAt.get(b.user_id)
+    if (b.created_at && (!prevBooked || b.created_at > prevBooked)) {
+      lastBookedAt.set(b.user_id, b.created_at)
+    }
   }
 
   const hgByUserId = new Map<string, HotelGuestRow>()
   const manualRows: HotelGuestRow[] = []
+  // Guests the hotel has removed from its directory. Archived manual rows drop
+  // out entirely; archived profile-linked rows suppress the booking-derived
+  // guest they annotate, which is the only way a booked guest can be removed.
+  const archivedUserIds = new Set<string>()
   for (const g of (hotelGuests ?? []) as HotelGuestRow[]) {
-    if (g.user_id) hgByUserId.set(g.user_id, g)
-    else manualRows.push(g)
+    if (g.user_id) {
+      const bookedSince = lastBookedAt.get(g.user_id)
+      const stillArchived = !!g.archived_at && !(bookedSince && bookedSince > g.archived_at)
+      if (stillArchived) archivedUserIds.add(g.user_id)
+      else hgByUserId.set(g.user_id, g)
+    } else if (!g.archived_at) {
+      manualRows.push(g)
+    }
   }
 
   // Profile-linked guests (derived from bookings)
   const profileGuests: GuestRecord[] = userIds.flatMap(uid => {
     const p = profileMap.get(uid)
-    if (!p) return []
+    if (!p || archivedUserIds.has(uid)) return []
     const hg = hgByUserId.get(uid)
     const stays = stayCount.get(uid) ?? 0
     return [{

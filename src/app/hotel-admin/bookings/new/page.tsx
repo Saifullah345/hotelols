@@ -17,10 +17,12 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import PhoneInput from '@/components/ui/PhoneInput'
+import TimeField from '@/components/ui/TimeField'
 import type { BookingSource } from '@/types'
 import { formatCurrency } from '@/lib/currency'
 import { phoneSchema, nameSchema } from '@/lib/validation'
 import { roomLabel } from '@/lib/room-label'
+import { staysOverlap, type StayInterval } from '@/lib/hourly'
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 const dateRefineMsg = { message: 'Check-out must be after check-in', path: ['check_out'] }
@@ -234,7 +236,18 @@ function RoomPicker({
     setQ(''); setTypeFilter('all'); setFloorFilter('all'); setAvailableOnly(false); setSortBy('default')
   }
 
-  const filtered = rooms
+  // An hourly stay is priced from rate_per_hour, so a room the hotel never
+  // priced by the hour cannot be sold as one — the API refuses the booking
+  // outright ("no hourly rate… set one on the room first"). Listing those rooms
+  // anyway, at their nightly price, only offers a choice that can't be taken;
+  // the phone has always hidden them, and now so does this. What's left out is
+  // said below rather than silently dropped, so a missing room is explained.
+  const bookable = bookingType === 'hourly'
+    ? rooms.filter(r => r.rate_per_hour != null)
+    : rooms
+  const hiddenNightlyOnly = rooms.length - bookable.length
+
+  const filtered = bookable
     .filter(r => {
       const lq = q.toLowerCase()
       if (lq && !(r.name ?? '').toLowerCase().includes(lq) && !r.room_number.toLowerCase().includes(lq) && !(r.room_type?.name ?? '').toLowerCase().includes(lq)) return false
@@ -250,7 +263,7 @@ function RoomPicker({
       return 0
     })
 
-  const availableCount = rooms.filter(r => !unavailableRoomIds.has(r.id)).length
+  const availableCount = bookable.filter(r => !unavailableRoomIds.has(r.id)).length
 
   return (
     <div className="space-y-3">
@@ -263,11 +276,11 @@ function RoomPicker({
             </span>
           ) : datesChosen && unavailableRoomIds.size > 0 ? (
             <span className="text-xs text-emerald-600 font-medium bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-              {availableCount} of {rooms.length} available
+              {availableCount} of {bookable.length} available
             </span>
           ) : datesChosen ? (
             <span className="text-xs text-emerald-600 font-medium bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-              All {rooms.length} rooms available
+              All {bookable.length} room{bookable.length === 1 ? '' : 's'} available
             </span>
           ) : null}
         </div>
@@ -277,6 +290,17 @@ function RoomPicker({
           </span>
         )}
       </div>
+
+      {/* Hourly: say what was left out, and why */}
+      {bookingType === 'hourly' && hiddenNightlyOnly > 0 && (
+        <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">
+          <Clock className="h-3.5 w-3.5 flex-shrink-0 text-gray-400" />
+          <span>
+            {hiddenNightlyOnly} nightly-only room{hiddenNightlyOnly === 1 ? '' : 's'} hidden — set an hourly
+            rate on a room to offer it for short stays.
+          </span>
+        </div>
+      )}
 
       {/* Date pick prompt */}
       {!datesChosen && (
@@ -381,7 +405,11 @@ function RoomPicker({
         <div className="py-8 text-center">
           <SlidersHorizontal className="h-8 w-8 text-gray-200 mx-auto mb-2" />
           <p className="text-sm text-gray-400">
-            {rooms.length === 0 ? 'No rooms configured yet' : 'No rooms match your filters'}
+            {rooms.length === 0
+              ? 'No rooms configured yet'
+              : bookable.length === 0
+              ? 'No rooms have an hourly rate yet'
+              : 'No rooms match your filters'}
           </p>
           {hasFilters && (
             <button onClick={clearFilters} className="mt-2 text-xs text-primary-600 hover:underline">Clear filters</button>
@@ -638,34 +666,71 @@ export default function NewBookingPage() {
     }
   }, [bookingType, activeCheckIn, activeCheckOut, selectedRoomIds, rooms, hours])
 
+  /**
+   * Which rooms are already taken over the chosen slot.
+   *
+   * Hourly used to be skipped here — "validated server-side" — so every room
+   * showed as free, the desk picked one that wasn't, and the API answered 409
+   * at submit: rooms load, then the booking won't create, with nothing on the
+   * form having said why. The overlap rule lives in @/lib/hourly and is what
+   * the API itself applies, so the picker now applies it too and greys the
+   * room out before it can be chosen.
+   *
+   * The date window is inclusive (lte/gte) rather than strict because a
+   * same-day hourly stay has check_in === check_out, which a strict window
+   * excludes outright; staysOverlap() then settles it on real hour boundaries,
+   * so the extra day this pulls in costs nothing.
+   */
   useEffect(() => {
     const check = async () => {
-      // For hourly bookings, availability is validated server-side (time-range overlap check)
-      if (bookingType === 'hourly') {
+      const isHourly = bookingType === 'hourly'
+      const windowEnd = isHourly ? activeCheckIn : activeCheckOut
+      const ready = isHourly
+        ? Boolean(tenantId && activeCheckIn && checkInTime && checkOutTime && hours > 0)
+        : Boolean(tenantId && activeCheckIn && activeCheckOut && new Date(activeCheckOut) > new Date(activeCheckIn))
+
+      if (!ready) {
         setUnavailableRoomIds(new Set()); setCheckingAvailability(false); return
       }
-      if (!tenantId || !activeCheckIn || !activeCheckOut || new Date(activeCheckOut) <= new Date(activeCheckIn)) {
-        setUnavailableRoomIds(new Set()); setCheckingAvailability(false); return
-      }
+
       setCheckingAvailability(true)
+      const stay: StayInterval = {
+        check_in:  activeCheckIn,
+        check_out: windowEnd,
+        booking_type:   bookingType,
+        check_in_time:  isHourly ? checkInTime  : null,
+        check_out_time: isHourly ? checkOutTime : null,
+      }
+
       const { data } = await createClient()
         .from('bookings')
-        .select('room_id, room_ids')
+        .select('room_id, room_ids, check_in, check_out, booking_type, check_in_time, check_out_time')
         .eq('hotel_id', tenantId)
         .in('status', ['confirmed', 'checked_in'])
-        .lt('check_in', activeCheckOut)
-        .gt('check_out', activeCheckIn)
+        .lte('check_in', windowEnd)
+        .gte('check_out', activeCheckIn)
+
       const ids = new Set(
-        (data ?? []).flatMap((b: { room_id: string; room_ids: string[] | null }) =>
-          b.room_ids?.length ? b.room_ids : [b.room_id]
-        )
+        (data ?? [])
+          .filter(b => staysOverlap(stay, b as StayInterval))
+          .flatMap((b: { room_id: string; room_ids: string[] | null }) =>
+            b.room_ids?.length ? b.room_ids : [b.room_id]
+          )
       )
       setUnavailableRoomIds(ids)
       setSelectedRoomIds(prev => prev.filter(id => !ids.has(id)))
       setCheckingAvailability(false)
     }
     check()
-  }, [bookingType, tenantId, activeCheckIn, activeCheckOut])
+  }, [bookingType, tenantId, activeCheckIn, activeCheckOut, checkInTime, checkOutTime, hours])
+
+  // Switching to hourly drops rooms the hotel never priced by the hour: they
+  // leave the picker (see RoomPicker), so leaving them selected would bill the
+  // stay at 0 for a room nobody can see.
+  useEffect(() => {
+    if (bookingType !== 'hourly') return
+    setSelectedRoomIds(prev => prev.filter(id => rooms.find(r => r.id === id)?.rate_per_hour != null))
+  }, [bookingType, rooms])
 
   const toggleRoom = (roomId: string) => {
     if (unavailableRoomIds.has(roomId)) return
@@ -711,30 +776,45 @@ export default function NewBookingPage() {
       return false
     }
     setSubmitting(true)
-    const res = await fetch('/api/admin/create-booking', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...payload,
-        room_ids: selectedRoomIds,
-        source,
-        ...(isOffline ? {
-          payment_method:    payMethod,
-          payment_collected: payNow,
-          payment_notes:     payNotes || undefined,
-          advance_amount:    payNow && isAdvance ? advanceValue : undefined,
-        } : {}),
-        ...(payload.booking_type === 'hourly' ? {
-          booking_type:   payload.booking_type,
-          check_in_time:  payload.check_in_time,
-          check_out_time: payload.check_out_time,
-        } : {}),
-      }),
-    })
-    const json = await res.json()
-    if (!res.ok) {
+    let res: Response
+    try {
+      res = await fetch('/api/admin/create-booking', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...payload,
+          room_ids: selectedRoomIds,
+          source,
+          ...(isOffline ? {
+            payment_method:    payMethod,
+            payment_collected: payNow,
+            payment_notes:     payNotes || undefined,
+            advance_amount:    payNow && isAdvance ? advanceValue : undefined,
+          } : {}),
+          ...(payload.booking_type === 'hourly' ? {
+            booking_type:   payload.booking_type,
+            check_in_time:  payload.check_in_time,
+            check_out_time: payload.check_out_time,
+          } : {}),
+        }),
+      })
+    } catch {
+      // The request never landed (offline, DNS, the deployment restarting).
+      // Without this the rejection escaped handleSubmit, `submitting` stayed
+      // true and the button sat on "Creating booking…" with nothing said — the
+      // booking simply never appearing, which is what it looked like from the
+      // desk.
       setSubmitting(false)
-      toast.error(json.error ?? 'Failed to create booking')
+      toast.error('Could not reach the server. Check your connection and try again.')
+      return false
+    }
+
+    // A non-JSON body is a gateway/HTML error page, not an API answer. Reading
+    // it as JSON threw for the same reason and with the same silent result.
+    const json = await res.json().catch(() => null)
+    if (!res.ok || !json) {
+      setSubmitting(false)
+      toast.error(json?.error ?? `Failed to create booking (${res.status})`)
       return false
     }
     const roomCount = selectedRoomIds.length
@@ -822,11 +902,11 @@ export default function NewBookingPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Check-in Time <span className="text-red-500">*</span></label>
-              <input type="time" value={checkInTime} onChange={e => setCheckInTime(e.target.value)} className="input" />
+              <TimeField value={checkInTime} onChange={setCheckInTime} aria-label="Check-in time" />
             </div>
             <div>
               <label className="label">Check-out Time <span className="text-red-500">*</span></label>
-              <input type="time" value={checkOutTime} onChange={e => setCheckOutTime(e.target.value)} className="input" />
+              <TimeField value={checkOutTime} onChange={setCheckOutTime} aria-label="Check-out time" />
               {checkInTime && checkOutTime && checkOutTime <= checkInTime && (
                 <p className="text-red-500 text-xs mt-1">Must be after check-in time</p>
               )}

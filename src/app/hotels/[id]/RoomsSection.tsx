@@ -14,6 +14,7 @@ import { createClient, getBrowserUser } from '@/lib/supabase/client'
 import { isProfileComplete, missingProfileFields } from '@/lib/profile'
 import { hourlyProblem, stayHours } from '@/lib/hourly'
 import { roomLabel, roomTypeSuffix } from '@/lib/room-label'
+import TimeField from '@/components/ui/TimeField'
 
 /** Where a selection is parked while the guest completes their profile. */
 const PENDING_KEY = (hotelId: string) => `bookqayam:pending-booking:${hotelId}`
@@ -516,22 +517,22 @@ export default function RoomsSection({
                         <label className="flex items-center gap-1 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
                           <Clock className="h-3 w-3" /> From
                         </label>
-                        <input
-                          type="time"
+                        <TimeField
                           value={checkInTime}
-                          onChange={e => setCheckInTime(e.target.value)}
-                          className="input text-sm"
+                          onChange={setCheckInTime}
+                          aria-label="Stay start time"
+                          className="text-sm"
                         />
                       </div>
                       <div>
                         <label className="flex items-center gap-1 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
                           <Clock className="h-3 w-3" /> Until
                         </label>
-                        <input
-                          type="time"
+                        <TimeField
                           value={checkOutTime}
-                          onChange={e => setCheckOutTime(e.target.value)}
-                          className="input text-sm"
+                          onChange={setCheckOutTime}
+                          aria-label="Stay end time"
+                          className="text-sm"
                         />
                       </div>
                     </>

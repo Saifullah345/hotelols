@@ -187,6 +187,12 @@ export async function POST(request: Request) {
     paymentAmount = advance
   }
 
+  // `payment_type` defaults to 'full' (migration 031), so an advance used to be
+  // filed as a full payment — the receipt said the stay was paid off and the
+  // balance reports had nothing to chase. It is only 'full' when the amount
+  // taken actually is the total.
+  const paymentType = paymentAmount < total_amount ? 'advance' : 'full'
+
   const admin = await createAdminClient()
 
   // Create ONE booking — room_id = primary, room_ids = all
@@ -221,6 +227,7 @@ export async function POST(request: Request) {
     currency,
     status:         paymentStatus,
     payment_method: finalPaymentMethod,
+    payment_type:   paymentType,
     payment_notes:  payment_notes ?? null,
     paid_at:        paymentStatus === 'completed' ? new Date().toISOString() : null,
   }).select('id').single()

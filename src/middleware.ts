@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase/env'
+import { AUTH_COOKIE_MAX_AGE_SECONDS, getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase/env'
 import { ROLE_COOKIE } from '@/lib/session'
 
 const roleRedirects: Record<string, string> = {
@@ -37,6 +37,9 @@ export async function middleware(request: NextRequest) {
     getSupabaseUrl(),
     getSupabaseAnonKey(),
     {
+      // The middleware is where a refreshed token is actually written back, so
+      // this is the cookie lifetime that ends up in the browser.
+      cookieOptions: { maxAge: AUTH_COOKIE_MAX_AGE_SECONDS },
       cookies: {
         getAll() {
           return request.cookies.getAll()

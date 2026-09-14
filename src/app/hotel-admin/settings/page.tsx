@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation'
 import { CURRENCIES, formatCurrency } from '@/lib/currency'
 import PhoneInput from '@/components/ui/PhoneInput'
 import { CountrySelect, CitySelect } from '@/components/ui/CountryCitySelect'
+import TimeField from '@/components/ui/TimeField'
 
 const fi = 'w-full px-3.5 py-2.5 text-sm text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-transparent placeholder:text-gray-300 transition-shadow'
 const lbl = 'block text-[10px] font-bold text-gray-400 uppercase tracking-[0.08em] mb-1.5'
@@ -340,11 +341,21 @@ export default function HotelSettingsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={lbl}>Check-in Time</label>
-                <input {...hotelForm.register('check_in_time')} type="time" className={fi} />
+                <TimeField
+                  value={(hotelForm.watch('check_in_time') as string) ?? ''}
+                  onChange={v => hotelForm.setValue('check_in_time', v, { shouldDirty: true })}
+                  aria-label="Hotel check-in time"
+                  inputClassName={fi}
+                />
               </div>
               <div>
                 <label className={lbl}>Check-out Time</label>
-                <input {...hotelForm.register('check_out_time')} type="time" className={fi} />
+                <TimeField
+                  value={(hotelForm.watch('check_out_time') as string) ?? ''}
+                  onChange={v => hotelForm.setValue('check_out_time', v, { shouldDirty: true })}
+                  aria-label="Hotel check-out time"
+                  inputClassName={fi}
+                />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -363,7 +374,12 @@ export default function HotelSettingsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={lbl}>Half-Day Cutoff Time</label>
-                  <input {...hotelForm.register('late_checkout_cutoff_time')} type="time" className={fi} />
+                  <TimeField
+                    value={(hotelForm.watch('late_checkout_cutoff_time') as string) ?? ''}
+                    onChange={v => hotelForm.setValue('late_checkout_cutoff_time', v, { shouldDirty: true })}
+                    aria-label="Half-day cutoff time"
+                    inputClassName={fi}
+                  />
                   <p className="text-[10px] text-gray-400 mt-1">Before this time → half-day charge. After → full night.</p>
                 </div>
                 <div>
@@ -409,6 +425,13 @@ export default function HotelSettingsPage() {
                 <input {...hotelForm.register('longitude')} type="number" step="any" placeholder="74.3436" className={fi} />
               </div>
             </div>
+            {/* Same warning the phone's settings screen shows, so neither app
+                lets an admin leave the pin unset without knowing what it costs. */}
+            {(!hotelForm.watch('latitude') || !hotelForm.watch('longitude')) && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                Without a pin, guests only see your written address — the map on your listing stays empty.
+              </p>
+            )}
             <a
               href="https://www.google.com/maps"
               target="_blank"

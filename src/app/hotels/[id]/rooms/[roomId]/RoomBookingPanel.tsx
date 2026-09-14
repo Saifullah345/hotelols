@@ -12,6 +12,7 @@ import { addDays, todayISO } from '@/lib/date'
 import { createClient, getBrowserUser } from '@/lib/supabase/client'
 import { isProfileComplete, missingProfileFields } from '@/lib/profile'
 import { hourlyProblem, stayHours } from '@/lib/hourly'
+import TimeField from '@/components/ui/TimeField'
 
 export type ExtraService = {
   id: string
@@ -286,20 +287,20 @@ export default function RoomBookingPanel({
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="label">From</label>
-                <input
-                  type="time"
+                <TimeField
                   value={checkInTime}
-                  onChange={e => setCheckInTime(e.target.value)}
-                  className="input text-sm"
+                  onChange={setCheckInTime}
+                  aria-label="Stay start time"
+                  className="text-sm"
                 />
               </div>
               <div>
                 <label className="label">Until</label>
-                <input
-                  type="time"
+                <TimeField
                   value={checkOutTime}
-                  onChange={e => setCheckOutTime(e.target.value)}
-                  className="input text-sm"
+                  onChange={setCheckOutTime}
+                  aria-label="Stay end time"
+                  className="text-sm"
                 />
               </div>
             </div>

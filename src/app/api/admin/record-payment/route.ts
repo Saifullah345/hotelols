@@ -72,6 +72,11 @@ export async function POST(request: Request) {
   // Balance remaining after all completed payments
   const balanceAmount = totalAmount - completedTotal
 
+  // What this instalment is: the first and only payment, or the rest of a stay
+  // an advance was already taken against. Recorded so the receipt and the
+  // balance reports agree about which is which — see migration 031.
+  const paymentType = completedTotal > 0 ? 'balance' : 'full'
+
   if (balanceAmount <= 0) {
     return NextResponse.json({ error: 'This booking is already fully paid' }, { status: 400 })
   }
@@ -86,6 +91,7 @@ export async function POST(request: Request) {
         amount: balanceAmount,
         status: 'completed',
         payment_method,
+        payment_type: paymentType,
         payment_notes: payment_notes ?? null,
         paid_at: now,
       })
@@ -104,6 +110,7 @@ export async function POST(request: Request) {
       currency,
       status: 'completed',
       payment_method,
+      payment_type: paymentType,
       payment_notes: payment_notes ?? null,
       paid_at: now,
     }).select('id').single()

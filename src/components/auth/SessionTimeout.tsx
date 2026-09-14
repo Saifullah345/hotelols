@@ -5,9 +5,22 @@ import { useRouter, usePathname } from 'next/navigation'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 
-const INACTIVITY_LIMIT_MS = 8 * 60 * 60 * 1000  // 8 hours
-const WARN_BEFORE_MS      = 5 * 60 * 1000         // warn 5 min before
-const CHECK_INTERVAL_MS   = 60 * 1000             // check every 1 minute
+/**
+ * How long a signed-in session survives without the user touching the app.
+ *
+ * This was 8 hours, which is what "the session expires too quickly" was: a desk
+ * that closes overnight came back to a login screen every morning, and anyone
+ * who left a tab over a weekend was signed out. A hotel dashboard is a tool
+ * people keep open, so the session now lasts a month — sign-out is something
+ * the user does, or something a real token failure forces.
+ *
+ * Note this is the *client* half. The refresh token's own lifetime is set on
+ * the Supabase (GoTrue) instance; if that is shorter than 30 days the server
+ * ends the session first, whatever this says.
+ */
+const INACTIVITY_LIMIT_MS = 30 * 24 * 60 * 60 * 1000  // 30 days
+const WARN_BEFORE_MS      = 60 * 60 * 1000            // warn an hour before
+const CHECK_INTERVAL_MS   = 5 * 60 * 1000             // check every 5 minutes
 const STORAGE_KEY         = 'hotelos:lastActivity'
 const WARN_TOAST_ID       = 'session-timeout-warn'
 
@@ -42,8 +55,14 @@ export default function SessionTimeout() {
       if (!isProtected) return
       const { error } = await supabase.auth.getUser()
       if (error) {
+        // Only a named invalid-token code ends the session. `error.status === 400`
+        // used to be enough, which meant any 400 GoTrue happened to answer with —
+        // a JWKS hiccup, a momentary upstream blip — signed a working session
+        // out. That is the same trap src/middleware.ts documents at length; the
+        // fix there was to stop treating "couldn't confirm this" as "revoked",
+        // and it is the fix here too.
         const code = (error as { code?: string }).code ?? ''
-        if (INVALID_TOKEN_CODES.has(code) || error.status === 400) {
+        if (INVALID_TOKEN_CODES.has(code)) {
           clearInterval(interval)
           await supabase.auth.signOut()
           localStorage.removeItem(STORAGE_KEY)
@@ -86,7 +105,7 @@ export default function SessionTimeout() {
       }
 
       if (idle >= INACTIVITY_LIMIT_MS - WARN_BEFORE_MS) {
-        const minsLeft = Math.ceil((INACTIVITY_LIMIT_MS - idle) / 60_000)
+        const minsLeft = Math.max(1, Math.ceil((INACTIVITY_LIMIT_MS - idle) / 60_000))
         toast.warning(
           `You will be signed out in ${minsLeft} minute${minsLeft !== 1 ? 's' : ''} due to inactivity.`,
           { id: WARN_TOAST_ID, duration: Infinity }
